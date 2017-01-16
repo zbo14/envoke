@@ -1,0 +1,86 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<div id="login">
+ <form id="login-form">
+    <h2>Login</h2>
+    <input type="text" name="pub_key" placeholder="public key" required />
+    <input type="password" name="priv_key" placeholder="private key" required />
+    <input type="submit" value="enter" />
+  </form>
+</div>
+
+<div id="create-account">
+   <form id="create-account-form">
+      <h2>Create Account</h2>
+      <input type="text" name="username" placeholder="username" required /><br>
+      <input type="password" name="password" placeholder="password" required /></br>
+      <input type="submit" value="create"/>
+  </form>
+</div>
+<script type="text/javascript">
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState == 4) {
+        if (xhr.status == 200) {
+          callback(xhr.responseText);
+        } else {
+          alert(xhr.responseText);
+        };
+      };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+window.onclick = function(event) {
+  var login = document.getElementById("login");
+  var createAccount = document.getElementById("create-account");
+  if (event.target == document.getElementById("login")) {
+     login.style.display = "none";
+  }; 
+  if (event.target == document.getElementById("create-account")) {
+     createAccount.style.display = "none";
+  };
+}
+
+// Callbacks
+var loginCallback = function(responseText) {
+  var json = JSON.parse(responseText);
+  if (json.action == "login" && json.error == null)  {
+    window.location.replace("http://localhost:8888/citizen");
+  } else {
+    console.log(json);
+  };
+};
+
+var createAccountCallback = function(responseText) {
+  var json = JSON.parse(responseText);
+  console.log(json); //for now
+};
+
+window.onload = function(){
+    // Login
+    var loginForm = document.getElementById("login-form");
+    loginForm.onsubmit = function(event) {
+      event.preventDefault();
+      var formData = $("#login-form").serialize();
+      httpPostAsync("http://localhost:8888/login", formData, loginCallback);
+
+    };
+    // Create account 
+    var createAccountForm = document.getElementById("create-account-form");
+    createAccountForm.onsubmit = function(event) {
+      event.preventDefault();
+      var formData = $("#create-account-form").serialize();    
+      httpPostAsync("http://localhost:8888/create_account", formData, createAccountCallback); 
+    };
+}
+</script>
+{{end}}
+
+
+

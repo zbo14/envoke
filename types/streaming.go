@@ -4,10 +4,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/zballs/go_resonate/crypto"
 	. "github.com/zballs/go_resonate/util"
-	"io"
-	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -15,7 +12,7 @@ import (
 
 // HTTP
 
-func FlushWriter(w io.Writer) flushWriter {
+func FlushWriter(w Writer) flushWriter {
 	fw := flushWriter{w: w}
 	if f, ok := w.(http.Flusher); ok {
 		fw.f = f
@@ -25,7 +22,7 @@ func FlushWriter(w io.Writer) flushWriter {
 
 type flushWriter struct {
 	f http.Flusher
-	w io.Writer
+	w Writer
 }
 
 func (fw flushWriter) Write(p []byte) error {
@@ -153,7 +150,7 @@ type PlayResponse struct {
 type SocketService struct {
 	dir      string
 	files    http.FileSystem
-	lis      net.Listener
+	lis      Listener
 	logger   Logger
 	shutdown int32
 }
@@ -163,7 +160,7 @@ func NewSocketService(addr, dir string) (*SocketService, error) {
 	if addr == "" {
 		addr = LOCALHOST
 	}
-	lis, err := net.Listen("tcp", addr+":"+PORT)
+	lis, err := ListenTCP(addr + ":" + PORT)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +206,7 @@ func (serv *SocketService) AcceptConnections() {
 	}
 }
 
-func (serv *SocketService) HandleConn(conn net.Conn) {
+func (serv *SocketService) HandleConn(conn Conn) {
 	playRequest := new(PlayRequest)
 	playResponse := new(PlayResponse)
 	if err := ReadJSON(conn, playRequest); err != nil {
@@ -232,7 +229,7 @@ func (serv *SocketService) HandleConn(conn net.Conn) {
 	}
 	// TODO: verify payment
 	// Find file in project
-	dir, err := os.Open(projectTitle)
+	dir, err := OpenFile(projectTitle)
 	if err != nil {
 		serv.logger.Error(err.Error())
 		playResponse.Error = err

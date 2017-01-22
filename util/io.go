@@ -5,6 +5,9 @@ import (
 	"io/ioutil"
 )
 
+type Reader io.Reader
+type Writer io.Writer
+
 func Copy(w io.Writer, r io.Reader) {
 	_, err := io.Copy(w, r)
 	Check(err)

@@ -1,8 +1,6 @@
 package util
 
 import (
-	"github.com/pkg/errors"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -13,10 +11,7 @@ import (
 const MAX_MEMORY int64 = 1000000000000
 
 func UrlValues(req *http.Request) (url.Values, error) {
-	data, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
+	data := ReadAll(req.Body)
 	vals, err := url.ParseQuery(string(data))
 	if err != nil {
 		return nil, err
@@ -30,7 +25,7 @@ func MultipartForm(req *http.Request) (*multipart.Form, error) {
 		return nil, err
 	}
 	if !strings.HasPrefix(mediaType, "multipart/") {
-		return nil, errors.Errorf("Expected mimetype=multipart; got mimetype=%s", mediaType)
+		return nil, Error("Expected mimetype=multipart; got mimetype=" + mediaType)
 	}
 	mr := multipart.NewReader(req.Body, params["boundary"])
 	return mr.ReadForm(MAX_MEMORY)

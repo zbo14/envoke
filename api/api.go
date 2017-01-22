@@ -6,9 +6,7 @@ import (
 	"github.com/zballs/go_resonate/crypto"
 	"github.com/zballs/go_resonate/types"
 	. "github.com/zballs/go_resonate/util"
-	"net"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -171,17 +169,24 @@ func (api *Api) PlaySong(w http.ResponseWriter, req *http.Request) {
 	// Get request data
 	values, err := UrlValues(req)
 	if err != nil {
-		//..
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	songId := values.Get("song_id")
 	t, err := bigchain.GetTransaction(songId)
 	if err != nil {
-		//..
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
 	playAddr := t.GetValue("url").(string)
-	conn, err := net.Dial("tcp", playAddr)
+	if playAddr == "" {
+		http.Error(w, "Could not find song url", http.StatusNotFound)
+		return
+	}
+	conn, err := DialTCP(playAddr)
 	if err != nil {
-		//..
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	defer conn.Close()
 	projectTitle := values.Get("project_title")
@@ -189,7 +194,8 @@ func (api *Api) PlaySong(w http.ResponseWriter, req *http.Request) {
 	sig := api.priv.Sign([]byte(projectTitle + songTitle))
 	playRequest := types.NewPlayRequest(projectTitle, songTitle, api.pub, sig)
 	if err := WriteJSON(conn, playRequest); err != nil {
-		//..
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	Copy(w, conn)
 }
@@ -241,7 +247,7 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	for i, song := range songs {
 		// Store file
 		path := api.serv.Path(projectTitle, song.Filename)
-		file, err := os.Create(path)
+		file, err := CreateFile(path)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

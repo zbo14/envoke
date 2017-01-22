@@ -1,8 +1,9 @@
-package util
+package crypto
 
 import (
 	"bytes"
 	// "crypto/rand"
+	. "github.com/zballs/go_resonate/util"
 	bcrypt "golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ed25519"
 )

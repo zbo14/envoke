@@ -28,6 +28,9 @@ The client-side application interface. It's currently designed to run locally an
 ### Coala
 A json-ld implementation of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
 
+### Crypto
+Ed25519 public-key cryptography.
+
 ### Types
 Contains the `user` type (below), http/socket streaming services, and others.
 

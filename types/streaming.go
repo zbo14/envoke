@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/julienschmidt/httprouter"
+	"github.com/zballs/go_resonate/crypto"
 	. "github.com/zballs/go_resonate/util"
 	"io"
 	"net"
@@ -87,14 +88,14 @@ func (serv *HttpService) SetPlayHandler() {
 				return
 			}
 			// Public key
-			pub := new(PublicKey)
+			pub := new(crypto.PublicKey)
 			if err := pub.FromB58(pub58); err != nil {
 				serv.logger.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 			// Signature
-			sig := new(Signature)
+			sig := new(crypto.Signature)
 			if err := sig.FromB58(sig58); err != nil {
 				serv.logger.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -129,13 +130,13 @@ const PORT = ":8889"
 
 type PlayRequest struct {
 	// Payment
-	ProjectTitle string     `json:"project_title"`
-	SongTitle    string     `json:"song_title"`
-	PublicKey    *PublicKey `json:"public_key"`
-	Signature    *Signature `json:"signature"`
+	ProjectTitle string            `json:"project_title"`
+	SongTitle    string            `json:"song_title"`
+	PublicKey    *crypto.PublicKey `json:"public_key"`
+	Signature    *crypto.Signature `json:"signature"`
 }
 
-func NewPlayRequest(projectTitle, songTitle string, pub *PublicKey, sig *Signature) *PlayRequest {
+func NewPlayRequest(projectTitle, songTitle string, pub *crypto.PublicKey, sig *crypto.Signature) *PlayRequest {
 	return &PlayRequest{
 		ProjectTitle: projectTitle,
 		SongTitle:    songTitle,

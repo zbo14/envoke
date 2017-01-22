@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/zballs/go_resonate/bigchain"
 	"github.com/zballs/go_resonate/coala"
+	"github.com/zballs/go_resonate/crypto"
 	"github.com/zballs/go_resonate/types"
 	. "github.com/zballs/go_resonate/util"
 	"net"
@@ -13,8 +14,8 @@ import (
 
 type Api struct {
 	logger types.Logger
-	priv   *PrivateKey
-	pub    *PublicKey
+	priv   *crypto.PrivateKey
+	pub    *crypto.PublicKey
 	//serv   *types.HttpService
 	serv   *types.SocketService
 	user   *types.User
@@ -72,7 +73,7 @@ func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
 	// New user
 	user := types.NewUser(email, password, username, _type)
 	// Generate keypair from password
-	priv, pub := GenerateKeypair(password)
+	priv, pub := crypto.GenerateKeypair(password)
 	data := make(map[string]interface{})
 	// Sign user bytes
 	json := MarshalJSON(user)
@@ -103,7 +104,7 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// PrivKey
-	priv := new(PrivateKey)
+	priv := new(crypto.PrivateKey)
 	keystr := values.Get("private_key")
 	if err = priv.FromB58(keystr); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -119,7 +120,7 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	// Get user signature
 	data := t.GetData()
-	sig := new(Signature)
+	sig := new(crypto.Signature)
 	if err := sig.FromB58(data["user_signature"].(string)); err != nil {
 		http.Error(w, Error("Failed to verify user signature").Error(), http.StatusUnauthorized)
 		return

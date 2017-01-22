@@ -6,16 +6,20 @@ import (
 	"net/http"
 )
 
+const dir = ""
+
 func main() {
-	RegisterTemplates("home.html")
-	CreatePages("home")
+
+	CreatePages("artist", "listener", "login")
+	RegisterTemplates("artist.html", "login.html")
 
 	// Create request multiplexer
 	mux := http.NewServeMux()
-	mux.HandleFunc("/home", TemplateHandler("home.html"))
+	mux.HandleFunc("/artist", TemplateHandler("artist.html"))
+	mux.HandleFunc("/login", TemplateHandler("login.html"))
 
 	// Create api
-	api := api.NewApi()
+	api := api.NewApi(dir)
 
 	// Add routes to multiplexer
 	api.AddRoutes(mux)

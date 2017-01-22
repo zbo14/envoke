@@ -17,7 +17,11 @@ The client-side application interface. It's currently designed to run locally an
 A json-ld implementation of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
 
 ### Types
+<<<<<<< HEAD
 Contains the `user` type (below), http/socket streaming services, and others.
+=======
+Contains the `user` type (below) and others.
+>>>>>>> 1679fa37c7128592d5f5d29bd3244b39482c29f6
 
 ```go
 type User struct {

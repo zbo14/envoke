@@ -1,11 +1,23 @@
-## Repository Overview
+## Overview
 
 Note: go-resonate is in the early (early) stages of development and is not usable in any way for anything yet.
 
+### Identity
+The demo currently uses Ed25519 public-key cryptography with BigchainDB for user identification and verification. We are looking at integration of other identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack).
+
+TODO: Test compatibility of BigchainDB crypto-conditions with Ed25519 library 
+
+### Blockchain
+This is not a blockchain application (yet). We are considering various platforms and consensus engines such as [Tendermint](https://github.com/tendermint), which would be used for the ordering of transactions (e.g. uploads, plays), state replication across a network, and payments. This infrastructure would be in addition to BigchainDB/IPDB.
+
+### Users
+We are currently focusing on two types of users in the demo, `artist` and `listener`, though we may include others (e.g. organization, label). That is, different types of users will have different designated actions and permissions. 
+
+## Directories
+
 ### API
 The client-side application interface. It's currently designed to run locally and communicate with BigchainDB/IPDB over http, though this may change. Working on functionality for the following user actions:
-- Register a user
-- Login 
+- Login/Register
 - Create a project
 - Stream a song
 - other TBD
@@ -30,8 +42,7 @@ type User struct {
 ```
 
 ### Util
-
-----
+TODO
 
 ## Walkthrough
 
@@ -62,7 +73,9 @@ What you get:
 - A friendly welcome message
 
 ### Creating a project
+TODO
 
 ### Streaming a song
+TODO
 
 More to come!

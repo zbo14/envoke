@@ -82,6 +82,7 @@ func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
 	Println(string(MarshalJSON(t)))
 	id, err := bigchain.PostTransaction(t)
 	if err != nil {
+		api.logger.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -231,6 +232,7 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	}
 	// Project title
 	projectTitle := form.Value["project_title"][0]
+	// Any other medadata we need?
 	// Create new project
 	data := api.NewProject(projectTitle)
 	// Generate and send transaction to IPDB

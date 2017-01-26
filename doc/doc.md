@@ -1,6 +1,6 @@
 ## Overview
 
-Note: go-resonate is in the early (early) stages of development and is not usable in any way for anything yet.
+Note: go-resonate is in the early (early) stages of development.
 
 ### Identity
 The demo currently uses Ed25519 public-key cryptography with BigchainDB for user identification and verification. We are looking at integration of other identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack).
@@ -16,11 +16,13 @@ We are currently focusing on two types of users in the demo, `artist` and `liste
 ## Directories
 
 ### API
-The client-side application interface. It's currently designed to run locally and communicate with BigchainDB/IPDB over http, though this may change. Working on functionality for the following user actions:
+A client-side API. It's currently designed to run locally and communicate with BigchainDB/IPDB over http, though this may change. Working on functionality for the following user actions:
 - Login/Register
 - Create a project
 - Stream a song
 - other TBD
+
+Note: the API is purely for demo purposes. We hope to eventually integrate the other modules into an existing API.
 
 ### Bigchain
 [Handcrafting transactions](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) and sending them to BigchainDB/IPDB.
@@ -29,7 +31,7 @@ The client-side application interface. It's currently designed to run locally an
 A json-ld implementation of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
 
 ### Crypto
-Ed25519 public-key cryptography.
+Ed25519 public-key cryptography and a minimal [crypto-conditions library.
 
 ### Types
 Contains the `user` type (below), http/socket streaming services, and others.

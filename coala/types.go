@@ -96,7 +96,7 @@ func NewOrganization(name string, founder string, members []string) map[string]i
 	return data
 }
 
-// Work (e.g. composition)
+// Work
 
 func NewWork(name, author string) map[string]interface{} {
 	json := MarshalJSON(struct {
@@ -110,6 +110,72 @@ func NewWork(name, author string) map[string]interface{} {
 		Type:    "Work",
 		Name:    name,
 		Author:  author,
+	})
+	data, err := CompactJSON(json)
+	Check(err)
+	return data
+}
+
+// Album
+
+func NewAlbum(byArtist string, tracks []string, name string) map[string]interface{} {
+	numTracks := len(tracks)
+	json := MarshalJSON(struct {
+		Context   string   `json:"@context"`
+		Type      string   `json:"@type"`
+		Id        string   `json:"@id"`
+		ByArtist  string   `json:"byArtist"`
+		NumTracks int      `json:"numTracks"`
+		Tracks    []string `json:"tracks"`
+		Name      string   `json:"name"`
+	}{
+		Context:   SCHEMA,
+		Type:      "MusicAlbum",
+		ByArtist:  byArtist,
+		NumTracks: numTracks,
+		Tracks:    tracks,
+		Name:      name,
+	})
+	data, err := CompactJSON(json)
+	Check(err)
+	return data
+}
+
+func NewComposition(composer, lyrics, recordedAs string) map[string]interface{} {
+	json := MarshalJSON(struct {
+		Context    string `json:"@context"`
+		Type       string `json:"@type"`
+		Id         string `json:"@id"`
+		Composer   string `json:"composer"`
+		Lyrics     string `json:"lyrics"`
+		RecordedAs string `json:"recordingOf"`
+	}{
+		Context:    SCHEMA,
+		Type:       "MusicComposition",
+		Composer:   composer,
+		Lyrics:     lyrics,
+		RecordedAs: recordedAs,
+	})
+	data, err := CompactJSON(json)
+	Check(err)
+	return data
+}
+
+func NewRecording(byArtist, inAlbum, recordingOf string) map[string]interface{} {
+	// include duration?
+	json := MarshalJSON(struct {
+		Context     string `json:"@context"`
+		Type        string `json:"@type"`
+		Id          string `json:"@id"`
+		ByArtist    string `json:"byArtist"`
+		InAlbum     string `json:"inAlbum"`
+		RecordingOf string `json:"recordingOf"`
+	}{
+		Context:     SCHEMA,
+		Type:        "MusicRecording",
+		ByArtist:    byArtist,
+		InAlbum:     inAlbum,
+		RecordingOf: recordingOf,
 	})
 	data, err := CompactJSON(json)
 	Check(err)

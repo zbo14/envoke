@@ -160,7 +160,7 @@ func NewSocketService(addr, dir string) (*SocketService, error) {
 	if addr == "" {
 		addr = LOCALHOST
 	}
-	lis, err := ListenTCP(addr + ":" + PORT)
+	lis, err := ListenTCP(addr + PORT)
 	if err != nil {
 		return nil, err
 	}

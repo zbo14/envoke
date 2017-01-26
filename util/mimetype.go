@@ -11,7 +11,10 @@ import (
 const MAX_MEMORY int64 = 1000000000000
 
 func UrlValues(req *http.Request) (url.Values, error) {
-	data := ReadAll(req.Body)
+	data, err := ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
 	vals, err := url.ParseQuery(string(data))
 	if err != nil {
 		return nil, err

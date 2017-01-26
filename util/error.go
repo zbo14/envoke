@@ -16,4 +16,6 @@ func Errorf(format string, args ...interface{}) error {
 	return errors.Errorf(format, args...)
 }
 
-// TODO: add panics
+func Panicf(format string, args ...interface{}) {
+	panic(Sprintf(format, args...))
+}

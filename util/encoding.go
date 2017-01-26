@@ -5,17 +5,24 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/jbenet/go-base58"
-	"io"
 )
 
 // Base64
-func Base64RawURL(data []byte) string {
-	return base64.RawURLEncoding.EncodeToString(data)
+func Base64UrlEncode(bytes []byte) string {
+	return base64.RawURLEncoding.EncodeToString(bytes)
+}
+
+func Base64UrlDecode(b64 string) ([]byte, error) {
+	return base64.RawURLEncoding.DecodeString(b64)
+}
+
+func B64Std(bytes []byte) string {
+	return base64.StdEncoding.EncodeToString(bytes)
 }
 
 // B58
-func BytesToB58(data []byte) string {
-	return base58.Encode(data)
+func BytesToB58(bytes []byte) string {
+	return base58.Encode(bytes)
 }
 
 func BytesFromB58(b58 string) []byte {
@@ -23,34 +30,62 @@ func BytesFromB58(b58 string) []byte {
 }
 
 // Hex
-func BytesToHex(data []byte) string {
-	return hex.EncodeToString(data)
+func BytesToHex(bytes []byte) string {
+	return hex.EncodeToString(bytes)
 }
 
 func BytesFromHex(hexstr string) []byte {
-	data, err := hex.DecodeString(hexstr)
+	bytes, err := hex.DecodeString(hexstr)
 	Check(err)
-	return data
+	return bytes
 }
 
 // JSON
-func MarshalJSON(v interface{}) []byte {
-	data, err := json.Marshal(v)
-	Check(err)
-	return data
+func MarshalJSON(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }
 
-func UnmarshalJSON(data []byte, v interface{}) {
-	err := json.Unmarshal(data, v)
+func MustMarshalJSON(v interface{}) []byte {
+	bytes, err := MarshalJSON(v)
+	Check(err)
+	return bytes
+}
+
+func MarshalIndentJSON(v interface{}) ([]byte, error) {
+	return json.MarshalIndent(v, "", "  ")
+}
+
+func MustMarshalIndentJSON(v interface{}) []byte {
+	bytes, err := MarshalIndentJSON(v)
+	Check(err)
+	return bytes
+}
+
+func UnmarshalJSON(bytes []byte, v interface{}) error {
+	return json.Unmarshal(bytes, v)
+}
+
+func MustUnmarshalJSON(bytes []byte, v interface{}) {
+	err := UnmarshalJSON(bytes, v)
 	Check(err)
 }
 
-func ReadJSON(r io.Reader, v interface{}) error {
+func ReadJSON(r Reader, v interface{}) error {
 	dec := json.NewDecoder(r)
 	return dec.Decode(v)
 }
 
-func WriteJSON(w io.Writer, v interface{}) error {
+func MustReadJSON(r Reader, v interface{}) {
+	err := ReadJSON(r, v)
+	Check(err)
+}
+
+func WriteJSON(w Writer, v interface{}) error {
 	enc := json.NewEncoder(w)
 	return enc.Encode(v)
+}
+
+func MustWriteJSON(w Writer, v interface{}) {
+	err := WriteJSON(w, v)
+	Check(err)
 }

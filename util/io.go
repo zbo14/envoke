@@ -10,6 +10,8 @@ var EOF = io.EOF
 type Reader io.Reader
 type Writer io.Writer
 
+type ByteReader io.ByteReader
+
 func Copy(w io.Writer, r io.Reader) error {
 	_, err := io.Copy(w, r)
 	if err != nil {

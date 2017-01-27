@@ -41,6 +41,7 @@ func BytesFromHex(hexstr string) []byte {
 }
 
 // JSON
+
 func MarshalJSON(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }

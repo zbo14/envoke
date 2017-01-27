@@ -42,6 +42,8 @@ type fulfillmentEd25519 struct {
 	*fulfillment
 }
 
+var NilFulfillmentEd25519 *fulfillmentEd25519 = nil
+
 func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fulfillmentEd25519 {
 	pub := priv.Public()
 	sig := priv.Sign(msg)

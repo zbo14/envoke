@@ -1,8 +1,6 @@
 package util
 
-import (
-	"encoding/binary"
-)
+import "encoding/binary"
 
 func Uint16Bytes(x int) []byte {
 	p := make([]byte, 2)

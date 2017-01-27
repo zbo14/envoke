@@ -29,6 +29,7 @@ const (
 
 	ED25519_ID      = 4
 	ED25519_BITMASK = 0x20
+	ED25519_SIZE    = ed25519.PUBKEY_SIZE + ed25519.SIGNATURE_SIZE
 )
 
 // Fulfillment
@@ -175,6 +176,9 @@ func (f *fulfillment) MarshalBinary() ([]byte, error) {
 }
 
 func (f *fulfillment) MarshalJSON() ([]byte, error) {
+	if f == nil {
+		return nil, nil
+	}
 	uri := f.String()
 	p := MustMarshalJSON(uri)
 	return p, nil
@@ -238,7 +242,7 @@ type Condition struct {
 }
 
 func NewConditionEd25519(pub *ed25519.PublicKey, weight int) *Condition {
-	return NewCondition(ED25519_BITMASK, pub.Bytes(), ED25519_ID, ed25519.PUBKEY_SIZE+ed25519.SIGNATURE_SIZE, weight)
+	return NewCondition(ED25519_BITMASK, pub.Bytes(), ED25519_ID, ED25519_SIZE, weight)
 }
 
 func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition {
@@ -333,6 +337,9 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 }
 
 func (c *Condition) MarshalJSON() ([]byte, error) {
+	if c == nil {
+		return nil, nil
+	}
 	uri := c.String()
 	p := MustMarshalJSON(uri)
 	return p, nil

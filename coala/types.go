@@ -16,7 +16,7 @@ const (
 // Geo coordinates
 
 func NewGeo(lat, long string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context   string `json:"@context"`
 		Type      string `json:"@type"`
 		Latitude  string `json:"latitude"`
@@ -35,7 +35,7 @@ func NewGeo(lat, long string) map[string]interface{} {
 // Localizable place
 
 func NewPlace(lat, long, name string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context string                 `json:"@context"`
 		Type    string                 `json:"@type"`
 		Geo     map[string]interface{} `json:"geo"`
@@ -54,7 +54,7 @@ func NewPlace(lat, long, name string) map[string]interface{} {
 // Person
 
 func NewPerson(givenName, familyName, birthDate string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context    string `json: "@context"`
 		Type       string `json:"@type"`
 		Id         string `json:"@id"`
@@ -77,7 +77,7 @@ func NewPerson(givenName, familyName, birthDate string) map[string]interface{} {
 // Organization
 
 func NewOrganization(name string, founder string, members []string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context string   `json:"@context"`
 		Type    string   `json:"@type"`
 		Id      string   `json:"@id"`
@@ -99,7 +99,7 @@ func NewOrganization(name string, founder string, members []string) map[string]i
 // Work
 
 func NewWork(name, author string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context string `json:"@context"`
 		Type    string `json:"@type"`
 		Id      string `json:"@id"`
@@ -120,7 +120,7 @@ func NewWork(name, author string) map[string]interface{} {
 
 func NewAlbum(byArtist string, tracks []string, name string) map[string]interface{} {
 	numTracks := len(tracks)
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context   string   `json:"@context"`
 		Type      string   `json:"@type"`
 		Id        string   `json:"@id"`
@@ -142,7 +142,7 @@ func NewAlbum(byArtist string, tracks []string, name string) map[string]interfac
 }
 
 func NewComposition(composer, lyrics, recordedAs string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context    string `json:"@context"`
 		Type       string `json:"@type"`
 		Id         string `json:"@id"`
@@ -163,7 +163,7 @@ func NewComposition(composer, lyrics, recordedAs string) map[string]interface{} 
 
 func NewRecording(byArtist, inAlbum, recordingOf string) map[string]interface{} {
 	// include duration?
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context     string `json:"@context"`
 		Type        string `json:"@type"`
 		Id          string `json:"@id"`
@@ -185,7 +185,7 @@ func NewRecording(byArtist, inAlbum, recordingOf string) map[string]interface{} 
 // Digital manifestation (e.g. audio file)
 
 func NewDigitalManifestation(name string, example string, isManifestation bool, project string, datePublished string, locationCreated, url string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context         string `json:"@context"`
 		Type            string `json:"@type"`
 		Id              string `json:"@id"`
@@ -215,7 +215,7 @@ func NewDigitalManifestation(name string, example string, isManifestation bool, 
 // Digital Fingerprint
 
 func NewDigitalFingerprint(creativeWork string, fingerprint string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context       string `json:"@context"`
 		Type          string `json:"@type"`
 		Id            string `json:"@id"`
@@ -235,7 +235,7 @@ func NewDigitalFingerprint(creativeWork string, fingerprint string) map[string]i
 // Right
 
 func NewRight(usages []string, territory string, rightContext []string, exclusive bool, numberOfUses, percentageShares int, validFrom, validTo string, creativeWork, license string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context          string   `json:"@context"`
 		Type             string   `json:"@type"`
 		Id               string   `json:"@id"`
@@ -271,7 +271,7 @@ func NewRight(usages []string, territory string, rightContext []string, exclusiv
 // Rights assignment
 
 func NewRightsAssignment(id, creativeWork string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context          string `json:"@context"`
 		Type             string `json:"@type"`
 		Id               string `json:"@id"`
@@ -289,7 +289,7 @@ func NewRightsAssignment(id, creativeWork string) map[string]interface{} {
 // Rights assertion
 
 func NewRightsAssertion(id, asserter string, assertionTruth bool, assertionSubject string, _error, validFrom, validThrough string) map[string]interface{} {
-	json := MarshalJSON(struct {
+	json := MustMarshalJSON(struct {
 		Context          string `json:"@context"`
 		Type             string `json:"@type"`
 		Id               string `json:"@id"`

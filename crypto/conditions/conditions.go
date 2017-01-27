@@ -10,8 +10,8 @@ import (
 
 const (
 	// Params
-	HASH_SIZE         = 32
-	CONDITION_SIZE    = 10 + HASH_SIZE
+	HASH_LENGTH       = 32
+	CONDITION_SIZE    = 10 + HASH_LENGTH
 	MAX_PAYLOAD_SIZE  = 0xfff
 	SUPPORTED_BITMASK = 0x3f
 
@@ -29,24 +29,25 @@ const (
 
 	ED25519_ID      = 4
 	ED25519_BITMASK = 0x20
-	ED25519_SIZE    = ed25519.PUBKEY_SIZE + ed25519.SIGNATURE_SIZE
 )
 
 // Fulfillment
 
 type Fulfillment interface {
-	Id() int
 	Bitmask() int
-	Size() int // size of serialized fulfillment
-	Len() int  // length of serialized condition
-	Weight() int
-	String() string          // serialize fulfillment to uri
-	FromString(string) error // parse fulfillment from uri
-	Hash() []byte
 	Condition() *Condition
-	Validate([]byte) bool
+	Hash() []byte
+	Id() int
+	IsCondition() bool
+	FromString(string) error
 	MarshalBinary() ([]byte, error)
+	MarshalJSON() ([]byte, error)
+	Size() int
+	String() string
 	UnmarshalBinary([]byte) error
+	UnmarshalJSON([]byte) error
+	Validate([]byte) bool
+	Weight() int
 }
 
 type Fulfillments []Fulfillment
@@ -75,66 +76,207 @@ func (fs Fulfillments) Swap(i, j int) {
 func UnmarshalFulfillment(p []byte, weight int) (Fulfillment, error) {
 	c := new(Condition)
 	if err := c.UnmarshalBinary(p); err == nil {
+		c.weight = weight
 		return c, nil
 	}
-	switch id := MustUint16(p[:2]); id {
-	case PREIMAGE_ID:
-		f := new(fulfillmentPreImage)
-		if err := f.UnmarshalBinary(p); err != nil {
-			return nil, err
-		}
-		f.weight = weight
-		return f, nil
-	case THRESHOLD_ID:
-		f := new(fulfillmentThreshold)
-		if err := f.UnmarshalBinary(p); err != nil {
-			return nil, err
-		}
-		f.weight = weight
-		return f, nil
-	case ED25519_ID:
-		f := new(fulfillmentEd25519)
-		if err := f.UnmarshalBinary(p); err != nil {
-			return nil, err
-		}
-		f.weight = weight
-		return f, nil
-	default:
-		return nil, Errorf("Unexpected id=%d\n", id)
+	f := new(fulfillment)
+	if err := f.UnmarshalBinary(p); err != nil {
+		return nil, err
 	}
+	if weight < 1 {
+		return nil, Error("Weight cannot be less than 1")
+	}
+	f.weight = weight
+	switch f.id {
+	case PREIMAGE_ID:
+		return &fulfillmentPreImage{f}, nil
+	case ED25519_ID:
+		return &fulfillmentEd25519{f}, nil
+	case THRESHOLD_ID:
+		subs, threshold, err := ThresholdSubs(f.payload)
+		if err != nil {
+			return nil, err
+		}
+		return &fulfillmentThreshold{
+			fulfillment: f,
+			subs:        subs,
+			threshold:   threshold,
+		}, nil
+	default:
+		return nil, Errorf("Unexpected id=%d\n", f.id)
+	}
+}
+
+type fulfillment struct {
+	bitmask int
+	hash    []byte
+	id      int
+	payload []byte
+	size    int
+	weight  int
+}
+
+func NewFulfillment(id int, payload []byte, weight int) *fulfillment {
+	switch id {
+	case PREIMAGE_ID, ED25519_ID, THRESHOLD_ID:
+	default:
+		Panicf("Unexpected id=%d\n", id)
+	}
+	if size := len(payload); size > MAX_PAYLOAD_SIZE {
+		panic("Exceeded max payload size")
+	}
+	if weight < 1 {
+		panic("Weight cannot be less than 1")
+	}
+	return &fulfillment{
+		id:      id,
+		payload: payload,
+		weight:  weight,
+	}
+}
+
+func (f *fulfillment) Condition() *Condition {
+	return NewCondition(f.bitmask, f.hash, f.id, f.size, f.weight)
+}
+
+func (f *fulfillment) Id() int { return f.id }
+
+func (f *fulfillment) IsCondition() bool { return false }
+
+func (f *fulfillment) FromString(uri string) error {
+	if !MatchString(FULFILLMENT_REGEX, uri) {
+		return Error("Uri does not match fulfillment regex")
+	}
+	parts := Split(uri, ":")
+	id, err := ParseUint16(parts[1])
+	if err != nil {
+		return err
+	}
+	switch int(id) {
+	case PREIMAGE_ID, ED25519_ID, THRESHOLD_ID:
+	default:
+		return Errorf("Unexpected id=%d\n", id)
+	}
+	p, err := Base64UrlDecode(parts[2])
+	if err != nil {
+		return err
+	}
+	if size := len(p); size > MAX_PAYLOAD_SIZE {
+		return Error("Exceeds max payload size")
+	}
+	//TODO: check ed25519 size
+	f.id = int(id)
+	f.payload = p
+	return nil
+}
+
+func (f *fulfillment) MarshalBinary() ([]byte, error) {
+	return append(Uint16Bytes(f.id), f.payload...), nil
+}
+
+func (f *fulfillment) MarshalJSON() ([]byte, error) {
+	uri := f.String()
+	p := MustMarshalJSON(uri)
+	return p, nil
+}
+
+func (f *fulfillment) Size() int {
+	if f.size > 0 {
+		return f.size
+	}
+	f.size = len(f.payload)
+	return f.size
+}
+
+func (f *fulfillment) String() string {
+	b64 := Base64UrlEncode(f.payload)
+	return Sprintf("cf:%x:%s", f.id, b64)
+}
+
+func (f *fulfillment) UnmarshalBinary(p []byte) error {
+	id := MustUint16(p[:2])
+	switch id {
+	case PREIMAGE_ID, THRESHOLD_ID, ED25519_ID:
+	default:
+		return Errorf("Unexpected id=%d\n", id)
+	}
+	if size := len(p[2:]); size > MAX_PAYLOAD_SIZE {
+		return Error("Exceeds max payload size")
+	}
+	f.id = id
+	f.payload = p[2:]
+	return nil
+}
+
+func (f *fulfillment) UnmarshalJSON(p []byte) error {
+	var uri string
+	if err := UnmarshalJSON(p, &uri); err != nil {
+		return err
+	}
+	if err := f.FromString(uri); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *fulfillment) Weight() int {
+	if f.weight >= 1 {
+		return f.weight
+	}
+	f.weight = 1
+	return f.weight
 }
 
 // Condition
 
 type Condition struct {
-	id      int
 	bitmask int
 	hash    []byte
+	id      int
 	size    int
 	weight  int
 }
 
 func NewConditionEd25519(pub *ed25519.PublicKey, weight int) *Condition {
-	return NewCondition(ED25519_ID, ED25519_BITMASK, pub.Bytes(), ED25519_SIZE, weight)
+	return NewCondition(ED25519_BITMASK, pub.Bytes(), ED25519_ID, ed25519.PUBKEY_SIZE+ed25519.SIGNATURE_SIZE, weight)
 }
 
-func NewCondition(id, bitmask int, hash []byte, size, weight int) *Condition {
-	if size := len(hash); size != HASH_SIZE {
-		Panicf("Expected hash with size=%d; got size=%d\n", HASH_SIZE, size)
+func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition {
+	switch {
+	case
+		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
+		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == THRESHOLD_ID && bitmask == THRESHOLD_BITMASK:
+	default:
+		Panicf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
+	}
+	if length := len(hash); length != HASH_LENGTH {
+		Panicf("Expected hash length=%d; got length=%d\n", HASH_LENGTH, length)
+	}
+	if size > MAX_PAYLOAD_SIZE {
+		panic("Exceeded max payload size")
+	}
+	if weight < 1 {
+		panic("Weight cannot be less than 1")
 	}
 	return &Condition{
-		id:      id,
 		bitmask: bitmask,
 		hash:    hash,
+		id:      id,
 		size:    size,
 		weight:  weight,
 	}
 }
 
-func (c *Condition) String() string {
-	b64 := Base64UrlEncode(c.hash)
-	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, b64, c.size)
-}
+func (c *Condition) Bitmask() int { return c.bitmask }
+
+func (c *Condition) Condition() *Condition { return c }
+
+func (c *Condition) Hash() []byte { return c.hash }
+
+func (c *Condition) Id() int { return c.id }
+
+func (c *Condition) IsCondition() bool { return true }
 
 func (c *Condition) FromString(uri string) error {
 	if !MatchString(CONDITION_REGEX, uri) {
@@ -145,19 +287,17 @@ func (c *Condition) FromString(uri string) error {
 	if err != nil {
 		return err
 	}
-	switch int(id) {
-	case PREIMAGE_ID, THRESHOLD_ID, ED25519_ID:
-	default:
-		return Errorf("Unexpected id=%d\n", id)
-	}
 	bitmask, err := ParseUint32(parts[2])
 	if err != nil {
 		return err
 	}
-	switch int(bitmask) {
-	case PREIMAGE_BITMASK, THRESHOLD_BITMASK, ED25519_BITMASK:
+	switch {
+	case
+		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
+		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == THRESHOLD_ID && bitmask == THRESHOLD_BITMASK:
 	default:
-		return Errorf("Unexpected bitmask=%d\n", bitmask)
+		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
 	hash, err := Base64UrlDecode(parts[3])
 	if err != nil {
@@ -168,40 +308,41 @@ func (c *Condition) FromString(uri string) error {
 		return err
 	}
 	switch {
-	case int(id) == ED25519_ID && int(size) != ED25519_SIZE:
-		return Errorf("Expected ed25519 size=%d; got size=%d\n", ED25519_SIZE, size)
+	// TODO: check ed25519 size
+	case
+		len(hash) != HASH_LENGTH:
+		return Errorf("Expected hash with size=%d; got size=%d\n", HASH_LENGTH, len(hash))
+	case
+		size > MAX_PAYLOAD_SIZE:
+		return Error("Exceeded max payload size")
 	}
-	c.id = int(id)
 	c.bitmask = int(bitmask)
+	c.id = int(id)
 	c.hash = hash
 	c.size = int(size)
 	return nil
 }
 
-func (c *Condition) Id() int { return c.id }
-
-func (c *Condition) Bitmask() int { return c.bitmask }
-
-func (c *Condition) Size() int { return c.size }
-
-func (c *Condition) Len() int { p, _ := c.MarshalBinary(); return len(p) }
-
-func (c *Condition) Weight() int { return c.weight }
-
-func (c *Condition) Hash() []byte { return c.hash }
-
-func (c *Condition) Condition() *Condition { return c }
-
-// TODO:
-func (c *Condition) Validate(p []byte) bool { return true }
-
 func (c *Condition) MarshalBinary() ([]byte, error) {
 	p := make([]byte, CONDITION_SIZE)
 	copy(p[:2], Uint16Bytes(c.id))
 	copy(p[2:6], Uint32Bytes(c.bitmask))
-	copy(p[6:6+HASH_SIZE], c.hash)
-	copy(p[6+HASH_SIZE:CONDITION_SIZE], Uint16Bytes(c.size))
+	copy(p[6:6+HASH_LENGTH], c.hash)
+	copy(p[6+HASH_LENGTH:CONDITION_SIZE], Uint16Bytes(c.size))
 	return p, nil
+}
+
+func (c *Condition) MarshalJSON() ([]byte, error) {
+	uri := c.String()
+	p := MustMarshalJSON(uri)
+	return p, nil
+}
+
+func (c *Condition) Size() int { return c.size }
+
+func (c *Condition) String() string {
+	b64 := Base64UrlEncode(c.hash)
+	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, b64, c.size)
 }
 
 func (c *Condition) UnmarshalBinary(p []byte) error {
@@ -209,33 +350,31 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 		return Errorf("Expected condition with size=%d; got size=%d\n", CONDITION_SIZE, size)
 	}
 	id := MustUint16(p[:2])
-	switch id {
-	case PREIMAGE_ID, THRESHOLD_ID, ED25519_ID:
-	default:
-		return Errorf("Unexpected id=%d\n", id)
-	}
 	bitmask := MustUint32(p[2:6])
-	switch bitmask {
-	case PREIMAGE_BITMASK, THRESHOLD_BITMASK, ED25519_BITMASK:
+	switch {
+	case
+		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
+		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == THRESHOLD_ID && bitmask == THRESHOLD_BITMASK:
 	default:
-		return Errorf("Unexpected bitmask=%d\n", bitmask)
+		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
-	hash := p[6 : 6+HASH_SIZE]
-	size := MustUint16(p[6+HASH_SIZE : CONDITION_SIZE])
-	if id == ED25519_ID && size != ED25519_SIZE {
-		return Errorf("Expected ed25519 size=%d; got size=%d\n", ED25519_SIZE, size)
+	hash := p[6 : 6+HASH_LENGTH]
+	size := MustUint16(p[6+HASH_LENGTH : CONDITION_SIZE])
+	switch {
+	// TODO: check ed25519 size
+	case
+		len(hash) != HASH_LENGTH:
+		return Errorf("Expected hash with size=%d; got size=%d\n", HASH_LENGTH, len(hash))
+	case
+		size > MAX_PAYLOAD_SIZE:
+		return Error("Exceeded max payload size")
 	}
 	c.id = id
 	c.bitmask = bitmask
 	c.hash = hash
 	c.size = size
 	return nil
-}
-
-func (c *Condition) MarshalJSON() ([]byte, error) {
-	uri := c.String()
-	p := MustMarshalJSON(uri)
-	return p, nil
 }
 
 func (c *Condition) UnmarshalJSON(p []byte) error {
@@ -248,3 +387,25 @@ func (c *Condition) UnmarshalJSON(p []byte) error {
 	}
 	return nil
 }
+
+func (c *Condition) Validate(p []byte) bool {
+	switch {
+	case
+		c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
+		c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
+		c.id == THRESHOLD_ID && c.bitmask == THRESHOLD_BITMASK:
+	default:
+		return false
+	}
+	switch {
+	case
+		len(c.hash) != HASH_LENGTH,
+		c.size > MAX_PAYLOAD_SIZE,
+		// TODO: check ed25519 size
+		c.weight < 1:
+		return false
+	}
+	return true
+}
+
+func (c *Condition) Weight() int { return c.weight }

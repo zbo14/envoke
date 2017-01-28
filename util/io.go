@@ -12,6 +12,11 @@ type Writer io.Writer
 
 type ByteReader io.ByteReader
 
+type MultiReader interface {
+	Read([]byte) (int, error)
+	ReadByte() (byte, error)
+}
+
 func Copy(w io.Writer, r io.Reader) error {
 	_, err := io.Copy(w, r)
 	if err != nil {
@@ -39,7 +44,8 @@ func ReadFull(r io.Reader, buf []byte) error {
 	n, err := io.ReadFull(r, buf)
 	if err != nil {
 		return err
-	} else if size := len(buf); size != n {
+	}
+	if size := len(buf); size != n {
 		return Errorf("Read %d bytes instead of %d\n", size, n)
 	}
 	return nil
@@ -55,7 +61,8 @@ func ReadN(r io.Reader, n int) ([]byte, error) {
 	read, err := io.ReadAtLeast(r, buf, n)
 	if err != nil {
 		return nil, err
-	} else if read != n {
+	}
+	if read != n {
 		return nil, Errorf("Read %d instead of %d bytes", read, n)
 	}
 	return buf, nil
@@ -65,4 +72,20 @@ func MustReadN(r io.Reader, n int) []byte {
 	bytes, err := ReadN(r, n)
 	Check(err)
 	return bytes
+}
+
+func Write(p []byte, w io.Writer) error {
+	n, err := w.Write(p)
+	if err != nil {
+		return err
+	}
+	if size := len(p); size != n {
+		return Error("Could not write entire slice")
+	}
+	return nil
+}
+
+func MustWrite(p []byte, w io.Writer) {
+	err := Write(p, w)
+	Check(err)
 }

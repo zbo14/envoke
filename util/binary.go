@@ -1,6 +1,8 @@
 package util
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 func Uint16Bytes(x int) []byte {
 	p := make([]byte, 2)
@@ -130,6 +132,35 @@ func MustReadUvarint(r ByteReader) int {
 	x, err := ReadUvarint(r)
 	Check(err)
 	return int(x)
+}
+
+func VarBytes(p []byte) []byte {
+	size := UvarintBytes(len(p))
+	return append(size, p...)
+}
+
+func ReadVarBytes(r MultiReader) ([]byte, error) {
+	n, err := ReadUvarint(r)
+	if err != nil {
+		return nil, err
+	}
+	return ReadN(r, n)
+}
+
+func MustReadVarBytes(r MultiReader) []byte {
+	p, err := ReadVarBytes(r)
+	Check(err)
+	return p
+}
+
+func WriteVarBytes(p []byte, w Writer) error {
+	v := VarBytes(p)
+	return Write(v, w)
+}
+
+func MustWriteVarBytes(p []byte, w Writer) {
+	err := WriteVarBytes(p, w)
+	Check(err)
 }
 
 /*

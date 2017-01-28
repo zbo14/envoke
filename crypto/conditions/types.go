@@ -14,8 +14,12 @@ type fulfillmentPreImage struct {
 }
 
 func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
-	f := NewFulfillment(PREIMAGE_ID, preimage, weight)
-	return &fulfillmentPreImage{f}
+	f := new(fulfillmentPreImage)
+	f.fulfillment = NewFulfillment(PREIMAGE_ID, preimage, weight)
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+	return f
 }
 
 func (f *fulfillmentPreImage) Bitmask() int {
@@ -45,11 +49,15 @@ type fulfillmentEd25519 struct {
 var NilFulfillmentEd25519 *fulfillmentEd25519 = nil
 
 func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fulfillmentEd25519 {
+	f := new(fulfillmentEd25519)
 	pub := priv.Public()
 	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
-	f := NewFulfillment(ED25519_ID, payload, weight)
-	return &fulfillmentEd25519{f}
+	f.fulfillment = NewFulfillment(ED25519_ID, payload, weight)
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+	return f
 }
 
 func (f *fulfillmentEd25519) Bitmask() int {
@@ -92,12 +100,14 @@ func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillm
 	}
 	sort.Sort(subs)
 	payload := ThresholdPayload(subs, threshold)
-	f := NewFulfillment(THRESHOLD_ID, payload, weight)
-	return &fulfillmentThreshold{
-		fulfillment: f,
-		subs:        subs,
-		threshold:   threshold,
-	}
+	f := new(fulfillmentThreshold)
+	f.fulfillment = NewFulfillment(THRESHOLD_ID, payload, weight)
+	f.subs = subs
+	f.threshold = threshold
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+	return f
 }
 
 func (f *fulfillmentThreshold) Bitmask() int {
@@ -129,7 +139,7 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 	numSubs := subs.Len()
 	j = Pow2(numSubs)
 	sums := make([]int, j)
-	var sets []Fulfillments
+	sets := make([]Fulfillments, j)
 	thresholds := make([]int, j)
 	for i, _ = range thresholds {
 		thresholds[i] = threshold
@@ -138,9 +148,6 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 		j >>= 1
 		with := true
 		for i, _ = range sums {
-			if (i+1)%j == 0 {
-				with = !with
-			}
 			if thresholds[i] > 0 {
 				if with {
 					sums[i] += sub.Size()
@@ -149,6 +156,9 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 				} else if !with {
 					sums[i] += CONDITION_SIZE
 				}
+			}
+			if (i+1)%j == 0 {
+				with = !with
 			}
 		}
 	}
@@ -180,8 +190,7 @@ FOR_LOOP:
 	for _, sub := range set {
 		buf.Write(UvarintBytes(sub.Weight()))
 		p, _ := sub.MarshalBinary()
-		buf.Write(UvarintBytes(len(p)))
-		buf.Write(p)
+		MustWriteVarBytes(p, buf)
 	}
 	return buf.Bytes()
 }
@@ -256,12 +265,12 @@ func ThresholdSize(subs Fulfillments, threshold int) int {
 		add := true
 		extra := sub.Size() - CONDITION_SIZE
 		for i, _ = range extras {
-			if (i+1)%j == 0 {
-				add = !add
-			}
 			if add && thresholds[i] > 0 {
 				extras[i] += extra
 				thresholds[i] -= sub.Weight()
+			}
+			if (i+1)%j == 0 {
+				add = !add
 			}
 		}
 	}
@@ -290,24 +299,21 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 		if !sub.IsCondition() {
 			subf = append(subf, sub)
 			weight := sub.Weight()
-			if weight < min {
+			if weight < min || min == 0 {
 				min = weight
 			}
 			total += min
 		}
 	}
 	if total < threshold {
+		Println(total)
 		return false
 	}
 	valid := 0
 	buf := new(bytes.Buffer)
 	buf.Write(p)
 	for _, f := range subf {
-		n, err := ReadUvarint(buf)
-		if err != nil {
-			return false
-		}
-		p, err = ReadN(buf, n)
+		p, err := ReadVarBytes(buf)
 		if err != nil {
 			return false
 		}

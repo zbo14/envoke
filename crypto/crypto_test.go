@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestCrypto(t *testing.T) {
+func TestCryptoConditions(t *testing.T) {
 	// Sha256 Pre-Image
 	preimage := []byte("hello world")
 	f1 := conds.NewFulfillmentPreImage(preimage, 1)
@@ -16,9 +16,8 @@ func TestCrypto(t *testing.T) {
 	if !f1.Validate(preimage) {
 		t.Error("Failed to validate pre-image fulfillment")
 	}
-	// Print the condition
-	c1 := f1.Condition()
-	Println(c1)
+	// Peep the condition
+	t.Log(f1.Condition())
 	// Ed25519
 	msg := []byte("deadbeef")
 	priv, _ := ed25519.GenerateKeypair("password")
@@ -36,12 +35,30 @@ func TestCrypto(t *testing.T) {
 	subs := conds.Fulfillments{f1, f2, f3}
 	threshold := 3
 	f4 := conds.NewFulfillmentThreshold(subs, threshold, 1)
-	Println(subs)
 	buf := new(bytes.Buffer)
 	MustWriteVarBytes(msg, buf)
 	MustWriteVarBytes(preimage, buf)
 	MustWriteVarBytes(preimage2, buf)
 	if !f4.Validate(buf.Bytes()) {
 		t.Error("Failed to validate threshold fulfillment")
+	}
+	// Get fulfillment uri
+	uri := f4.String()
+	// Derive new fulfillment from uri
+	f5, err := conds.UnmarshalURI(uri)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	// Check whether hashes are the same
+	if !bytes.Equal(f4.Hash(), f5.Hash()) {
+		t.Error("Expected identical fulfillment hashes")
+	}
+	// Nested Thresholds
+	subs = conds.Fulfillments{f1, f2, f3, f4}
+	threshold = 4
+	f6 := conds.NewFulfillmentThreshold(subs, threshold, 1)
+	buf.Write(buf.Bytes())
+	if !f6.Validate(buf.Bytes()) {
+		t.Error("Failed to validate nested thresholds")
 	}
 }

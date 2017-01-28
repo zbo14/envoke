@@ -16,10 +16,14 @@ type fulfillmentPreImage struct {
 func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
 	f := new(fulfillmentPreImage)
 	f.fulfillment = NewFulfillment(PREIMAGE_ID, preimage, weight)
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentPreImage) Init() {
 	f.Bitmask()
 	f.Hash()
 	f.Size()
-	return f
 }
 
 func (f *fulfillmentPreImage) Bitmask() int {
@@ -46,18 +50,20 @@ type fulfillmentEd25519 struct {
 	*fulfillment
 }
 
-var NilFulfillmentEd25519 *fulfillmentEd25519 = nil
-
 func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fulfillmentEd25519 {
 	f := new(fulfillmentEd25519)
 	pub := priv.Public()
 	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(ED25519_ID, payload, weight)
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentEd25519) Init() {
 	f.Bitmask()
 	f.Hash()
 	f.Size()
-	return f
 }
 
 func (f *fulfillmentEd25519) Bitmask() int {
@@ -104,10 +110,22 @@ func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillm
 	f.fulfillment = NewFulfillment(THRESHOLD_ID, payload, weight)
 	f.subs = subs
 	f.threshold = threshold
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentThreshold) Init() {
+	if f.subs == nil && f.threshold == 0 {
+		f.ThresholdSubs()
+	}
+	if f.subs != nil && f.threshold > 0 {
+		//..
+	} else {
+		Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
+	}
 	f.Bitmask()
 	f.Hash()
 	f.Size()
-	return f
 }
 
 func (f *fulfillmentThreshold) Bitmask() int {
@@ -179,6 +197,7 @@ FOR_LOOP:
 				continue FOR_LOOP
 			}
 		}
+		sub.Init()
 		set = append(set, sub.Condition())
 	}
 	if set.Len() != numSubs {
@@ -193,6 +212,19 @@ FOR_LOOP:
 		MustWriteVarBytes(p, buf)
 	}
 	return buf.Bytes()
+}
+
+func (f *fulfillmentThreshold) ThresholdSubs() {
+	if f.subs != nil && f.threshold > 0 {
+		return
+	}
+	if f.subs == nil && f.threshold == 0 {
+		var err error
+		f.subs, f.threshold, err = ThresholdSubs(f.payload)
+		Check(err)
+		return
+	}
+	Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
 }
 
 func ThresholdSubs(p []byte) (Fulfillments, int, error) {
@@ -215,15 +247,11 @@ func ThresholdSubs(p []byte) (Fulfillments, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		n, err := ReadUvarint(buf)
+		p, err := ReadVarBytes(buf)
 		if err != nil {
 			return nil, 0, err
 		}
-		p, err := ReadN(buf, n)
-		if err != nil {
-			return nil, 0, err
-		}
-		subs[i], err = UnmarshalFulfillment(p, weight)
+		subs[i], err = UnmarshalBinary(p, weight)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -306,7 +334,6 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 		}
 	}
 	if total < threshold {
-		Println(total)
 		return false
 	}
 	valid := 0

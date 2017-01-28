@@ -19,4 +19,9 @@ func TestBigchain(t *testing.T) {
 	if !transaction.Fulfilled() {
 		t.Error("Transaction is not fulfilled")
 	}
+	id, err := PostTransaction(transaction)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	t.Log(id)
 }

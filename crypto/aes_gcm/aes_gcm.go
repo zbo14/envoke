@@ -7,7 +7,7 @@ import (
 	. "github.com/zballs/go_resonate/util"
 )
 
-const NONCE_SIZE = 12 //what should nonce size be?
+const NONCE_SIZE = 12 //what should this be?
 
 // AES-GCM should be used because the operation is an authenticated encryption
 // algorithm designed to provide both data authenticity (integrity) as well as

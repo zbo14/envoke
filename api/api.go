@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	MINIO_ENDPOINT = "play.minio.io:9000"
-	MINIO_ID       = "Q3AM3UQ867SPQQA43P2F"
-	MINIO_SECRET   = "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
-	USE_SSL        = false
+	MINIO_ENDPOINT   = "127.0.0.1:9000"
+	MINIO_ACCESS_KEY = "N3R2IT5XGCOMVIAUI25K"
+	MINIO_SECRET_KEY = "I9zaxZWzbdvpbQO0hT6+bBaEJyHJF78RA2wAFNvJ"
+	USE_SSL          = false
 )
 
 var signature = ""
@@ -204,9 +204,9 @@ func (api *Api) PlayTrack(w http.ResponseWriter, req *http.Request) {
 	*/
 	projectTitle := values.Get("project_title")
 	trackTitle := values.Get("track_title")
-	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ID, MINIO_SECRET, USE_SSL)
+	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, USE_SSL)
 	Check(err)
-	object, err := cli.GetObject(projectTitle, trackTitle)
+	object, err := cli.GetObject(projectTitle, trackTitle+".mp3")
 	Check(err)
 	Copy(w, object)
 }
@@ -219,19 +219,19 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	}
 	// Make sure we're logged in
 	if api.priv == nil {
-		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
+		http.Error(w, "Private-key is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.pub == nil {
-		http.Error(w, "Pubkey is not set", http.StatusUnauthorized)
+		http.Error(w, "Public-key is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.user == nil {
-		http.Error(w, "User is not set", http.StatusUnauthorized)
+		http.Error(w, "User-profile is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.userId == "" {
-		http.Error(w, "User Id is not set", http.StatusUnauthorized)
+		http.Error(w, "User-id is not set", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -258,12 +258,14 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	// Location
 	// location := form.Value["location"][0]
 	// Initialize minio client object
-	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ID, MINIO_SECRET, USE_SSL)
+	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, USE_SSL)
 	Check(err)
-	if exists, _ := cli.BucketExists(projectTitle); exists {
-		http.Error(w, "You already have project with title="+projectTitle, http.StatusBadRequest)
-		return
-	}
+	/*
+		if exists, _ := cli.BucketExists(projectTitle); exists {
+			http.Error(w, "You already have project with title="+projectTitle, http.StatusBadRequest)
+			return
+		}
+	*/
 	err = cli.MakeBucket(projectTitle, api.user.Region)
 	Check(err)
 	// Tracks
@@ -272,17 +274,17 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	for i, track := range tracks {
 		file, err := track.Open()
 		Check(err)
-		// Get metadata
-		meta, err := tag.ReadFrom(file)
+		s, r := MustTeeSeeker(file)
+		// Extract metadata
+		meta, err := tag.ReadFrom(s)
 		Check(err)
-		// metadata := meta.Raw()
 		Println(meta)
+		// metadata := meta.Raw()
 		// Track info
-		trackTitle := meta.Title()
-		// trackFormat := "audio/" + ToLower(string(meta.Format()))
+		trackFormat := "audio/" + ToLower(string(meta.FileType()))
 		// trackURL := ""
 		// Upload track to minio
-		_, err = cli.PutObject(projectTitle, trackTitle, file, "audio/mp3")
+		_, err = cli.PutObject(projectTitle, track.Filename, r, trackFormat)
 		Check(err)
 		file.Close()
 		/*
@@ -295,7 +297,7 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		*/
-		trackIds[i] = api.priv.Sign([]byte(trackTitle)).String() //for now
+		trackIds[i] = api.priv.Sign([]byte(track.Filename)).String() //for now
 	}
 	projectInfo := NewProjectInfo(projectId, trackIds)
 	WriteJSON(w, projectInfo)

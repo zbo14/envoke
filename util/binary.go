@@ -139,7 +139,7 @@ func VarBytes(p []byte) []byte {
 	return append(size, p...)
 }
 
-func ReadVarBytes(r MultiReader) ([]byte, error) {
+func ReadVarBytes(r MyReader) ([]byte, error) {
 	n, err := ReadUvarint(r)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func ReadVarBytes(r MultiReader) ([]byte, error) {
 	return ReadN(r, n)
 }
 
-func MustReadVarBytes(r MultiReader) []byte {
+func MustReadVarBytes(r MyReader) []byte {
 	p, err := ReadVarBytes(r)
 	Check(err)
 	return p

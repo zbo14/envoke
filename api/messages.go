@@ -18,7 +18,7 @@ func NewUserInfo(userId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey
 
 type ProjectInfo struct {
 	ProjectId string   `json:"project_id"`
-	SongIds   []string `json:"song_ids"`
+	SongIds   []string `json:"track_ids"`
 }
 
 func NewProjectInfo(projectId string, songIds []string) *ProjectInfo {

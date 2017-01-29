@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 )
@@ -12,7 +13,7 @@ type Writer io.Writer
 
 type ByteReader io.ByteReader
 
-type MultiReader interface {
+type MyReader interface {
 	Read([]byte) (int, error)
 	ReadByte() (byte, error)
 }
@@ -88,4 +89,42 @@ func Write(p []byte, w io.Writer) error {
 func MustWrite(p []byte, w io.Writer) {
 	err := Write(p, w)
 	Check(err)
+}
+
+func Pipe() (r io.Reader, w io.Writer) {
+	return io.Pipe()
+}
+
+func Tee(r io.Reader, w io.Writer) io.Reader {
+	return io.TeeReader(r, w)
+}
+
+func ReadSeeker(r io.Reader) (io.ReadSeeker, error) {
+	p, err := ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(p), nil
+}
+
+func MustReadSeeker(r io.Reader) io.ReadSeeker {
+	p := MustReadAll(r)
+	return bytes.NewReader(p)
+}
+
+func TeeSeeker(r io.Reader) (io.ReadSeeker, io.Reader, error) {
+	buf := new(bytes.Buffer)
+	r = Tee(r, buf)
+	s, err := ReadSeeker(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s, buf, nil
+}
+
+func MustTeeSeeker(r io.Reader) (io.ReadSeeker, io.Reader) {
+	buf := new(bytes.Buffer)
+	r = Tee(r, buf)
+	s := MustReadSeeker(r)
+	return s, buf
 }

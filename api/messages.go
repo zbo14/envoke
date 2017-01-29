@@ -1,14 +1,14 @@
 package api
 
-import "github.com/zballs/go_resonate/crypto"
+import "github.com/zballs/go_resonate/crypto/ed25519"
 
 type UserInfo struct {
-	Privkey *crypto.PrivateKey `json:"private_key"`
-	Pubkey  *crypto.PublicKey  `json:"public_key"`
-	UserId  string             `json:"user_id"`
+	Privkey *ed25519.PrivateKey `json:"private_key"`
+	Pubkey  *ed25519.PublicKey  `json:"public_key"`
+	UserId  string              `json:"user_id"`
 }
 
-func NewUserInfo(userId string, priv *crypto.PrivateKey, pub *crypto.PublicKey) *UserInfo {
+func NewUserInfo(userId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *UserInfo {
 	return &UserInfo{
 		UserId:  userId,
 		Privkey: priv,

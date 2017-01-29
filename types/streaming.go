@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/julienschmidt/httprouter"
-	"github.com/zballs/go_resonate/crypto"
+	"github.com/zballs/go_resonate/crypto/ed25519"
 	. "github.com/zballs/go_resonate/util"
 	"net/http"
 	"path/filepath"
@@ -85,15 +85,15 @@ func (serv *HttpService) SetPlayHandler() {
 				return
 			}
 			// Public key
-			pub := new(crypto.PublicKey)
-			if err := pub.FromB58(pub58); err != nil {
+			pub := new(ed25519.PublicKey)
+			if err := pub.FromString(pub58); err != nil {
 				serv.logger.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 			// Signature
-			sig := new(crypto.Signature)
-			if err := sig.FromB58(sig58); err != nil {
+			sig := new(ed25519.Signature)
+			if err := sig.FromString(sig58); err != nil {
 				serv.logger.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
@@ -115,7 +115,12 @@ func (serv *HttpService) SetPlayHandler() {
 				return
 			}
 			fw := FlushWriter(w)
-			bytes := ReadAll(file)
+			bytes, err := ReadAll(file)
+			if err != nil {
+				serv.logger.Error(err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			fw.Write(bytes)
 		})
 }
@@ -127,13 +132,13 @@ const PORT = ":8889"
 
 type PlayRequest struct {
 	// Payment
-	ProjectTitle string            `json:"project_title"`
-	SongTitle    string            `json:"song_title"`
-	PublicKey    *crypto.PublicKey `json:"public_key"`
-	Signature    *crypto.Signature `json:"signature"`
+	ProjectTitle string             `json:"project_title"`
+	SongTitle    string             `json:"song_title"`
+	PublicKey    *ed25519.PublicKey `json:"public_key"`
+	Signature    *ed25519.Signature `json:"signature"`
 }
 
-func NewPlayRequest(projectTitle, songTitle string, pub *crypto.PublicKey, sig *crypto.Signature) *PlayRequest {
+func NewPlayRequest(projectTitle, songTitle string, pub *ed25519.PublicKey, sig *ed25519.Signature) *PlayRequest {
 	return &PlayRequest{
 		ProjectTitle: projectTitle,
 		SongTitle:    songTitle,
@@ -265,6 +270,12 @@ func (serv *SocketService) HandleConn(conn Conn) {
 		WriteJSON(conn, playResponse)
 		return
 	}
-	playResponse.Data = ReadAll(file)
+	playResponse.Data, err = ReadAll(file)
+	if err != nil {
+		serv.logger.Error(err.Error())
+		playResponse.Error = err
+		WriteJSON(conn, playResponse)
+		return
+	}
 	WriteJSON(conn, playResponse)
 }

@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+func ToLower(s string) string {
+	return strings.ToLower(s)
+}
+
 func Split(s, sep string) []string {
 	return strings.Split(s, sep)
 }

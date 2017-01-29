@@ -6,7 +6,7 @@ import (
 	. "github.com/zballs/go_resonate/util"
 )
 
-// crypto-conditions
+// ILP crypto-conditions
 
 const (
 	// Params
@@ -16,9 +16,13 @@ const (
 	SUPPORTED_BITMASK = 0x3f
 
 	// Regex
-	CONDITION_REGEX        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	CONDITION_REGEX_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	FULFILLMENT_REGEX      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
+	CONDITION_BYTES        = `^([1-9a-f][0-9a-f]{0,3}|0)[1-9a-f][0-9a-f]{0,15}[a-zA-Z0-9_-]{0,86}([1-9][0-9]{0,17}|0)$`
+	CONDITION_BYTES_STRICT = `^([1-9a-f][0-9a-f]{0,3}|0)[1-9a-f][0-9a-f]{0,7}[a-zA-Z0-9_-]{0,86}([1-9][0-9]{0,17}|0)$`
+	FULFILLMENT_BYTES      = `^([1-9a-f][0-9a-f]{0,3}|0)[a-zA-Z0-9_-]*$`
+
+	CONDITION_URI        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
+	CONDITION_URI_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
+	FULFILLMENT_URI      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
 
 	// Types
 	PREIMAGE_ID      = 0
@@ -76,41 +80,45 @@ func (fs Fulfillments) Swap(i, j int) {
 }
 
 func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
-	c := new(Condition)
-	if err := c.UnmarshalBinary(p); err == nil {
-		c.weight = weight
-		return c, nil
+	if MatchBytes(CONDITION_BYTES, p) {
+		c := new(Condition)
+		if err := c.UnmarshalBinary(p); err == nil {
+			return c, nil
+		}
 	}
-	f := new(fulfillment)
-	if err := f.UnmarshalBinary(p); err != nil {
-		return nil, err
-	}
-	if weight < 1 {
-		return nil, Error("Weight cannot be less than 1")
-	}
-	f.weight = weight
-	switch f.id {
-	case PREIMAGE_ID:
-		return &fulfillmentPreImage{f}, nil
-	case ED25519_ID:
-		return &fulfillmentEd25519{f}, nil
-	case THRESHOLD_ID:
-		subs, threshold, err := ThresholdSubs(f.payload)
-		if err != nil {
+	if MatchBytes(FULFILLMENT_BYTES, p) {
+		f := new(fulfillment)
+		if err := f.UnmarshalBinary(p); err != nil {
 			return nil, err
 		}
-		return &fulfillmentThreshold{
-			fulfillment: f,
-			subs:        subs,
-			threshold:   threshold,
-		}, nil
-	default:
-		return nil, Errorf("Unexpected id=%d\n", f.id)
+		if weight < 1 {
+			return nil, Error("Weight cannot be less than 1")
+		}
+		f.weight = weight
+		switch f.id {
+		case PREIMAGE_ID:
+			return &fulfillmentPreImage{f}, nil
+		case ED25519_ID:
+			return &fulfillmentEd25519{f}, nil
+		case THRESHOLD_ID:
+			subs, threshold, err := ThresholdSubs(f.payload)
+			if err != nil {
+				return nil, err
+			}
+			return &fulfillmentThreshold{
+				fulfillment: f,
+				subs:        subs,
+				threshold:   threshold,
+			}, nil
+		default:
+			return nil, Errorf("Unexpected id=%d\n", f.id)
+		}
 	}
+	return nil, Error("Could not match bytes to regex")
 }
 
 func UnmarshalURI(uri string) (f Fulfillment, err error) {
-	if MatchString(CONDITION_REGEX, uri) {
+	if MatchString(CONDITION_URI, uri) {
 		// Try to parse condition
 		c := new(Condition)
 		parts := Split(uri, ":")
@@ -147,7 +155,7 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		}
 		return c, nil
 	}
-	if MatchString(FULFILLMENT_REGEX, uri) {
+	if MatchString(FULFILLMENT_URI, uri) {
 		// Try to parse non-condition fulfillment
 		_f := new(fulfillment)
 		parts := Split(uri, ":")
@@ -214,7 +222,7 @@ func (f *fulfillment) Condition() *Condition {
 }
 
 func (f *fulfillment) FromString(uri string) error {
-	if !MatchString(FULFILLMENT_REGEX, uri) {
+	if !MatchString(FULFILLMENT_URI, uri) {
 		return Error("URI does not match fulfillment regex")
 	}
 	parts := Split(uri, ":")
@@ -350,7 +358,7 @@ func (c *Condition) Bitmask() int { return c.bitmask }
 func (c *Condition) Condition() *Condition { return c }
 
 func (c *Condition) FromString(uri string) error {
-	if !MatchString(CONDITION_REGEX, uri) {
+	if !MatchString(CONDITION_URI, uri) {
 		return Error("URI does not match condition regex")
 	}
 	parts := Split(uri, ":")

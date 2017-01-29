@@ -6,8 +6,6 @@ import (
 	"net/http"
 )
 
-const dir = ""
-
 func main() {
 
 	CreatePages(
@@ -29,7 +27,7 @@ func main() {
 	mux.HandleFunc("/login", TemplateHandler("login.html"))
 
 	// Create api
-	api := api.NewApi(dir)
+	api := api.NewApi()
 
 	// Add routes to multiplexer
 	api.AddRoutes(mux)

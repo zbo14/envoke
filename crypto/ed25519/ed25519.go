@@ -79,17 +79,32 @@ func (priv *PrivateKey) Public() *PublicKey {
 	return pub
 }
 
-func (priv *PrivateKey) ToB58() string {
+func (priv *PrivateKey) String() string {
 	return BytesToB58(priv.Bytes())
 }
 
-func (priv *PrivateKey) FromB58(b58 string) error {
+func (priv *PrivateKey) FromString(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != PRIVKEY_SIZE {
 		return Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
 	}
-	copy(priv.data[:], data)
+	priv.data = make([]byte, PRIVKEY_SIZE)
+	copy(priv.data, data)
 	return nil
+}
+
+func (priv *PrivateKey) MarshalJSON() ([]byte, error) {
+	b58 := priv.String()
+	data := MustMarshalJSON(b58)
+	return data, nil
+}
+
+func (priv *PrivateKey) UnmarshalJSON(data []byte) error {
+	var b58 string
+	if err := UnmarshalJSON(data, &b58); err != nil {
+		return err
+	}
+	return priv.FromString(b58)
 }
 
 // Public Key
@@ -102,21 +117,22 @@ func (pub *PublicKey) Bytes() []byte {
 	return pub.data[:]
 }
 
-func (pub *PublicKey) ToB58() string {
+func (pub *PublicKey) String() string {
 	return BytesToB58(pub.Bytes())
 }
 
-func (pub *PublicKey) FromB58(b58 string) error {
+func (pub *PublicKey) FromString(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != PUBKEY_SIZE {
 		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
 	}
-	copy(pub.data[:], data)
+	pub.data = make([]byte, PUBKEY_SIZE)
+	copy(pub.data, data)
 	return nil
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
-	b58 := pub.ToB58()
+	b58 := pub.String()
 	data := MustMarshalJSON(b58)
 	return data, nil
 }
@@ -126,7 +142,7 @@ func (pub *PublicKey) UnmarshalJSON(data []byte) error {
 	if err := UnmarshalJSON(data, &b58); err != nil {
 		return err
 	}
-	return pub.FromB58(b58)
+	return pub.FromString(b58)
 }
 
 // Signature
@@ -135,21 +151,22 @@ func (sig *Signature) Bytes() []byte {
 	return sig.data[:]
 }
 
-func (sig *Signature) ToB58() string {
+func (sig *Signature) String() string {
 	return BytesToB58(sig.Bytes())
 }
 
-func (sig *Signature) FromB58(b58 string) error {
+func (sig *Signature) FromString(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
 	}
-	copy(sig.data[:], data)
+	sig.data = make([]byte, SIGNATURE_SIZE)
+	copy(sig.data, data)
 	return nil
 }
 
 func (sig *Signature) MarshalJSON() ([]byte, error) {
-	b58 := sig.ToB58()
+	b58 := sig.String()
 	data := MustMarshalJSON(b58)
 	return data, nil
 }
@@ -159,7 +176,7 @@ func (sig *Signature) UnmarshalJSON(data []byte) error {
 	if err := UnmarshalJSON(data, &b58); err != nil {
 		return err
 	}
-	return sig.FromB58(b58)
+	return sig.FromString(b58)
 }
 
 // Generate secret from password string

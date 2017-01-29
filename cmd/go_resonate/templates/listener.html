@@ -3,11 +3,11 @@
 {{end}}
 
 {{define "body"}}
-<div id="play-song">
-    <form id="play-song-form">
-        <h2>Play song</h2>
-        <input type="text" name="song_id" placeholder="song id" required /><br>
-        <input type="text" name="song_title" placeholder="song title" required /><br>
+<div id="play-track">
+    <form id="play-track-form">
+        <h2>Play track</h2>
+        <!--<input type="text" name="track_id" placeholder="track id" required /><br>-->
+        <input type="text" name="track_title" placeholder="track title" required /><br>
         <input type="text" name="project_title" placeholder="project title" required /><br>
         <!-- should be logged in -->
         <!-- public key, signature -->
@@ -38,11 +38,11 @@ var playSongCallback = function(responseText) {
 
 window.onload = function() {
     // New project
-    var playSongForm = document.getElementById("play-song-form");
+    var playSongForm = document.getElementById("play-track-form");
     playSongForm.onsubmit = function(event) {
       event.preventDefault();
-      var formData = $("#play-song-form").serialize();
-      httpGetAsync("http://localhost:8888/play_song", formData, playSongCallback);
+      var formData = $("#play-track-form").serialize();
+      httpGetAsync("http://localhost:8888/play_track", formData, playSongCallback);
     };
 }
 </script>

@@ -5,10 +5,10 @@
 {{define "body"}}
 <div id="create-project">
     <form id="create-project-form" enctype="multipart/form-data">
-        <h2>New Project</h2>
+        <h2>Create Project</h2>
         <input type="text" name="project_title" placeholder="project title" required /><br>
-        <input type="text" name="project_place" placeholder="project place" required /><br>
-        <input accept="audio" type="file" name="songs" multiple required /><br>
+        <input type="text" name="location" placeholder="location" required /><br>
+        <input accept="audio" type="file" name="tracks" multiple required /><br>
         <input type="submit" value="create" />
     </form>
 </div>
@@ -35,7 +35,7 @@ var createProjectCallback = function(responseText) {
 };
 
 window.onload = function() {
-    // New project
+    // Create project
     var createProjectForm = document.getElementById("create-project-form");
     createProjectForm.onsubmit = function(event) {
       event.preventDefault();

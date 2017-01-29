@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	MINIO_ENDPOINT = "192.168.99.100:9000"
-	MINIO_ID       = "AH6LQWO6JCXWEKUX17CM"
-	MINIO_SECRET   = "JD++tfxKzZdbq9jPpU6j4pxPLs++BZ3ZCm2e6jzk"
+	MINIO_ENDPOINT = "play.minio.io:9000"
+	MINIO_ID       = "Q3AM3UQ867SPQQA43P2F"
+	MINIO_SECRET   = "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
 	USE_SSL        = false
 )
 

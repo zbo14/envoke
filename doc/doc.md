@@ -11,7 +11,7 @@ This is not a blockchain application (yet). We are considering various platforms
 ### Works, Metadata, and Rights 
 This information will be persisted to BigchainDB/IPDB via user transactions. When an artist uploads a track to the file system, a `create` transaction containing the work's title and metadata will be sent to the BigchainDB/IPDB network. Works, metadata, and rights assignments/transfers are defined as Coala IP data models, with additional specifications if needed (e.g. adding music-specific fields to the schema).
 
-## File storage 
+### File storage 
 We are looking at several distributed and decentralized file systems, including S3, minio (compatible with S3), IPFS, and storj. At the moment, using minio locally for file uploads and streams.
 
 ## Directories
@@ -48,5 +48,3 @@ TODO
 ### Creating a project
 
 ### Streaming a song
-
-More to come!

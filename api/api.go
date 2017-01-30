@@ -3,25 +3,29 @@ package api
 import (
 	"github.com/dhowden/tag"
 	"github.com/minio/minio-go"
-	"github.com/zballs/go_resonate/bigchain"
-	"github.com/zballs/go_resonate/coala"
-	"github.com/zballs/go_resonate/crypto/ed25519"
-	"github.com/zballs/go_resonate/types"
-	. "github.com/zballs/go_resonate/util"
+	"github.com/zballs/envoke/bigchain"
+	"github.com/zballs/envoke/coala"
+	"github.com/zballs/envoke/crypto/ed25519"
+	"github.com/zballs/envoke/types"
+	. "github.com/zballs/envoke/util"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const (
-	MINIO_ENDPOINT   = "127.0.0.1:9000"
+	EXPIRY_TIME = 1000 * time.Second
+	ID_SIZE     = 63
+
+	MINIO_ENDPOINT   = "http://127.0.0.1:9000"
 	MINIO_ACCESS_KEY = "N3R2IT5XGCOMVIAUI25K"
 	MINIO_SECRET_KEY = "I9zaxZWzbdvpbQO0hT6+bBaEJyHJF78RA2wAFNvJ"
-	USE_SSL          = false
 )
 
 var signature = ""
 
 type Api struct {
+	cli    *minio.Client
 	logger types.Logger
 	priv   *ed25519.PrivateKey
 	pub    *ed25519.PublicKey
@@ -38,9 +42,25 @@ func NewApi() *Api {
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/create_project", api.CreateProject)
-	mux.HandleFunc("/play_track", api.PlayTrack)
+	mux.HandleFunc("/stream_track", api.StreamTrack)
 	mux.HandleFunc("/user_login", api.UserLogin)
 	mux.HandleFunc("/user_register", api.UserRegister)
+}
+
+// Minio client
+
+func NewClient(endpoint, accessId, secretId string) (*minio.Client, error) {
+	host, secure := HostSecure(endpoint)
+	cli, err := minio.New(host, accessId, secretId, secure)
+	if err != nil {
+		return nil, err
+	}
+	return cli, nil
+}
+
+func HostSecure(rawurl string) (string, bool) {
+	url := MustParseUrl(rawurl)
+	return url.Host, url.Scheme == "https"
 }
 
 func UserFromValues(values url.Values) *types.User {
@@ -50,6 +70,11 @@ func UserFromValues(values url.Values) *types.User {
 	_type := values.Get("type")
 	username := values.Get("username")
 	return types.NewUser(email, region, password, _type, username)
+}
+
+func (api *Api) GenerateId(key string) string {
+	hex := api.priv.Sign([]byte(key)).ToHex()
+	return hex[:ID_SIZE]
 }
 
 func (api *Api) NewProject(projectTitle string) map[string]interface{} {
@@ -85,7 +110,7 @@ func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
 	data := make(map[string]interface{})
 	// Sign user bytes
 	json := MustMarshalJSON(user)
-	data["user_signature"] = priv.Sign(json).String()
+	data["user_signature"] = priv.Sign(json).ToB58()
 	// send request to IPDB
 	t := bigchain.GenerateTransaction(data, nil, pub)
 	t.Fulfill(priv, pub)
@@ -117,10 +142,10 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
 		return
 	}
-	// PrivKey
+	// PrivId
 	priv := new(ed25519.PrivateKey)
-	keystr := values.Get("private_key")
-	if err = priv.FromString(keystr); err != nil {
+	priv58 := values.Get("private_key")
+	if err = priv.FromB58(priv58); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -136,7 +161,7 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 		// Get user signature
 		data := t.GetData()
 		sig := new(ed25519.Signature)
-		if err := sig.FromString(data["user_signature"].(string)); err != nil {
+		if err := sig.FromB58(data["user_signature"].(string)); err != nil {
 			http.Error(w, Error("Failed to verify user signature").Error(), http.StatusUnauthorized)
 			return
 		}
@@ -146,41 +171,50 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 	json := MustMarshalJSON(user)
 	pub := priv.Public()
 	sig := new(ed25519.Signature)
-	err = sig.FromString(signature)
+	err = sig.FromB58(signature)
 	Check(err)
 	Println(pub, string(json), sig)
 	if !pub.Verify(json, sig) {
 		http.Error(w, Error("Failed to verify user signature").Error(), http.StatusUnauthorized)
 		return
 	}
+	api.cli, err = NewClient(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	api.priv = priv
 	api.pub = pub
 	api.user = user
 	api.userId = userId
-	WriteJSON(w, "Logged in!")
+	WriteJSON(w, NewLogin(api.user.Type))
 }
 
-func (api *Api) PlayTrack(w http.ResponseWriter, req *http.Request) {
-	// Should be GET request
-	if req.Method != http.MethodGet {
-		http.Error(w, Sprintf("Expected GET request; got %s request", req.Method), http.StatusBadRequest)
+func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
+	// Should be POST request
+	if req.Method != http.MethodPost {
+		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
 		return
 	}
 	// Make sure we're logged in
+	if api.cli == nil {
+		http.Error(w, "Minio-client is not set", http.StatusUnauthorized)
+		return
+	}
 	if api.priv == nil {
-		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
+		http.Error(w, "Private-key is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.pub == nil {
-		http.Error(w, "Pubkey is not set", http.StatusUnauthorized)
+		http.Error(w, "Public-key is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.user == nil {
-		http.Error(w, "User is not set", http.StatusUnauthorized)
+		http.Error(w, "User-profile is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.userId == "" {
-		http.Error(w, "User Id is not set", http.StatusUnauthorized)
+		http.Error(w, "User-id is not set", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -189,6 +223,10 @@ func (api *Api) PlayTrack(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	projectTitle := values.Get("project_title")
+	trackTitle := values.Get("track_title")
+	// projectId := api.GenerateId(projectTitle)
+	// trackId := api.GenerateId(trackTitle)
 	/*
 		trackId := values.Get("track_id")
 		t, err := bigchain.GetTransaction(trackId)
@@ -196,25 +234,29 @@ func (api *Api) PlayTrack(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		playAddr := t.GetValue("url").(string)
-		if playAddr == "" {
+		streamAddr := t.GetValue("url").(string)
+		if streamAddr == "" {
 			http.Error(w, "Could not find track url", http.StatusNotFound)
 			return
 		}
 	*/
-	projectTitle := values.Get("project_title")
-	trackTitle := values.Get("track_title")
-	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, USE_SSL)
-	Check(err)
-	object, err := cli.GetObject(projectTitle, trackTitle+".mp3")
-	Check(err)
-	Copy(w, object)
+	// Get track url
+	presignedURL, err := api.cli.PresignedGetObject(projectTitle, trackTitle+".mp3", EXPIRY_TIME, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, NewStream("", projectTitle, trackTitle, presignedURL.String()))
 }
 
 func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
+		return
+	}
+	if api.cli == nil {
+		http.Error(w, "Minio-client is not set", http.StatusUnauthorized)
 		return
 	}
 	// Make sure we're logged in
@@ -242,6 +284,7 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 	}
 	// Project title
 	projectTitle := form.Value["project_title"][0]
+	projectId := api.GenerateId(projectTitle)
 	/*
 		// Create new project
 		data := api.NewProject(projectTitle)
@@ -254,39 +297,45 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	*/
-	projectId := api.priv.Sign([]byte(projectTitle)).String() //for now
 	// Location
 	// location := form.Value["location"][0]
-	// Initialize minio client object
-	cli, err := minio.New(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, USE_SSL)
-	Check(err)
 	/*
 		if exists, _ := cli.BucketExists(projectTitle); exists {
 			http.Error(w, "You already have project with title="+projectTitle, http.StatusBadRequest)
 			return
 		}
 	*/
-	err = cli.MakeBucket(projectTitle, api.user.Region)
+	err = api.cli.MakeBucket(projectTitle, api.user.Region)
 	Check(err)
 	// Tracks
 	tracks := form.File["tracks"]
 	trackIds := make([]string, len(tracks))
 	for i, track := range tracks {
 		file, err := track.Open()
-		Check(err)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		s, r := MustTeeSeeker(file)
 		// Extract metadata
 		meta, err := tag.ReadFrom(s)
-		Check(err)
-		Println(meta)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		// metadata := meta.Raw()
 		// Track info
-		trackFormat := "audio/" + ToLower(string(meta.FileType()))
+		trackTitle := meta.Title()
+		trackId := api.GenerateId(trackTitle)
 		// trackURL := ""
 		// Upload track to minio
-		_, err = cli.PutObject(projectTitle, track.Filename, r, trackFormat)
-		Check(err)
+		_, err = api.cli.PutObject(projectTitle, track.Filename, r, "audio/mp3")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		file.Close()
+		trackIds[i] = trackId
 		/*
 			data = api.NewTrack(projectId, trackTitle, location, trackURL)
 			// Generate and send transaction to IPDB
@@ -297,7 +346,6 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		*/
-		trackIds[i] = api.priv.Sign([]byte(track.Filename)).String() //for now
 	}
 	projectInfo := NewProjectInfo(projectId, trackIds)
 	WriteJSON(w, projectInfo)

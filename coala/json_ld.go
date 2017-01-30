@@ -2,7 +2,7 @@ package coala
 
 import (
 	"github.com/kazarena/json-gold/ld"
-	. "github.com/zballs/go_resonate/util"
+	. "github.com/zballs/envoke/util"
 )
 
 // json to map[string]interface{} for json-ld interpretation

@@ -45,3 +45,7 @@ func MustReadFile(path string) []byte {
 	Check(err)
 	return bytes
 }
+
+func Getenv(key string) string {
+	return os.Getenv(key)
+}

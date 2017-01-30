@@ -2,7 +2,7 @@ package types
 
 import (
 	log "github.com/inconshreveable/log15"
-	. "github.com/zballs/go_resonate/util"
+	. "github.com/zballs/envoke/util"
 )
 
 type Logger struct {

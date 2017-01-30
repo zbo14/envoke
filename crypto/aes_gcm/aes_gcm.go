@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	. "github.com/zballs/go_resonate/util"
+	. "github.com/zballs/envoke/util"
 )
 
 const NONCE_SIZE = 12 //what should this be?

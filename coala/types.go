@@ -1,6 +1,6 @@
 package coala
 
-import . "github.com/zballs/go_resonate/util"
+import . "github.com/zballs/envoke/util"
 
 // Context URLs
 const (

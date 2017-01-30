@@ -2,7 +2,7 @@ package ed25519
 
 import (
 	"bytes"
-	. "github.com/zballs/go_resonate/util"
+	. "github.com/zballs/envoke/util"
 	bcrypt "golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ed25519"
 )
@@ -79,11 +79,11 @@ func (priv *PrivateKey) Public() *PublicKey {
 	return pub
 }
 
-func (priv *PrivateKey) String() string {
+func (priv *PrivateKey) ToB58() string {
 	return BytesToB58(priv.Bytes())
 }
 
-func (priv *PrivateKey) FromString(b58 string) error {
+func (priv *PrivateKey) FromB58(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != PRIVKEY_SIZE {
 		return Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
@@ -93,8 +93,22 @@ func (priv *PrivateKey) FromString(b58 string) error {
 	return nil
 }
 
+func (priv *PrivateKey) ToHex() string {
+	return BytesToHex(priv.Bytes())
+}
+
+func (priv *PrivateKey) FromHex(hex string) error {
+	data := BytesFromHex(hex)
+	if size := len(data); size != PRIVKEY_SIZE {
+		return Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
+	}
+	priv.data = make([]byte, PRIVKEY_SIZE)
+	copy(priv.data, data)
+	return nil
+}
+
 func (priv *PrivateKey) MarshalJSON() ([]byte, error) {
-	b58 := priv.String()
+	b58 := priv.ToB58()
 	data := MustMarshalJSON(b58)
 	return data, nil
 }
@@ -104,7 +118,7 @@ func (priv *PrivateKey) UnmarshalJSON(data []byte) error {
 	if err := UnmarshalJSON(data, &b58); err != nil {
 		return err
 	}
-	return priv.FromString(b58)
+	return priv.FromB58(b58)
 }
 
 // Public Key
@@ -117,11 +131,11 @@ func (pub *PublicKey) Bytes() []byte {
 	return pub.data[:]
 }
 
-func (pub *PublicKey) String() string {
+func (pub *PublicKey) ToB58() string {
 	return BytesToB58(pub.Bytes())
 }
 
-func (pub *PublicKey) FromString(b58 string) error {
+func (pub *PublicKey) FromB58(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != PUBKEY_SIZE {
 		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
@@ -131,8 +145,22 @@ func (pub *PublicKey) FromString(b58 string) error {
 	return nil
 }
 
+func (pub *PublicKey) ToHex() string {
+	return BytesToHex(pub.Bytes())
+}
+
+func (pub *PublicKey) FromHex(hex string) error {
+	data := BytesFromHex(hex)
+	if size := len(data); size != PUBKEY_SIZE {
+		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
+	}
+	pub.data = make([]byte, PUBKEY_SIZE)
+	copy(pub.data, data)
+	return nil
+}
+
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
-	b58 := pub.String()
+	b58 := pub.ToB58()
 	data := MustMarshalJSON(b58)
 	return data, nil
 }
@@ -142,7 +170,7 @@ func (pub *PublicKey) UnmarshalJSON(data []byte) error {
 	if err := UnmarshalJSON(data, &b58); err != nil {
 		return err
 	}
-	return pub.FromString(b58)
+	return pub.FromB58(b58)
 }
 
 // Signature
@@ -151,11 +179,11 @@ func (sig *Signature) Bytes() []byte {
 	return sig.data[:]
 }
 
-func (sig *Signature) String() string {
+func (sig *Signature) ToB58() string {
 	return BytesToB58(sig.Bytes())
 }
 
-func (sig *Signature) FromString(b58 string) error {
+func (sig *Signature) FromB58(b58 string) error {
 	data := BytesFromB58(b58)
 	if size := len(data); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
@@ -165,8 +193,22 @@ func (sig *Signature) FromString(b58 string) error {
 	return nil
 }
 
+func (sig *Signature) ToHex() string {
+	return BytesToHex(sig.Bytes())
+}
+
+func (sig *Signature) FromHex(hex string) error {
+	data := BytesFromHex(hex)
+	if size := len(data); size != SIGNATURE_SIZE {
+		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	}
+	sig.data = make([]byte, SIGNATURE_SIZE)
+	copy(sig.data, data)
+	return nil
+}
+
 func (sig *Signature) MarshalJSON() ([]byte, error) {
-	b58 := sig.String()
+	b58 := sig.ToB58()
 	data := MustMarshalJSON(b58)
 	return data, nil
 }
@@ -176,7 +218,7 @@ func (sig *Signature) UnmarshalJSON(data []byte) error {
 	if err := UnmarshalJSON(data, &b58); err != nil {
 		return err
 	}
-	return sig.FromString(b58)
+	return sig.FromB58(b58)
 }
 
 // Generate secret from password string

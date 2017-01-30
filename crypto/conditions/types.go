@@ -2,8 +2,8 @@ package conditions
 
 import (
 	"bytes"
-	"github.com/zballs/go_resonate/crypto/ed25519"
-	. "github.com/zballs/go_resonate/util"
+	"github.com/zballs/envoke/crypto/ed25519"
+	. "github.com/zballs/envoke/util"
 	"sort"
 )
 

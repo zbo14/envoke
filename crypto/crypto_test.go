@@ -2,9 +2,9 @@ package crypto
 
 import (
 	"bytes"
-	conds "github.com/zballs/go_resonate/crypto/conditions"
-	"github.com/zballs/go_resonate/crypto/ed25519"
-	. "github.com/zballs/go_resonate/util"
+	conds "github.com/zballs/envoke/crypto/conditions"
+	"github.com/zballs/envoke/crypto/ed25519"
+	. "github.com/zballs/envoke/util"
 	"testing"
 )
 

@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/binary"
+	"github.com/whyrusleeping/cbor/go"
 )
 
 func Uint16Bytes(x int) []byte {
@@ -203,3 +204,24 @@ func ToVarOctet(p []byte) []byte {
 	return puf.Bytes()
 }
 */
+
+// CBOR
+
+func DumpCBOR(v interface{}) ([]byte, error) {
+	return cbor.Dumps(v)
+}
+
+func MustDumpCBOR(v interface{}) []byte {
+	p, err := DumpCBOR(v)
+	Check(err)
+	return p
+}
+
+func LoadCBOR(p []byte, v interface{}) error {
+	return cbor.Loads(p, v)
+}
+
+func MustLoadCBOR(p []byte, v interface{}) {
+	err := LoadCBOR(p, v)
+	Check(err)
+}

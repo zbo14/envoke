@@ -55,6 +55,7 @@ func MustExpandJSON(p []byte) []interface{} {
 	return output
 }
 
+// Recursive
 func TransformJSON(data Data) interface{} {
 	for key, value := range data {
 		switch value.(type) {
@@ -66,12 +67,80 @@ func TransformJSON(data Data) interface{} {
 				Check(err)
 				return &cbor.CBORTag{
 					Tag:           LINK_TAG,
-					WrappedObject: maddr.Bytes(), //String()??
+					WrappedObject: maddr.String(), //Bytes()??
 				}
 			}
 		}
 	}
 	return data
+}
+
+type ref struct {
+	key    string
+	parent int
+}
+
+func KeyTrail(i int, refs []ref) []string {
+	var keys []string
+	for i > 0 {
+		ref := refs[i]
+		keys = append([]string{ref.key}, keys...)
+		i = ref.parent
+	}
+	return keys
+}
+
+func SetInnerValue(data Data, i int, refs []ref, value interface{}) {
+	keys := KeyTrail(i, refs)
+	var inner interface{} = data
+	for i, k := range keys {
+		if i == len(keys)-1 {
+			inner.(Data)[k] = value
+		} else {
+			inner = inner.(Data)[k]
+		}
+	}
+}
+
+func GetInnerValue(data Data, i int, refs []ref) (v interface{}) {
+	keys := KeyTrail(i, refs)
+	var inner interface{} = data
+	for i, k := range keys {
+		if i == len(keys)-1 {
+			v = inner.(Data)[k]
+		} else {
+			inner = inner.(Data)[k]
+		}
+	}
+	return
+}
+
+// Iterative
+func IterTransformJSON(data Data) {
+	i := 0
+	refs := []ref{ref{"", -1}}
+	var inner interface{} = data
+	for {
+		for k, v := range inner.(Data) {
+			if _, ok := v.(Data); ok {
+				refs = append(refs, ref{k, i})
+				continue
+			}
+			if len(inner.(Data)) == 1 && k == LINK_SYMBOL {
+				maddr, err := ma.NewMultiaddr(k + v.(string))
+				Check(err)
+				value := &cbor.CBORTag{
+					Tag:           LINK_TAG,
+					WrappedObject: maddr.String(),
+				}
+				SetInnerValue(data, i, refs, value)
+			}
+		}
+		if i++; i == len(refs) {
+			return
+		}
+		inner = GetInnerValue(data, i, refs)
+	}
 }
 
 // IPLD
@@ -107,19 +176,49 @@ func DecodeIPLD(p []byte) (Data, error) {
 }
 
 func TransformIPLD(data Data) interface{} {
-	for key, value := range data {
-		switch value.(type) {
-		case Data:
-			data[key] = TransformIPLD(data)
-		case *cbor.CBORTag:
-			v := value.(*cbor.CBORTag)
-			if v.Tag == LINK_TAG {
-				p := v.WrappedObject.([]byte)
-				return Data{LINK_SYMBOL: p}
+	for k, v := range data {
+		if _, ok := v.(Data); ok {
+			data[k] = TransformIPLD(data)
+			continue
+		}
+		if value, ok := v.(*cbor.CBORTag); ok {
+			if size := len(data); size != 1 {
+				Panicf("Expected 1 value; got %d\n", size)
+			}
+			if value.Tag == LINK_TAG {
+				str := value.WrappedObject.(string)
+				return Data{LINK_SYMBOL: str}
 			}
 		}
 	}
 	return data
+}
+
+func IterTransformIPLD(data Data) {
+	i := 0
+	refs := []ref{ref{"", -1}}
+	var inner interface{} = data
+	for {
+		for k, v := range inner.(Data) {
+			if _, ok := v.(Data); ok {
+				refs = append(refs, ref{k, i})
+				continue
+			}
+			if value, ok := v.(*cbor.CBORTag); ok {
+				if size := len(inner.(Data)); size != 1 {
+					Panicf("Expected 1 value; got %d\n", size)
+				}
+				if value.Tag == LINK_TAG {
+					str := value.WrappedObject.(string)
+					SetInnerValue(data, i, refs, Data{LINK_SYMBOL: str})
+				}
+			}
+		}
+		if i++; i == len(refs) {
+			return
+		}
+		inner = GetInnerValue(data, i, refs)
+	}
 }
 
 func Multihash(buf []byte, name string) string {

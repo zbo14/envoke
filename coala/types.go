@@ -1,9 +1,5 @@
 package coala
 
-import (
-//. "github.com/zballs/envoke/util"
-)
-
 // Context URLs
 const (
 	SCHEMA  = "http://schema.org/"

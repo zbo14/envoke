@@ -29,7 +29,7 @@ Note: the API is purely for demo purposes. We eventually want to integrate permi
 [Handcrafting transactions](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) and sending them to BigchainDB/IPDB.
 
 ### Coala
-A json-ld implementation of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
+json-ld and ipld implementations of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
 
 ### Crypto
 Ed25519 public-key cryptography and a minimal ILP [crypto-conditions](https://tools.ietf.org/html/draft-thomas-crypto-conditions-00) library.

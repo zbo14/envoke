@@ -252,11 +252,12 @@ func NewRightsAssertion(impl, id string, asserter interface{}, assertionTruth bo
 
 // Album
 
-func NewAlbum(impl, id string, byArtist interface{}, name string, track ...interface{}) Data {
+func NewAlbum(impl, id string, byArtist interface{}, name string, release interface{}, track ...interface{}) Data {
 	var context interface{}
 	if impl == IPLD {
 		context = LinkIPLD(SCHEMA)
 		byArtist = LinkIPLD(byArtist)
+		release = LinkIPLD(release)
 		track = LinksIPLD(track...)
 	}
 	if impl == JSON {
@@ -271,6 +272,7 @@ func NewAlbum(impl, id string, byArtist interface{}, name string, track ...inter
 	data["byArtist"] = byArtist
 	data["numTracks"] = len(track)
 	data["name"] = name
+	data["release"] = release
 	data["track"] = track
 	return data
 }
@@ -318,5 +320,29 @@ func NewRecording(impl, id string, byArtist, inAlbum, recordingOf interface{}) D
 	data["byArtist"] = byArtist
 	data["inAlbum"] = inAlbum
 	data["recordingOf"] = recordingOf
+	return data
+}
+
+func NewRelease(impl, id, datePublished string, recordLabel, publisher, releaseOf interface{}) Data {
+	var context interface{}
+	if impl == IPLD {
+		context = LinkIPLD(SCHEMA)
+		recordLabel = LinkIPLD(recordLabel)
+		publisher = LinkIPLD(publisher)
+		releaseOf = LinkIPLD(releaseOf)
+	}
+	if impl == JSON {
+		context = SCHEMA
+	}
+	data := make(Data)
+	data["@context"] = context
+	data["@type"] = "MusicRelease"
+	if id != "" {
+		data["@id"] = id
+	}
+	data["datePublished"] = datePublished
+	data["recordLabel"] = recordLabel
+	data["publisher"] = publisher
+	data["releaseOf"] = releaseOf
 	return data
 }

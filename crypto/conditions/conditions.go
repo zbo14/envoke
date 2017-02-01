@@ -23,6 +23,7 @@ const (
 	CONDITION_URI        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
 	CONDITION_URI_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
 	FULFILLMENT_URI      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
+	FULFILLMENT_TYPE     = "fulfillment"
 
 	// Types
 	PREIMAGE_ID      = 0
@@ -51,7 +52,6 @@ type Fulfillment interface {
 	Size() int
 	String() string
 	UnmarshalBinary([]byte) error
-	UnmarshalJSON([]byte) error
 	Validate([]byte) bool
 	Weight() int
 }
@@ -293,17 +293,6 @@ func (f *fulfillment) UnmarshalBinary(p []byte) error {
 	return nil
 }
 
-func (f *fulfillment) UnmarshalJSON(p []byte) error {
-	var uri string
-	if err := UnmarshalJSON(p, &uri); err != nil {
-		return err
-	}
-	if err := f.FromString(uri); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (f *fulfillment) Weight() int {
 	if f.weight >= 1 {
 		return f.weight
@@ -417,13 +406,56 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	return p, nil
 }
 
+func ExtractPubKey(p []byte) *ed25519.PublicKey {
+	if len(p) < ed25519.PUBKEY_SIZE {
+		panic("Slice is not big enough")
+	}
+	pub, err := ed25519.NewPublicKey(p[:ed25519.PUBKEY_SIZE])
+	Check(err)
+	return pub
+}
+
 func (c *Condition) MarshalJSON() ([]byte, error) {
 	if c == nil {
 		return nil, nil
 	}
-	uri := c.String()
-	p := MustMarshalJSON(uri)
-	return p, nil
+	if !c.Validate(nil) {
+		panic("Invalid condition")
+	}
+	switch id := c.Id(); id {
+	case ED25519_ID:
+		json := MustMarshalJSON(struct {
+			Details struct {
+				Bitmask   int                `json:"bitmask"`
+				PubKey    *ed25519.PublicKey `json:"public_key"`
+				Signature string             `json:"signature,omitempty"`
+				Type      string             `json:"type"`
+				TypeId    int                `json:"type_id"`
+			} `json:"details"`
+			URI string `json:"uri"`
+		}{
+			Details: struct {
+				Bitmask   int                `json:"bitmask"`
+				PubKey    *ed25519.PublicKey `json:"public_key"`
+				Signature string             `json:"signature,omitempty"`
+				Type      string             `json:"type"`
+				TypeId    int                `json:"type_id"`
+			}{
+				Bitmask:   c.Bitmask(),
+				PubKey:    ExtractPubKey(c.Hash()),
+				Signature: "",
+				Type:      FULFILLMENT_TYPE,
+				TypeId:    id,
+			},
+			URI: c.String(),
+		})
+		return json, nil
+	case PREIMAGE_ID, THRESHOLD_ID: //
+		// Ok..
+	default:
+		Panicf("Unexpected id=%d for MarshalJSON\n", id)
+	}
+	return MustMarshalJSON(c.String()), nil
 }
 
 func (c *Condition) Size() int { return c.size }
@@ -462,17 +494,6 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 	c.bitmask = bitmask
 	c.hash = hash
 	c.size = size
-	return nil
-}
-
-func (c *Condition) UnmarshalJSON(p []byte) error {
-	var uri string
-	if err := UnmarshalJSON(p, &uri); err != nil {
-		return err
-	}
-	if err := c.FromString(uri); err != nil {
-		return err
-	}
 	return nil
 }
 

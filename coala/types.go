@@ -1,5 +1,7 @@
 package coala
 
+import . "github.com/zballs/envoke/util"
+
 // Context URLs
 const (
 	SCHEMA  = "http://schema.org/"
@@ -7,13 +9,13 @@ const (
 
 	IPLD = "ipld"
 	JSON = "json_ld"
+
+	LC_REGEX = `^LC-\d{4,5}$`
 )
 
 type Data map[string]interface{}
 
-// specs: github.com/COALAIP/specs/data-structure/README.md
-
-// Geo coordinates
+// Coala IP specs: github.com/COALAIP/specs/data-structure/README.md
 
 func NewGeo(impl, lat, long string) Data {
 	var context interface{}
@@ -23,15 +25,14 @@ func NewGeo(impl, lat, long string) Data {
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "GeoCoordinates"
-	data["latitude"] = lat
-	data["longitude"] = long
+	data := Data{
+		"@context":  context,
+		"@type":     "GeoCoordinates",
+		"latitude":  lat,
+		"longitude": long,
+	}
 	return data
 }
-
-// Localizable place
 
 func NewPlace(impl, lat, long, name string) Data {
 	var context interface{}
@@ -41,15 +42,14 @@ func NewPlace(impl, lat, long, name string) Data {
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Place"
-	data["geo"] = NewGeo(impl, lat, long)
-	data["name"] = name
+	data := Data{
+		"@context": context,
+		"@type":    "Place",
+		"geo":      NewGeo(impl, lat, long),
+		"name":     name,
+	}
 	return data
 }
-
-// Person
 
 func NewPerson(impl, id, givenName, familyName, birthDate string) Data {
 	var context interface{}
@@ -59,43 +59,39 @@ func NewPerson(impl, id, givenName, familyName, birthDate string) Data {
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Person"
+	data := Data{
+		"@context":   context,
+		"@type":      "Person",
+		"givenName":  givenName,
+		"familyName": familyName,
+		"birthDate":  birthDate,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["givenName"] = givenName
-	data["familyName"] = familyName
-	data["birthDate"] = birthDate
 	return data
 }
 
-// Organization
-
-func NewOrganization(impl, id, name string, founder interface{}, member ...interface{}) Data {
+func NewOrganization(impl, id, email, name, _type string) Data {
 	var context interface{}
 	if impl == IPLD {
-		context = LinksIPLD(SCHEMA, COALAIP)
-		founder = LinkIPLD(founder)
-		member = LinksIPLD(member...)
+		context = LinksIPLD(SCHEMA)
 	}
 	if impl == JSON {
-		context = []string{SCHEMA, COALAIP}
+		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Organization"
+	data := Data{
+		"@context":    context,
+		"@type":       "Organization",
+		"email":       email,
+		"name":        name,
+		"description": _type,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["name"] = name
-	data["founder"] = founder
-	data["member"] = member
 	return data
 }
-
-// Work
 
 func NewWork(impl, id, name string, author interface{}) Data {
 	var context interface{}
@@ -106,18 +102,17 @@ func NewWork(impl, id, name string, author interface{}) Data {
 	if impl == JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Work"
+	data := Data{
+		"@context": context,
+		"@type":    "Work",
+		"name":     name,
+		"author":   author,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["name"] = name
-	data["author"] = author
 	return data
 }
-
-// Digital manifestation (e.g. audio file)
 
 func NewDigitalManifestation(impl, id, name string, example interface{}, isManifestation bool, project interface{}, datePublished string, locationCreated, url interface{}) Data {
 	var context interface{}
@@ -131,23 +126,22 @@ func NewDigitalManifestation(impl, id, name string, example interface{}, isManif
 	if impl == JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Manifestation"
+	data := Data{
+		"@context":        context,
+		"@type":           "Manifestation",
+		"name":            name,
+		"exampleOfWork":   example,
+		"isManifestation": isManifestation,
+		"isPartOf":        project,
+		"datePublished":   datePublished,
+		"locationCreated": locationCreated,
+		"url":             url,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["name"] = name
-	data["exampleOfWork"] = example
-	data["isManifestation"] = isManifestation
-	data["isPartOf"] = project
-	data["datePublished"] = datePublished
-	data["locationCreated"] = locationCreated
-	data["url"] = url
 	return data
 }
-
-// Digital Fingerprint
 
 func NewDigitalFingerprint(impl, id, creativeWork, fingerprint string) Data {
 	var context interface{}
@@ -157,18 +151,17 @@ func NewDigitalFingerprint(impl, id, creativeWork, fingerprint string) Data {
 	if impl == JSON {
 		context = COALAIP
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "DigitalFingerprint"
+	data := Data{
+		"@context":      context,
+		"@type":         "DigitalFingerprint",
+		"fingerprintOf": creativeWork,
+		"fingerprint":   fingerprint,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["fingerprintOf"] = creativeWork
-	data["fingerprint"] = fingerprint
 	return data
 }
-
-// Right
 
 func NewRight(impl, id string, usageType []string, territory interface{}, rightContext []string, exclusive bool, numberOfUses, percentageShares int, validFrom, validTo string, creativeWork, license interface{}) Data {
 	var context interface{}
@@ -181,26 +174,25 @@ func NewRight(impl, id string, usageType []string, territory interface{}, rightC
 	if impl == JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "Right"
+	data := Data{
+		"@context":         context,
+		"@type":            "Right",
+		"usageType":        usageType,
+		"territory":        territory,
+		"rightContext":     rightContext,
+		"exclusive":        exclusive,
+		"numberOfUses":     numberOfUses,
+		"percentageShares": percentageShares,
+		"validFrom":        validFrom,
+		"validTo":          validTo,
+		"creation":         creativeWork,
+		"license":          license,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["usageType"] = usageType
-	data["territory"] = territory
-	data["rightContext"] = rightContext
-	data["exclusive"] = exclusive
-	data["numberOfUses"] = numberOfUses
-	data["percentageShares"] = percentageShares
-	data["validFrom"] = validFrom
-	data["validTo"] = validTo
-	data["creation"] = creativeWork
-	data["license"] = license
 	return data
 }
-
-// Rights assignment
 
 func NewRightsAssignment(impl, id string, creativeWork interface{}) Data {
 	var context interface{}
@@ -211,17 +203,16 @@ func NewRightsAssignment(impl, id string, creativeWork interface{}) Data {
 	if impl == JSON {
 		context = COALAIP
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "RightsTransferAction"
+	data := Data{
+		"@context":         context,
+		"@type":            "RightsTransferAction",
+		"transferContract": creativeWork,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["transferContract"] = creativeWork
 	return data
 }
-
-// Rights assertion
 
 func NewRightsAssertion(impl, id string, asserter interface{}, assertionTruth bool, assertionSubject interface{}, _error, validFrom, validThrough string) Data {
 	var context interface{}
@@ -233,24 +224,23 @@ func NewRightsAssertion(impl, id string, asserter interface{}, assertionTruth bo
 	if impl == JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "ReviewAction"
+	data := Data{
+		"@context":         context,
+		"@type":            "ReviewAction",
+		"asserter":         asserter,
+		"assertionTruth":   assertionTruth,
+		"assertionSubject": assertionSubject,
+		"error":            _error,
+		"validFrom":        validFrom,
+		"validThrough":     validThrough,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["asserter"] = asserter
-	data["assertionTruth"] = assertionTruth
-	data["assertionSubject"] = assertionSubject
-	data["error"] = _error
-	data["validFrom"] = validFrom
-	data["validThrough"] = validThrough
 	return data
 }
 
-//-------------------------------------------
-
-// Album
+// Schema
 
 func NewAlbum(impl, id string, byArtist interface{}, name string, release interface{}, track ...interface{}) Data {
 	var context interface{}
@@ -263,17 +253,18 @@ func NewAlbum(impl, id string, byArtist interface{}, name string, release interf
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "MusicAlbum"
+	data := Data{
+		"@context":  context,
+		"@type":     "MusicAlbum",
+		"byArtist":  byArtist,
+		"numTracks": len(track),
+		"name":      name,
+		"release":   release,
+		"track":     track,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["byArtist"] = byArtist
-	data["numTracks"] = len(track)
-	data["name"] = name
-	data["release"] = release
-	data["track"] = track
 	return data
 }
 
@@ -288,15 +279,16 @@ func NewComposition(impl, id string, composer, lyrics, recordedAs interface{}) D
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "MusicComposition"
+	data := Data{
+		"@context":   context,
+		"@type":      "MusicComposition",
+		"composer":   composer,
+		"lyrics":     lyrics,
+		"recordedAs": recordedAs,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["composer"] = composer
-	data["lyrics"] = lyrics
-	data["recordedAs"] = recordedAs
 	return data
 }
 
@@ -311,15 +303,16 @@ func NewRecording(impl, id string, byArtist, inAlbum, recordingOf interface{}) D
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "MusicRecording"
+	data := Data{
+		"@context":    context,
+		"@type":       "MusicRecording",
+		"byArtist":    byArtist,
+		"inAlbum":     inAlbum,
+		"recordingOf": recordingOf,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["byArtist"] = byArtist
-	data["inAlbum"] = inAlbum
-	data["recordingOf"] = recordingOf
 	return data
 }
 
@@ -334,15 +327,97 @@ func NewRelease(impl, id, datePublished string, recordLabel, publisher, releaseO
 	if impl == JSON {
 		context = SCHEMA
 	}
-	data := make(Data)
-	data["@context"] = context
-	data["@type"] = "MusicRelease"
+	data := Data{
+		"@context":      context,
+		"@type":         "MusicRelease",
+		"datePublished": datePublished,
+		"recordLabel":   recordLabel,
+		"publisher":     publisher,
+		"releaseOf":     releaseOf,
+	}
 	if id != "" {
 		data["@id"] = id
 	}
-	data["datePublished"] = datePublished
-	data["recordLabel"] = recordLabel
-	data["publisher"] = publisher
-	data["releaseOf"] = releaseOf
 	return data
+}
+
+// Music Ontology (json-ld for now)
+
+// should we just pass URIs?
+
+var CONTEXT = Data{
+	"mo":    "http://purl.org/ontology/mo/",
+	"dc":    "http://purl.org/dc/elements/1.1/",
+	"xsd":   "http://www.w3.org/2001/XMLSchema#",
+	"tl":    "http://purl.org/NET/c4dm/timeline.owl#",
+	"event": "http://purl.org/NET/c4dm/event.owl#",
+	"foaf":  "http://xmlns.com/foaf/0.1/",
+	"rdfs":  "http://www.w3.org/2000/01/rdf-schema#",
+}
+
+func NewTrack(id, title, artistId string) Data {
+	return Data{
+		"@context": CONTEXT,
+		"@type":    "mo:Track",
+		"dc:title": title,
+		"foaf:maker": Data{
+			"@id":   artistId,
+			"@type": "mo:MusicArtist",
+			// need artist name?
+		},
+	}
+}
+
+func NewArtist(id, name string) Data {
+	return Data{
+		"@context":  CONTEXT,
+		"@id":       id,
+		"@type":     "mo:MusicArtist",
+		"foaf:name": name,
+	}
+}
+
+func NewPublisher(id, name string) Data {
+	return Data{
+		"@context":  CONTEXT,
+		"@id":       id,
+		"@type":     "foaf:Organization",
+		"foaf:name": name,
+	}
+}
+
+func NewLabel(id, lc string) Data {
+	if !MatchString(LC_REGEX, lc) {
+		panic("Label code does not match regex pattern")
+	}
+	return Data{
+		"@context": CONTEXT,
+		"@id":      id,
+		"@type":    "mo:Label",
+		"mo:lc":    lc,
+	}
+}
+
+func NewRecord(id string, number int, publisherId string, trackIds []string) Data {
+	if number <= 0 {
+		panic("Record number must be positive")
+	}
+	tracks := make([]Data, len(trackIds))
+	for i, trackId := range trackIds {
+		tracks[i] = Data{
+			"@id":   trackId,
+			"@type": "mo:Track",
+		}
+	}
+	return Data{
+		"@context":         CONTEXT,
+		"@id":              id,
+		"@type":            "mo:Record",
+		"mo:record_number": number,
+		"mo:publisher": Data{
+			"@id":   publisherId,
+			"@type": "foaf:Agent",
+		},
+		"mo:track": tracks,
+	}
 }

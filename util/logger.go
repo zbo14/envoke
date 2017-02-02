@@ -1,9 +1,6 @@
-package types
+package util
 
-import (
-	log "github.com/inconshreveable/log15"
-	. "github.com/zballs/envoke/util"
-)
+import log "github.com/inconshreveable/log15"
 
 type Logger struct {
 	log.Logger

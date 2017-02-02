@@ -20,17 +20,18 @@ const (
 	MINIO_ENDPOINT   = "http://127.0.0.1:9000"
 	MINIO_ACCESS_KEY = "N3R2IT5XGCOMVIAUI25K"
 	MINIO_SECRET_KEY = "I9zaxZWzbdvpbQO0hT6+bBaEJyHJF78RA2wAFNvJ"
+	MINIO_REGION     = "us-east"
 )
 
 var signature = ""
 
 type Api struct {
-	cli    *minio.Client
-	logger types.Logger
-	priv   *ed25519.PrivateKey
-	pub    *ed25519.PublicKey
-	user   *types.User
-	userId string
+	cli       *minio.Client
+	logger    types.Logger
+	partner   coala.Data
+	partnerId string
+	priv      *ed25519.PrivateKey
+	pub       *ed25519.PublicKey
 }
 
 func NewApi() *Api {
@@ -41,10 +42,11 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/create_project", api.CreateProject)
+	mux.HandleFunc("/partner_login", api.PartnerLogin)
+	mux.HandleFunc("/partner_register", api.PartnerRegister)
+	mux.HandleFunc("/release_album", api.ReleaseAlbum)
 	mux.HandleFunc("/stream_track", api.StreamTrack)
 	mux.HandleFunc("/user_login", api.UserLogin)
-	mux.HandleFunc("/user_register", api.UserRegister)
 }
 
 // Minio client
@@ -63,13 +65,13 @@ func HostSecure(rawurl string) (string, bool) {
 	return url.Host, url.Scheme == "https"
 }
 
-func UserFromValues(values url.Values) *types.User {
+func PartnerFromValues(values url.Values) coala.Data {
 	email := values.Get("email")
-	region := values.Get("region")
-	password := values.Get("password")
+	id := values.Get("id")
+	name := values.Get("name")
 	_type := values.Get("type")
-	username := values.Get("username")
-	return types.NewUser(email, region, password, _type, username)
+	return coala.NewOrganization(coala.JSON, id, email, name, _type)
+	// return coala.NewPartner(coala.JSON,id,email,name,_type)
 }
 
 func (api *Api) GenerateId(key string) string {
@@ -77,21 +79,7 @@ func (api *Api) GenerateId(key string) string {
 	return hex[:ID_SIZE]
 }
 
-func (api *Api) NewProject(projectTitle string) map[string]interface{} {
-	artistName := api.user.Username
-	data := coala.NewWork(projectTitle, artistName)
-	return data
-}
-
-func (api *Api) NewTrack(projectId, trackTitle, location, trackURL string) map[string]interface{} {
-	example := "" //what should example be?
-	isManifestation := true
-	date := DateString()
-	data := coala.NewDigitalManifestation(trackTitle, example, isManifestation, projectId, date, location, trackURL)
-	return data
-}
-
-func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
+func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
@@ -103,17 +91,14 @@ func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
 		return
 	}
-	// New user
-	user := UserFromValues(values)
+	// New partner
+	partner := PartnerFromValues(values)
 	// Generate keypair from password
-	priv, pub := ed25519.GenerateKeypair(user.Password)
-	data := make(map[string]interface{})
-	// Sign user bytes
-	json := MustMarshalJSON(user)
-	data["user_signature"] = priv.Sign(json).ToB58()
+	password := values.Get("password")
+	priv, pub := ed25519.GenerateKeypair(password)
 	// send request to IPDB
-	t := bigchain.GenerateTransaction(data, nil, pub)
-	t.Fulfill(priv, pub)
+	tx := bigchain.GenerateTx(partner, nil, pub)
+	tx.Fulfill(priv)
 	/*
 		id, err := bigchain.PostTransaction(t)
 		if err != nil {
@@ -122,15 +107,13 @@ func (api *Api) UserRegister(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	*/
-	id := t.Id
-	signature = data["user_signature"].(string)
-	api.logger.Info("User: " + string(MustMarshalIndentJSON(user)))
-	api.logger.Info("Signature: " + signature)
-	userInfo := NewUserInfo(id, priv, pub)
-	WriteJSON(w, userInfo)
+	id := tx.Id
+	api.logger.Info("Partner: " + string(MustMarshalIndentJSON(partner)))
+	partnerInfo := NewPartnerInfo(id, priv, pub)
+	WriteJSON(w, partnerInfo)
 }
 
-func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
+func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
@@ -142,40 +125,30 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
 		return
 	}
-	// PrivId
+	// Partner
+	partner := PartnerFromValues(values)
+	json := MustMarshalJSON(partner)
+	// PrivKey
 	priv := new(ed25519.PrivateKey)
 	priv58 := values.Get("private_key")
 	if err = priv.FromB58(priv58); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	// User Id
-	userId := values.Get("user_id")
-	/*
-		// Check that transaction with id exists
-		t, err := bigchain.GetTransaction(userId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		// Get user signature
-		data := t.GetData()
-		sig := new(ed25519.Signature)
-		if err := sig.FromB58(data["user_signature"].(string)); err != nil {
-			http.Error(w, Error("Failed to verify user signature").Error(), http.StatusUnauthorized)
-			return
-		}
-	*/
-	// User
-	user := UserFromValues(values)
-	json := MustMarshalJSON(user)
+	// Sign partner data
+	sig := priv.Sign(json)
+	// Query tx with id
+	tx, err := bigchain.GetTransaction(partner["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	// Verify signature
+	data := tx.GetData()
+	json = MustMarshalJSON(data)
 	pub := priv.Public()
-	sig := new(ed25519.Signature)
-	err = sig.FromB58(signature)
-	Check(err)
-	Println(pub, string(json), sig)
-	if !pub.Verify(json, sig) {
-		http.Error(w, Error("Failed to verify user signature").Error(), http.StatusUnauthorized)
+	if !pub.Verify(data, sig) {
+		http.Error(w, Error("Failed to verify signature").Error(), http.StatusUnauthorized)
 		return
 	}
 	api.cli, err = NewClient(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
@@ -185,9 +158,9 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	api.priv = priv
 	api.pub = pub
-	api.user = user
-	api.userId = userId
-	WriteJSON(w, NewLogin(api.user.Type))
+	api.partner = partner
+	api.partnerId = partnerId
+	WriteJSON(w, NewLogin(api.partner.Type))
 }
 
 func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
@@ -209,12 +182,12 @@ func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Public-key is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.user == nil {
-		http.Error(w, "User-profile is not set", http.StatusUnauthorized)
+	if api.partner == nil {
+		http.Error(w, "Partner-profile is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.userId == "" {
-		http.Error(w, "User-id is not set", http.StatusUnauthorized)
+	if api.partnerId == "" {
+		http.Error(w, "Partner-id is not set", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -249,7 +222,7 @@ func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, NewStream("", projectTitle, trackTitle, presignedURL.String()))
 }
 
-func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
+func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
@@ -268,12 +241,12 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Public-key is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.user == nil {
-		http.Error(w, "User-profile is not set", http.StatusUnauthorized)
+	if api.partner == nil {
+		http.Error(w, "Partner-profile is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.userId == "" {
-		http.Error(w, "User-id is not set", http.StatusUnauthorized)
+	if api.partnerId == "" {
+		http.Error(w, "Partner-id is not set", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -305,7 +278,7 @@ func (api *Api) CreateProject(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	*/
-	err = api.cli.MakeBucket(projectTitle, api.user.Region)
+	err = api.cli.MakeBucket(projectTitle, api.partner.Region)
 	Check(err)
 	// Tracks
 	tracks := form.File["tracks"]

@@ -1,6 +1,7 @@
 package coala
 
 import (
+	. "github.com/zballs/envoke/util"
 	"testing"
 )
 

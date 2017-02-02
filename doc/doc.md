@@ -18,12 +18,12 @@ We are looking at several distributed and decentralized file systems, including 
 
 ### API
 A client-side API that communicates with BigchainDB/IPDB and the file system over http. Working on the following functionality:
-- Login/Register
+- Partner and user Login/Register
 - Persist a work to BigchainDB
 - Upload a track to the file system
 - Stream a track from the file system
 
-Note: the API is purely for demo purposes. We eventually want to integrate permissioned access and artist payments into the application, but the focus for now is the aforementioned functionality.
+Note: the API is purely for demo purposes.
 
 ### Bigchain
 [Handcrafting transactions](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) and sending them to BigchainDB/IPDB.

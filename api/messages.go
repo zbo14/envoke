@@ -4,55 +4,55 @@ import (
 	"github.com/zballs/envoke/crypto/ed25519"
 )
 
-type UserInfo struct {
-	Privkey *ed25519.PrivateKey `json:"private_key"`
-	Pubkey  *ed25519.PublicKey  `json:"public_key"`
-	UserId  string              `json:"user_id"`
+type PartnerInfo struct {
+	PartnerId string              `json:"partner_id"`
+	Privkey   *ed25519.PrivateKey `json:"private_key"`
+	Pubkey    *ed25519.PublicKey  `json:"public_key"`
 }
 
-func NewUserInfo(userId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *UserInfo {
-	return &UserInfo{
-		UserId:  userId,
-		Privkey: priv,
-		Pubkey:  pub,
+func NewPartnerInfo(partnerId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *PartnerInfo {
+	return &PartnerInfo{
+		PartnerId: partnerId,
+		Privkey:   priv,
+		Pubkey:    pub,
 	}
 }
 
 type Login struct {
-	Message  string `json:"message"`
-	UserType string `json:"user_type"`
+	Message     string `json:"message"`
+	PartnerType string `json:"user_type"`
 }
 
 func NewLogin(_type string) *Login {
 	return &Login{
-		Message:  "Logged in!",
-		UserType: _type,
+		Message:     "Logged in!",
+		PartnerType: _type,
 	}
 }
 
-type ProjectInfo struct {
-	ProjectId string   `json:"project_id"`
-	SongIds   []string `json:"track_ids"`
+type AlbumInfo struct {
+	AlbumId  string   `json:"album_id"`
+	TrackIds []string `json:"track_ids"`
 }
 
-func NewProjectInfo(projectId string, songIds []string) *ProjectInfo {
-	return &ProjectInfo{
-		ProjectId: projectId,
-		SongIds:   songIds,
+func NewAlbumInfo(albumId string, songIds []string) *AlbumInfo {
+	return &AlbumInfo{
+		AlbumId:  albumId,
+		TrackIds: songIds,
 	}
 }
 
 type Stream struct {
 	Artist      string `json:"artist"`
-	ProjecTitle string `json:"project_title"`
+	ProjecTitle string `json:"album_title"`
 	TrackTitle  string `json:"track_title"`
 	URL         string `json:"url"`
 }
 
-func NewStream(artist, projectTitle, trackTitle, url string) *Stream {
+func NewStream(artist, albumTitle, trackTitle, url string) *Stream {
 	return &Stream{
 		Artist:      artist,
-		ProjecTitle: projectTitle,
+		ProjecTitle: albumTitle,
 		TrackTitle:  trackTitle,
 		URL:         url,
 	}

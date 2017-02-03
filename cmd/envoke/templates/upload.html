@@ -3,13 +3,13 @@
 {{end}}
 
 {{define "body"}}
-<div id="create-album">
-    <form id="create-album-form" enctype="multipart/form-data">
-        <h2>Create Project</h2>
+<div id="upload-album">
+    <form id="upload-album-form" enctype="multipart/form-data">
+        <h2>Upload Album</h2>
         <input type="text" name="album_title" placeholder="album title" required /><br>
-        <input type="text" name="location" placeholder="location" required /><br>
+        <input type="text" name="album_location" placeholder="album location" required /><br>
         <input accept="audio" type="file" name="tracks" multiple required /><br>
-        <input type="submit" value="create" />
+        <input type="submit" value="upload" />
     </form>
 </div>
 <script type="text/javascript">
@@ -29,18 +29,18 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var createProjectCallback = function(responseText) {
+var uploadAlbumCallback = function(responseText) {
   var json = JSON.parse(responseText);
   console.log(json); //for now
 };
 
 window.onload = function() {
-    // Create album
-    var createProjectForm = document.getElementById("create-album-form");
-    createProjectForm.onsubmit = function(event) {
+    // Upload album
+    var uploadAlbumForm = document.getElementById("upload-album-form");
+    uploadAlbumForm.onsubmit = function(event) {
       event.preventDefault();
       var formData = new FormData(event.target);
-      httpPostAsync("http://localhost:8888/create_album", formData, createProjectCallback);
+      httpPostAsync("http://localhost:8888/upload_album", formData, uploadAlbumCallback);
     };
 }
 </script>

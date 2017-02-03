@@ -117,13 +117,12 @@ func NewCreativeWork(impl, id, name string, author interface{}) spec.Data {
 	return data
 }
 
-func NewDigitalManifestation(impl, id, _type, name string, example interface{}, isManifestation bool, isPartOf interface{}, datePublished string, locationCreated, url interface{}) spec.Data {
+func NewDigitalManifestation(impl, id, _type, name string, example interface{}, isManifestation bool, isPartOf interface{}, datePublished, locationCreated string, url interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinksIPLD(SCHEMA, COALAIP)
 		example = spec.LinkIPLD(example)
 		isPartOf = spec.LinkIPLD(isPartOf)
-		locationCreated = spec.LinkIPLD(locationCreated)
 		url = spec.LinkIPLD(url)
 	}
 	if impl == spec.JSON {
@@ -137,8 +136,11 @@ func NewDigitalManifestation(impl, id, _type, name string, example interface{}, 
 		"isManifestation": isManifestation,
 		"isPartOf":        isPartOf,
 		"datePublished":   datePublished,
-		"locationCreated": locationCreated,
-		"url":             url,
+		"locationCreated": spec.Data{
+			"@type": "Place",
+			"name":  locationCreated,
+		},
+		"url": url,
 	}
 	if id != "" {
 		data["@id"] = id
@@ -249,10 +251,36 @@ func NewAlbum(impl, id, name string, artist interface{}) spec.Data {
 	return NewCreativeWork(impl, id, name, artist)
 }
 
-func NewTrack(impl, id, name string, example interface{}, album interface{}, datePublished string, locationCreated, url interface{}) spec.Data {
-	return NewDigitalManifestation(impl, id, TRACK, name, example, true, album, datePublished, locationCreated, url)
+func NewTrack(impl, id, name string, example interface{}, album, artist interface{}, datePublished, locationCreated string, url interface{}) spec.Data {
+	// TODO: isrc code
+	// what should example be?
+	data := NewDigitalManifestation(impl, id, TRACK, name, example, true, album, datePublished, locationCreated, url)
+	data["byArtist"] = artist
+	return data
 }
 
+func NewArtist(email, name, openId, partnerId string) spec.Data {
+	return spec.Data{
+		"@type": "MusicGroup",
+		"email": email,
+		"name":  "name",
+		"memberOf": spec.Data{
+			"@id":   partnerId,
+			"@type": "Organization",
+		},
+		"sameAs": openId,
+	}
+}
+
+func NewLabel(impl, id, email, login, name string) spec.Data {
+	return NewOrganization(impl, id, email, login, name, LABEL)
+}
+
+func NewPublisher(impl, id, email, login, name string) spec.Data {
+	return NewOrganization(impl, id, email, login, name, PUBLISHER)
+}
+
+/*
 func NewArtist(impl, id, email, name string, members []string, partnerId string) spec.Data {
 	// TODO: add roles
 	var context interface{}
@@ -285,14 +313,7 @@ func NewArtist(impl, id, email, name string, members []string, partnerId string)
 	}
 	return data
 }
-
-func NewLabel(impl, id, email, login, name string) spec.Data {
-	return NewOrganization(impl, id, email, login, name, LABEL)
-}
-
-func NewPublisher(impl, id, email, login, name string) spec.Data {
-	return NewOrganization(impl, id, email, login, name, PUBLISHER)
-}
+*/
 
 /*
 // Schema

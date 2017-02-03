@@ -1,8 +1,9 @@
 package bigchain
 
 import (
-	"github.com/zballs/envoke/coala"
 	"github.com/zballs/envoke/crypto/ed25519"
+	"github.com/zballs/envoke/spec"
+	"github.com/zballs/envoke/spec/coala"
 	. "github.com/zballs/envoke/util"
 	"testing"
 )
@@ -10,9 +11,9 @@ import (
 func TestBigchain(t *testing.T) {
 	// Generate keys
 	priv, pub := ed25519.GenerateKeypair("password")
-	// Create a new data model
-	data := coala.NewRecording(coala.JSON, "", "artist", "album", "recording")
-	// Generate a BigchainDB tx
+	// Create a data model
+	data := coala.NewAlbum(spec.JSON, "", "name", "artist")
+	// Generate tx
 	tx := GenerateTx(data, nil, pub)
 	// Fulfill the tx
 	tx.Fulfill(priv)
@@ -20,7 +21,7 @@ func TestBigchain(t *testing.T) {
 	Println(string(json))
 	// Check if it's fulfilled
 	if !tx.Fulfilled() {
-		t.Error("Transaction is not fulfilled")
+		t.Fatal("Transaction is not fulfilled")
 	}
 	response, err := PostTx(tx)
 	if err != nil {

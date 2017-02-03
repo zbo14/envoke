@@ -21,8 +21,8 @@ We are looking at several distributed and decentralized file systems, including 
 ### API
 The API communicates with BigchainDB/IPDB and the file system over http. Currently in flux, but we are working on the following functionality:
 - Register a partner
-- Partner/user login
-- Persist a work to BigchainDB
+- Artist/partner login
+- Persist a work to the db
 - Upload an album to the file system
 - Stream a track from the file system
 
@@ -40,12 +40,12 @@ Ed25519 public-key cryptography and a minimal ILP [crypto-conditions](https://to
 ### Util
 
 ## Walkthrough
-TODO
+TODO:
 
-### Registering a new user
+### Registering a partner
 
 ### Logging in
 
-### Creating a project
+### Uploading an album
 
-### Streaming a song
+### Streaming a track

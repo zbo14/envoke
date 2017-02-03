@@ -1,0 +1,25 @@
+{
+    "@context": {
+        "id": "@id",
+        "type": "@type",
+
+        "envoke": "<envoke placeholder>",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "schema": "http://schema.org/",
+
+        "Partner": "envoke:Partner",
+        "Label": "envoke:Label",
+        "Publisher": "envoke:Publisher",
+        "Album": "envoke:Album",
+        "Track": "envoke:Track",
+
+        "album": "envoke:album",
+        "artist": "envoke:artist",
+        "email": "envoke:email",
+        "login": "envoke:login",
+        "name": "envoke:name",
+        "tracks": "envoke:tracks",
+        "signature": "envoke:signature",
+    }
+}

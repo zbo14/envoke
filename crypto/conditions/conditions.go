@@ -293,6 +293,19 @@ func (f *fulfillment) UnmarshalBinary(p []byte) error {
 	return nil
 }
 
+/*
+func (f *fulfillment) UnmarshalJSON(p []byte) error {
+	var uri string
+	if err := UnmarshalJSON(p, &uri); err != nil {
+		return err
+	}
+	if err := f.FromString(uri); err != nil {
+		return err
+	}
+	return nil
+}
+*/
+
 func (f *fulfillment) Weight() int {
 	if f.weight >= 1 {
 		return f.weight
@@ -428,7 +441,7 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 			Details struct {
 				Bitmask   int                `json:"bitmask"`
 				PubKey    *ed25519.PublicKey `json:"public_key"`
-				Signature string             `json:"signature,omitempty"`
+				Signature *ed25519.Signature `json:"signature"`
 				Type      string             `json:"type"`
 				TypeId    int                `json:"type_id"`
 			} `json:"details"`
@@ -437,25 +450,27 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 			Details: struct {
 				Bitmask   int                `json:"bitmask"`
 				PubKey    *ed25519.PublicKey `json:"public_key"`
-				Signature string             `json:"signature,omitempty"`
+				Signature *ed25519.Signature `json:"signature"`
 				Type      string             `json:"type"`
 				TypeId    int                `json:"type_id"`
 			}{
 				Bitmask:   c.Bitmask(),
 				PubKey:    ExtractPubKey(c.Hash()),
-				Signature: "",
+				Signature: nil,
 				Type:      FULFILLMENT_TYPE,
 				TypeId:    id,
 			},
 			URI: c.String(),
 		})
 		return json, nil
-	case PREIMAGE_ID, THRESHOLD_ID: //
+	case PREIMAGE_ID, THRESHOLD_ID:
 		// Ok..
 	default:
 		Panicf("Unexpected id=%d for MarshalJSON\n", id)
 	}
-	return MustMarshalJSON(c.String()), nil
+	uri := c.String()
+	p := MustMarshalJSON(uri)
+	return p, nil
 }
 
 func (c *Condition) Size() int { return c.size }

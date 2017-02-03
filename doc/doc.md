@@ -3,22 +3,24 @@
 Note: Envoke is in the early (early) stages of development.
 
 ### Identity 
-We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will eventually happen through partner organizations. The demo currently uses Ed25519 public-key cryptography for user verification and BigchainDB transactions.
+We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will initially happen through partner organizations (e.g. labels, publishers). The demo uses Ed25519 public-key cryptography for partner verification and BigchainDB transactions.
 
 ### Blockchain
-This is not a blockchain application (yet). We are considering various platforms and consensus engines such as [Tendermint](https://github.com/tendermint), which would be used for the ordering of transactions (e.g. uploads, plays), state replication across a network, and payments. This infrastructure would be in addition to BigchainDB/IPDB.
+This is not a blockchain application (yet). We are considering various platforms and consensus engines such as [Tendermint](https://github.com/tendermint), which would be used for the ordering of transactions, state replication across a network, and payments. This infrastructure would be in addition to BigchainDB/IPDB.
 
-### Works, Metadata, and Rights 
-This information will be persisted to BigchainDB/IPDB via user transactions. When an artist uploads a track to the file system, a `create` transaction containing the work's title and metadata will be sent to the BigchainDB/IPDB network. Works, metadata, and rights assignments/transfers are defined as Coala IP data models, with additional specifications if needed (e.g. adding music-specific fields to the schema).
+### Metadata and Rights 
+Metadata and rights will be persisted to BigchainDB/IPDB via user transactions. When an album/track is uploaded to the file system, a transaction containing the title and metadata will be sent to the BigchainDB/IPDB network. Metadata and rights assignments/transfers are defined as Coala IP data models, with additional specifications if needed (e.g. adding music-specific fields to the schema).
+
+TODO: assess whether Music Ontology is better suited for core data models (not including rights).
 
 ### File storage 
-We are looking at several distributed and decentralized file systems, including S3, minio (compatible with S3), IPFS, and storj. At the moment, using minio locally for file uploads and streams.
+We are looking at several distributed and decentralized file systems, including S3, minio (compatible with S3), IPFS, and storj. At the moment, we are using minio locally for file uploads and queries.
 
 ## Directories
 
 ### API
-A client-side API that communicates with BigchainDB/IPDB and the file system over http. Working on the following functionality:
-- Partner and user Login/Register
+The API communicates with BigchainDB/IPDB and the file system over http. Currently in flux, but we are working on the following functionality:
+- Login/register user
 - Persist a work to BigchainDB
 - Upload a track to the file system
 - Stream a track from the file system
@@ -28,13 +30,11 @@ Note: the API is purely for demo purposes.
 ### Bigchain
 [Handcrafting transactions](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) and sending them to BigchainDB/IPDB.
 
-### Coala
-json-ld and ipld implementations of the Coala IP [spec](https://github.com/COALAIP/specs/tree/master/data-structure).
-
 ### Crypto
 Ed25519 public-key cryptography and a minimal ILP [crypto-conditions](https://tools.ietf.org/html/draft-thomas-crypto-conditions-00) library.
 
-### Types
+### Spec
+[Coala IP](https://github.com/COALAIP/specs/tree/master/data-structure), [Music Ontology](http://musicontology.com/specification/), and experimental spec for envoke. 
 
 ### Util
 

@@ -82,33 +82,6 @@ func (f *fulfillmentEd25519) Hash() []byte {
 	return f.hash
 }
 
-func (f *fulfillmentEd25519) MarshalJSON() ([]byte, error) {
-	if f == nil {
-		return nil, nil
-	}
-	json := MustMarshalJSON(struct {
-		Bitmask   int                `json:"bitmask"`
-		PubKey    *ed25519.PublicKey `json:"public_key"`
-		Signature string             `json:"signature,omitempty"`
-		Type      string             `json:"type"`
-		TypeId    int                `json:"type_id"`
-	}{
-		Bitmask:   f.Bitmask(),
-		PubKey:    f.PubKey(),
-		Signature: f.String(),
-		Type:      FULFILLMENT_TYPE,
-		TypeId:    f.Id(),
-	})
-	return json, nil
-}
-
-func (f *fulfillmentEd25519) PubKey() *ed25519.PublicKey {
-	p := f.payload[:ed25519.PUBKEY_SIZE]
-	pub, err := ed25519.NewPublicKey(p)
-	Check(err)
-	return pub
-}
-
 func (f *fulfillmentEd25519) Validate(p []byte) bool {
 	pub, _ := ed25519.NewPublicKey(f.payload[:ed25519.PUBKEY_SIZE])
 	sig, _ := ed25519.NewSignature(f.payload[ed25519.PUBKEY_SIZE:])

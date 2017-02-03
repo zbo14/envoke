@@ -18,18 +18,6 @@ func NewPartnerInfo(partnerId string, priv *ed25519.PrivateKey, pub *ed25519.Pub
 	}
 }
 
-type Login struct {
-	Message     string `json:"message"`
-	PartnerType string `json:"user_type"`
-}
-
-func NewLogin(_type string) *Login {
-	return &Login{
-		Message:     "Logged in!",
-		PartnerType: _type,
-	}
-}
-
 type AlbumInfo struct {
 	AlbumId  string   `json:"album_id"`
 	TrackIds []string `json:"track_ids"`

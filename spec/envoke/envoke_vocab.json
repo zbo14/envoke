@@ -1,0 +1,122 @@
+{
+	"@context": {
+		"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+		"rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+		"schema": "http://schema.org/"
+	},
+	"@graph": [{
+		"@id": "<envoke placeholder>/Partner",
+		"@type": "rdfs:Class",
+		"rdfs:subClassOf": {
+			"@id": "schema:Intangible"
+		},
+		"rdfs:comment": "An envoke partner (e.g. label, publisher, or other organization).",
+		"rdfs:label": "Label"
+	}, {
+		"@id": "<envoke placeholder>/Label",
+		"@type": "rdfs:Class",
+		"rdfs:subClassOf": {
+			"@id": "envoke:Partner"
+		},
+		"rdfs:comment": "A partner label.",
+		"rdfs:label": "Label"
+	}, {
+		"@id": "<envoke placeholder>/Publisher",
+		"@type": "rdfs:Class",
+		"rdfs:subClassOf": {
+			"@id": "envoke:Partner"
+		},
+		"rdfs:comment": "A partner publisher.",
+		"rdfs:label": "Publisher"
+	}, {
+		"@id": "<envoke placeholder>/Album",
+		"@type": "rdfs:Class",
+		"rdfs:subClassOf": {
+			"@id": "schema:Intangible"
+		},
+		"rdfs:comment": "A musical album containing one or more tracks.",
+		"rdfs:label": "Album"
+
+	}, {
+		"@id": "<envoke placeholder>/Track",
+		"@type": "rdfs:Class",
+		"rdfs:subClassOf": {
+			"@id": "schema:Intangible"
+		},
+		"rdfs:comment": "A recording of a song.",
+		"rdfs:label": "Track"
+	}, {
+		"@id": "<envoke placeholder>/album",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Track"
+		},
+		"schema:rangeIncludes": {
+			"@id": "envoke:Album"
+		},
+		"rdfs:comment": "The album a track belongs to.",
+		"rdfs:label": "album"
+	}, {
+		"@id": "<envoke placeholder>/email",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Partner"
+		},
+		"schema:rangeIncludes": {
+			"@id": "schema:Text"
+		},
+		"rdfs:comment": "A partner's email address.",
+		"rdfs:label": "email"
+	}, {
+		"@id": "<envoke placeholder>/name",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": [{
+			"@id": "envoke:Album"
+		}, {
+			"@id": "envoke:Partner"
+		}, {
+			"@id": "envoke:Track"
+		}],
+		"schema:rangeIncludes": {
+			"@id": "schema:Text"
+		},
+		"rdfs:comment": "The name of an envoke entity.",
+		"rdfs:label": "name"
+	}, {
+		"@id": "<envoke placeholder>/login",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Partner"
+		},
+		"schema:rangeIncludes": {
+			"@id": "schema:URL"
+		},
+		"rdfs:comment": "The url for a partner login page.",
+		"rdfs:label": "login"
+
+	}, {
+		"@id": "<envoke placeholder>/tracks",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Album"
+		},
+		"schema:rangeIncludes": [{
+			"@id": "envoke:Track"
+		}, {
+			"@id": "schema:ItemList"
+		}],
+		"rdfs:comment": "A list of tracks on an album.",
+		"rdfs:label": "tracks"
+	}, {
+		"@id": "<envoke placeholder>/type",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Partner"
+		},
+		"schema:rangeIncludes": {
+			"@id": "schema:Text"
+		},
+		"rdfs:comment": "A partner's type.",
+		"rdfs:label": "type"
+	}]
+}

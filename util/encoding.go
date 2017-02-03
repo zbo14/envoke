@@ -8,21 +8,21 @@ import (
 )
 
 // Base64
-func Base64UrlEncode(bytes []byte) string {
-	return base64.RawURLEncoding.EncodeToString(bytes)
+func Base64UrlEncode(p []byte) string {
+	return base64.RawURLEncoding.EncodeToString(p)
 }
 
 func Base64UrlDecode(b64 string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(b64)
 }
 
-func B64Std(bytes []byte) string {
-	return base64.StdEncoding.EncodeToString(bytes)
+func B64Std(p []byte) string {
+	return base64.StdEncoding.EncodeToString(p)
 }
 
 // B58
-func BytesToB58(bytes []byte) string {
-	return base58.Encode(bytes)
+func BytesToB58(p []byte) string {
+	return base58.Encode(p)
 }
 
 func BytesFromB58(b58 string) []byte {
@@ -30,14 +30,14 @@ func BytesFromB58(b58 string) []byte {
 }
 
 // Hex
-func BytesToHex(bytes []byte) string {
-	return hex.EncodeToString(bytes)
+func BytesToHex(p []byte) string {
+	return hex.EncodeToString(p)
 }
 
 func BytesFromHex(hexstr string) []byte {
-	bytes, err := hex.DecodeString(hexstr)
+	p, err := hex.DecodeString(hexstr)
 	Check(err)
-	return bytes
+	return p
 }
 
 // JSON
@@ -46,9 +46,9 @@ func MarshalJSON(v interface{}) ([]byte, error) {
 }
 
 func MustMarshalJSON(v interface{}) []byte {
-	bytes, err := MarshalJSON(v)
+	p, err := MarshalJSON(v)
 	Check(err)
-	return bytes
+	return p
 }
 
 func MarshalIndentJSON(v interface{}) ([]byte, error) {
@@ -56,17 +56,17 @@ func MarshalIndentJSON(v interface{}) ([]byte, error) {
 }
 
 func MustMarshalIndentJSON(v interface{}) []byte {
-	bytes, err := MarshalIndentJSON(v)
+	p, err := MarshalIndentJSON(v)
 	Check(err)
-	return bytes
+	return p
 }
 
-func UnmarshalJSON(bytes []byte, v interface{}) error {
-	return json.Unmarshal(bytes, v)
+func UnmarshalJSON(p []byte, v interface{}) error {
+	return json.Unmarshal(p, v)
 }
 
-func MustUnmarshalJSON(bytes []byte, v interface{}) {
-	err := UnmarshalJSON(bytes, v)
+func MustUnmarshalJSON(p []byte, v interface{}) {
+	err := UnmarshalJSON(p, v)
 	Check(err)
 }
 

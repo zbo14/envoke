@@ -4,17 +4,17 @@ import (
 	"github.com/zballs/envoke/crypto/ed25519"
 )
 
-type PartnerInfo struct {
-	PartnerId string              `json:"partner_id"`
-	Privkey   *ed25519.PrivateKey `json:"private_key"`
-	Pubkey    *ed25519.PublicKey  `json:"public_key"`
+type UserInfo struct {
+	UserId  string              `json:"user_id"`
+	Privkey *ed25519.PrivateKey `json:"private_key"`
+	Pubkey  *ed25519.PublicKey  `json:"public_key"`
 }
 
-func NewPartnerInfo(partnerId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *PartnerInfo {
-	return &PartnerInfo{
-		PartnerId: partnerId,
-		Privkey:   priv,
-		Pubkey:    pub,
+func NewUserInfo(userId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *UserInfo {
+	return &UserInfo{
+		UserId:  userId,
+		Privkey: priv,
+		Pubkey:  pub,
 	}
 }
 

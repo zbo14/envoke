@@ -57,31 +57,18 @@
 		"rdfs:comment": "The album a track belongs to.",
 		"rdfs:label": "album"
 	}, {
-		"@id": "<envoke placeholder>/email",
-		"@type": "rdf:Property",
-		"schema:domainIncludes": {
-			"@id": "envoke:Partner"
-		},
-		"schema:rangeIncludes": {
-			"@id": "schema:Text"
-		},
-		"rdfs:comment": "A partner's email address.",
-		"rdfs:label": "email"
-	}, {
-		"@id": "<envoke placeholder>/name",
+		"@id": "<envoke placeholder>/artist",
 		"@type": "rdf:Property",
 		"schema:domainIncludes": [{
 			"@id": "envoke:Album"
-		}, {
-			"@id": "envoke:Partner"
 		}, {
 			"@id": "envoke:Track"
 		}],
 		"schema:rangeIncludes": {
 			"@id": "schema:Text"
 		},
-		"rdfs:comment": "The name of an envoke entity.",
-		"rdfs:label": "name"
+		"rdfs:comment": "The name of the artist who created the album/track.",
+		"rdfs:label": "artist"
 	}, {
 		"@id": "<envoke placeholder>/login",
 		"@type": "rdf:Property",
@@ -95,6 +82,17 @@
 		"rdfs:label": "login"
 
 	}, {
+		"@id": "<envoke placeholder>/signature",
+		"@type": "rdf:Property",
+		"schema:domainIncludes": {
+			"@id": "envoke:Partner"
+		},
+		"schema:rangeIncludes": {
+			"@id": "schema:Text"
+		},
+		"rdfs:comment": "A partner signature.",
+		"rdfs:label": "signature"
+	}, {
 		"@id": "<envoke placeholder>/tracks",
 		"@type": "rdf:Property",
 		"schema:domainIncludes": {
@@ -107,16 +105,5 @@
 		}],
 		"rdfs:comment": "A list of tracks on an album.",
 		"rdfs:label": "tracks"
-	}, {
-		"@id": "<envoke placeholder>/type",
-		"@type": "rdf:Property",
-		"schema:domainIncludes": {
-			"@id": "envoke:Partner"
-		},
-		"schema:rangeIncludes": {
-			"@id": "schema:Text"
-		},
-		"rdfs:comment": "A partner's type.",
-		"rdfs:label": "type"
 	}]
 }

@@ -16,10 +16,17 @@
 
         "album": "envoke:album",
         "artist": "envoke:artist",
-        "email": "envoke:email",
-        "login": "envoke:login",
-        "name": "envoke:name",
         "tracks": "envoke:tracks",
         "signature": "envoke:signature",
+
+        "email": {
+            "@id": "schema:email",
+            "@type": "@id"
+        },
+        "name": {
+            "@id": "schema:name",
+            "@type": "@id"
+        }
+        "url"
     }
 }

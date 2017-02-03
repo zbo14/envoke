@@ -6,6 +6,7 @@ import (
 	"github.com/zballs/envoke/bigchain"
 	"github.com/zballs/envoke/crypto/ed25519"
 	"github.com/zballs/envoke/spec"
+	"github.com/zballs/envoke/spec/coala"
 	. "github.com/zballs/envoke/util"
 	"net/http"
 	"net/url"
@@ -15,8 +16,6 @@ import (
 const (
 	EXPIRY_TIME = 1000 * time.Second
 	ID_SIZE     = 63
-	LABEL       = "label"
-	PUBLISHER   = "publisher"
 
 	MINIO_ENDPOINT   = "http://127.0.0.1:9000"
 	MINIO_ACCESS_KEY = "N3R2IT5XGCOMVIAUI25K"
@@ -25,11 +24,11 @@ const (
 )
 
 type Api struct {
-	cli     *minio.Client
-	logger  Logger
-	partner spec.Data
-	priv    *ed25519.PrivateKey
-	pub     *ed25519.PublicKey
+	cli    *minio.Client
+	logger Logger
+	priv   *ed25519.PrivateKey
+	pub    *ed25519.PublicKey
+	user   spec.Data
 }
 
 func NewApi() *Api {
@@ -40,11 +39,12 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/artist_login", api.ArtistLogin)
+	mux.HandleFunc("/artist_register", api.ArtistRegister)
+	mux.HandleFunc("/listen_track", api.ListenTrack)
 	mux.HandleFunc("/partner_login", api.PartnerLogin)
 	mux.HandleFunc("/partner_register", api.PartnerRegister)
-	mux.HandleFunc("/release_album", api.ReleaseAlbum)
-	mux.HandleFunc("/stream_track", api.StreamTrack)
-	mux.HandleFunc("/user_login", api.UserLogin)
+	mux.HandleFunc("/upload_album", api.UploadAlbum)
 }
 
 func GenerateId(key string) string {
@@ -68,23 +68,35 @@ func HostSecure(rawurl string) (string, bool) {
 	return url.Host, url.Scheme == "https"
 }
 
-// Partner
+func ArtistFromValues(values url.Values) spec.Data {
+	email := values.Get("email")
+	id := values.Get("id")
+	name := values.Get("name")
+	members := Split(values.Get("members"), ",")
+	partnerId := values.Get("partner_id")
+	return coala.NewArtist(spec.JSON, id, email, name, members, partnerId)
+}
 
 func PartnerFromValues(values url.Values) spec.Data {
 	email := values.Get("email")
 	id := values.Get("id")
+	login := values.Get("login")
 	name := values.Get("name")
 	_type := values.Get("type")
-	Println(email, id, name, _type)
 	switch _type {
-	case LABEL:
-		return spec.Data{} //TODO: determine which data model to use
-	case PUBLISHER:
-		return spec.Data{}
+	case coala.LABEL:
+		return coala.NewLabel(spec.JSON, id, email, login, name)
+	case coala.PUBLISHER:
+		return coala.NewPublisher(spec.JSON, id, email, login, name)
+	// TODO: add more partner types?
 	default:
 		panic("Unexpected partner type: " + _type)
 	}
+	// shouldn't get here
+	return nil
 }
+
+// Partner
 
 func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
@@ -107,16 +119,16 @@ func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 	tx := bigchain.GenerateTx(partner, nil, pub)
 	tx.Fulfill(priv)
 	/*
-		id, err := bigchain.PostTx(t)
+		id, err := bigchain.PostTx(tx)
 		if err != nil {
 			api.logger.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	*/
-	id := tx.Id
+	partnerId := tx.Id
 	api.logger.Info("Partner: " + string(MustMarshalIndentJSON(partner)))
-	partnerInfo := NewPartnerInfo(id, priv, pub)
+	partnerInfo := NewUserInfo(partnerId, priv, pub)
 	WriteJSON(w, partnerInfo)
 }
 
@@ -169,14 +181,19 @@ func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	api.priv = priv
 	api.pub = priv.Public()
-	api.partner = partner
+	api.user = partner
 	w.Write([]byte("Login successful!"))
 }
 
-// User
+// Artist
 
-func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
-	// Should be post request
+// should we do login or just registration via partner org?
+// having artist identity on envoke might ease attribution
+// e.g. album/track contains uri to artist profile in db
+// but artist must be verified by partner org first
+
+func (api *Api) ArtistRegister(w http.ResponseWriter, req *http.Request) {
+	//Should be post request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
 		return
@@ -188,29 +205,45 @@ func (api *Api) UserLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Get partner id
-	id := values.Get("id")
+	partnerId := values.Get("partner_id")
 	// Query IPDB
-	tx, err := bigchain.GetTx(id)
+	tx, err := bigchain.GetTx(partnerId)
 	if err != nil {
 		api.logger.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	partner := tx.GetData()
-	loginURL := partner["login"]
-	Println(loginURL)
-	// TODO: send POST request with user info to login endpoint
-	// If login is successful:
-	api.cli, err = NewClient(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	api.partner = partner
-	w.Write([]byte("Login successful!"))
+	login := partner["login"]
+	Println(login)
+	// TODO: send POST request with artist info to login endpoint
+	// If login via partner is successful:
+	artist := ArtistFromValues(values)
+	// Generate keypair from password
+	password := values.Get("password")
+	priv, pub := ed25519.GenerateKeypair(password)
+	// send request to IPDB
+	tx = bigchain.GenerateTx(partner, nil, pub)
+	tx.Fulfill(priv)
+	/*
+		id, err := bigchain.PostTx(tx)
+		if err != nil {
+			api.logger.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	*/
+	artistId := tx.Id
+	api.logger.Info("Artist: " + string(MustMarshalIndentJSON(artist)))
+	artistInfo := NewUserInfo(artistId, priv, pub)
+	WriteJSON(w, artistInfo)
 }
 
-func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
+func (api *Api) ArtistLogin(w http.ResponseWriter, req *http.Request) {
+	//TODO
+}
+
+func (api *Api) ListenTrack(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
@@ -221,8 +254,8 @@ func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Minio-client is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.partner == nil {
-		http.Error(w, "Partner-profile is not set", http.StatusUnauthorized)
+	if api.user == nil {
+		http.Error(w, "Could not identify user", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -255,7 +288,7 @@ func (api *Api) StreamTrack(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, NewStream("", albumTitle, trackTitle, presignedURL.String()))
 }
 
-func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
+func (api *Api) UploadAlbum(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
@@ -266,8 +299,8 @@ func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Minio-client is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.partner == nil {
-		http.Error(w, "Could not identify partner", http.StatusUnauthorized)
+	if api.user == nil {
+		http.Error(w, "Could not identify user", http.StatusUnauthorized)
 		return
 	}
 	// Get request data
@@ -276,7 +309,7 @@ func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
 		return
 	}
-	artistName := form.Value["artist_name"][0]
+	artistName := api.user["name"].(string)
 	albumTitle := form.Value["album_title"][0]
 	albumId := GenerateId(artistName + albumTitle)
 	/*
@@ -284,12 +317,10 @@ func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "You already have album with title="+albumTitle, http.StatusBadRequest)
 			return
 		}
-		// Generate one-off keypair for now
-		priv, pub := ed25519.GenerateKeypair(password)
-		// TODO: create new album
+		album := coala.NewAlbum(spec.JSON, "", albumTitle, api.user["id"])
 		// Generate and send transaction to IPDB
-		tx := bigchain.GenerateTx(data, nil, pub)
-		t.Fulfill(priv)
+		tx := bigchain.GenerateTx(album, nil, api.pub)
+		tx.Fulfill(api.priv)
 		albumId, err := bigchain.PostTx(tx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -328,9 +359,10 @@ func (api *Api) ReleaseAlbum(w http.ResponseWriter, req *http.Request) {
 		file.Close()
 		trackIds[i] = trackId
 		/*
-			// TODO: create new track
+			track := coala.NewTrack(spec.JSON, "", trackTitle, nil, albumId, "", nil, trackURL)
 			// Generate and send transaction to IPDB
-			tx := bigchain.GenerateTx(data, metadata, pub)
+			tx := bigchain.GenerateTx(track, metadata, api.pub)
+			tx.Fulfill(api.priv)
 			trackIds[i], err = bigchain.PostTx(tx)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)

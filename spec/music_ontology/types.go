@@ -19,15 +19,21 @@ var CONTEXT = spec.Data{
 	"rdfs":  "http://www.w3.org/2000/01/rdf-schema#",
 }
 
-func NewTrack(id, title, artistId string) spec.Data {
+func NewTrack(id, title, artistId, recordId string) spec.Data {
 	return spec.Data{
 		"@context": CONTEXT,
+		"@id":      id,
 		"@type":    "mo:Track",
 		"dc:title": title,
 		"foaf:maker": spec.Data{
 			"@id":   artistId,
 			"@type": "mo:MusicArtist",
-			// need artist name?
+			//"foaf:name": artistName,
+		},
+		"dc:isPartOf": spec.Data{
+			"@id":   recordId,
+			"@type": "mo:Record",
+			//"foaf:name": recordName,
 		},
 	}
 }
@@ -41,7 +47,7 @@ func NewArtist(id, name string) spec.Data {
 	}
 }
 
-func NewPublisher(id, name string) spec.Data {
+func NewOrganization(id, name string) spec.Data {
 	return spec.Data{
 		"@context":  CONTEXT,
 		"@id":       id,
@@ -50,25 +56,20 @@ func NewPublisher(id, name string) spec.Data {
 	}
 }
 
+// TODO: NewPublisher
+
 func NewLabel(id, name string) spec.Data {
-	/*
-		if !MatchString(LC_REGEX, lc) {
-			panic("Label code does not match regex pattern")
-		}
-	*/
+	// TODO: add label code
 	return spec.Data{
 		"@context":  CONTEXT,
 		"@id":       id,
 		"@type":     "mo:Label",
 		"foaf:name": name,
-		// "mo:lc":    lc,
 	}
 }
 
-func NewRecord(id string, number int, publisherId string, trackIds []string) spec.Data {
-	if number <= 0 {
-		panic("Record number must be positive")
-	}
+func NewRecord(id string, publisherId string, trackIds []string) spec.Data {
+	// TODO: add record number
 	tracks := make([]spec.Data, len(trackIds))
 	for i, trackId := range trackIds {
 		tracks[i] = spec.Data{
@@ -77,13 +78,13 @@ func NewRecord(id string, number int, publisherId string, trackIds []string) spe
 		}
 	}
 	return spec.Data{
-		"@context":         CONTEXT,
-		"@id":              id,
-		"@type":            "mo:Record",
-		"mo:record_number": number,
+		"@context": CONTEXT,
+		"@id":      id,
+		"@type":    "mo:Record",
 		"mo:publisher": spec.Data{
 			"@id":   publisherId,
 			"@type": "foaf:Agent",
+			//"foaf:name": publisherName,
 		},
 		"mo:track": tracks,
 	}

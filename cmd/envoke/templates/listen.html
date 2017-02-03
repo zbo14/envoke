@@ -7,14 +7,14 @@
 
 {{define "body"}}
 <!-- Form -->
-<div id="stream-track">
-    <form id="stream-track-form">
-        <h2>Stream track</h2>
+<div id="listen-track">
+    <form id="listen-track-form">
+        <h2>Listen to track</h2>
         <!-- should be logged in -->
         <!--<input type="text" name="track_id" placeholder="track id" required /><br>-->
         <input type="text" name="track_title" placeholder="track title" required /><br>
         <input type="text" name="project_title" placeholder="project title" required /><br>
-        <input type="submit" value="stream" />
+        <input type="submit" value="listen" />
     </form>
 </div>
 <!-- Media Player -->
@@ -84,7 +84,7 @@
       xhr.open("POST", addr, true); 
       xhr.send(data);
   };
-  var streamTrackCallback = function(responseText) {
+  var listenTrackCallback = function(responseText) {
     var json = JSON.parse(responseText);
     console.log(json);
     var tracks = [];
@@ -111,12 +111,12 @@
     });
   };
   window.onload = function() {
-    // Stream track
-    var streamTrackForm = document.getElementById("stream-track-form");
-    streamTrackForm.onsubmit = function(event) {
+    // Listen to track
+    var listenTrackForm = document.getElementById("listen-track-form");
+    listenTrackForm.onsubmit = function(event) {
       event.preventDefault();
-      var formData = $("#stream-track-form").serialize();
-      httpPostAsync("http://localhost:8888/stream_track", formData, streamTrackCallback);
+      var formData = $("#listen-track-form").serialize();
+      httpPostAsync("http://localhost:8888/listen_track", formData, listenTrackCallback);
     };
   };
 </script>

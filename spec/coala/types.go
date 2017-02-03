@@ -9,6 +9,10 @@ import (
 const (
 	SCHEMA  = "http://schema.org/"
 	COALAIP = "<coalaip placeholder>"
+
+	LABEL     = "RecordLabel"
+	PUBLISHER = "Publisher"
+	TRACK     = "MusicRecording"
 )
 
 // Coala IP spec
@@ -17,7 +21,7 @@ const (
 func NewGeo(impl, lat, long string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
+		context = spec.LinkIPLD(SCHEMA)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -34,7 +38,7 @@ func NewGeo(impl, lat, long string) spec.Data {
 func NewPlace(impl, lat, long, name string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
+		context = spec.LinkIPLD(SCHEMA)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -48,10 +52,10 @@ func NewPlace(impl, lat, long, name string) spec.Data {
 	return data
 }
 
-func NewPerson(impl, id, givenName, familyName, birthDate string) spec.Data {
+func NewPerson(impl, id, givenName, familyName, birthDate, deathDate string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
+		context = spec.LinkIPLD(SCHEMA)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -62,6 +66,7 @@ func NewPerson(impl, id, givenName, familyName, birthDate string) spec.Data {
 		"givenName":  givenName,
 		"familyName": familyName,
 		"birthDate":  birthDate,
+		"deathDate":  deathDate,
 	}
 	if id != "" {
 		data["@id"] = id
@@ -69,10 +74,10 @@ func NewPerson(impl, id, givenName, familyName, birthDate string) spec.Data {
 	return data
 }
 
-func NewOrganization(impl, id, email, name, _type string) spec.Data {
+func NewOrganization(impl, id, email, login, name, _type string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinksIPLD(SCHEMA)
+		context = spec.LinksIPLD(SCHEMA)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -83,6 +88,7 @@ func NewOrganization(impl, id, email, name, _type string) spec.Data {
 		"email":       email,
 		"name":        name,
 		"description": _type,
+		"url":         login,
 	}
 	if id != "" {
 		data["@id"] = id
@@ -90,18 +96,18 @@ func NewOrganization(impl, id, email, name, _type string) spec.Data {
 	return data
 }
 
-func NewWork(impl, id, name string, author interface{}) spec.Data {
+func NewCreativeWork(impl, id, name string, author interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinksIPLD(SCHEMA, COALAIP)
-		author = LinkIPLD(author)
+		context = spec.LinksIPLD(SCHEMA, COALAIP)
+		author = spec.LinkIPLD(author)
 	}
 	if impl == spec.JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
 	data := spec.Data{
 		"@context": context,
-		"@type":    "Work",
+		"@type":    "CreativeWork",
 		"name":     name,
 		"author":   author,
 	}
@@ -111,25 +117,25 @@ func NewWork(impl, id, name string, author interface{}) spec.Data {
 	return data
 }
 
-func NewDigitalManifestation(impl, id, name string, example interface{}, isManifestation bool, project interface{}, datePublished string, locationCreated, url interface{}) spec.Data {
+func NewDigitalManifestation(impl, id, _type, name string, example interface{}, isManifestation bool, isPartOf interface{}, datePublished string, locationCreated, url interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinksIPLD(SCHEMA, COALAIP)
-		example = LinkIPLD(example)
-		project = LinkIPLD(project)
-		locationCreated = LinkIPLD(locationCreated)
-		url = LinkIPLD(url)
+		context = spec.LinksIPLD(SCHEMA, COALAIP)
+		example = spec.LinkIPLD(example)
+		isPartOf = spec.LinkIPLD(isPartOf)
+		locationCreated = spec.LinkIPLD(locationCreated)
+		url = spec.LinkIPLD(url)
 	}
 	if impl == spec.JSON {
 		context = []string{SCHEMA, COALAIP}
 	}
 	data := spec.Data{
 		"@context":        context,
-		"@type":           "Manifestation",
+		"@type":           _type,
 		"name":            name,
 		"exampleOfWork":   example,
 		"isManifestation": isManifestation,
-		"isPartOf":        project,
+		"isPartOf":        isPartOf,
 		"datePublished":   datePublished,
 		"locationCreated": locationCreated,
 		"url":             url,
@@ -143,7 +149,7 @@ func NewDigitalManifestation(impl, id, name string, example interface{}, isManif
 func NewDigitalFingerprint(impl, id, creativeWork, fingerprint string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(COALAIP)
+		context = spec.LinkIPLD(COALAIP)
 	}
 	if impl == spec.JSON {
 		context = COALAIP
@@ -163,10 +169,10 @@ func NewDigitalFingerprint(impl, id, creativeWork, fingerprint string) spec.Data
 func NewRight(impl, id string, usageType []string, territory interface{}, rightContext []string, exclusive bool, numberOfUses, percentageShares int, validFrom, validTo string, creativeWork, license interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinksIPLD(SCHEMA, COALAIP)
-		territory = LinkIPLD(territory)
-		creativeWork = LinkIPLD(creativeWork)
-		license = LinkIPLD(license)
+		context = spec.LinksIPLD(SCHEMA, COALAIP)
+		territory = spec.LinkIPLD(territory)
+		creativeWork = spec.LinkIPLD(creativeWork)
+		license = spec.LinkIPLD(license)
 	}
 	if impl == spec.JSON {
 		context = []string{SCHEMA, COALAIP}
@@ -194,8 +200,8 @@ func NewRight(impl, id string, usageType []string, territory interface{}, rightC
 func NewRightsAssignment(impl, id string, creativeWork interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(COALAIP)
-		creativeWork = LinkIPLD(creativeWork)
+		context = spec.LinkIPLD(COALAIP)
+		creativeWork = spec.LinkIPLD(creativeWork)
 	}
 	if impl == spec.JSON {
 		context = COALAIP
@@ -214,9 +220,9 @@ func NewRightsAssignment(impl, id string, creativeWork interface{}) spec.Data {
 func NewRightsAssertion(impl, id string, asserter interface{}, assertionTruth bool, assertionSubject interface{}, _error, validFrom, validThrough string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinksIPLD(SCHEMA, COALAIP)
-		asserter = LinkIPLD(asserter)
-		assertionSubject = LinkIPLD(assertionSubject)
+		context = spec.LinksIPLD(SCHEMA, COALAIP)
+		asserter = spec.LinkIPLD(asserter)
+		assertionSubject = spec.LinkIPLD(assertionSubject)
 	}
 	if impl == spec.JSON {
 		context = []string{SCHEMA, COALAIP}
@@ -237,15 +243,67 @@ func NewRightsAssertion(impl, id string, asserter interface{}, assertionTruth bo
 	return data
 }
 
+//------------------------------------------------------------
+
+func NewAlbum(impl, id, name string, artist interface{}) spec.Data {
+	return NewCreativeWork(impl, id, name, artist)
+}
+
+func NewTrack(impl, id, name string, example interface{}, album interface{}, datePublished string, locationCreated, url interface{}) spec.Data {
+	return NewDigitalManifestation(impl, id, TRACK, name, example, true, album, datePublished, locationCreated, url)
+}
+
+func NewArtist(impl, id, email, name string, members []string, partnerId string) spec.Data {
+	// TODO: add roles
+	var context interface{}
+	if impl == spec.IPLD {
+		context = spec.LinksIPLD(SCHEMA, COALAIP)
+	}
+	if impl == spec.JSON {
+		context = []string{SCHEMA, COALAIP}
+	}
+	member := make([]spec.Data, len(members))
+	for i, name := range members {
+		member[i] = spec.Data{
+			"@type": "Person",
+			"name":  name,
+		}
+	}
+	data := spec.Data{
+		"@context": context,
+		"@id":      "MusicGroup",
+		"email":    email,
+		"name":     name,
+		"member":   member,
+		"memberOf": spec.Data{
+			"@id":   partnerId,
+			"@type": "Organization",
+		},
+	}
+	if id != "" {
+		data["@id"] = id
+	}
+	return data
+}
+
+func NewLabel(impl, id, email, login, name string) spec.Data {
+	return NewOrganization(impl, id, email, login, name, LABEL)
+}
+
+func NewPublisher(impl, id, email, login, name string) spec.Data {
+	return NewOrganization(impl, id, email, login, name, PUBLISHER)
+}
+
+/*
 // Schema
 
 func NewAlbum(impl, id string, byArtist interface{}, name string, release interface{}, track ...interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
-		byArtist = LinkIPLD(byArtist)
-		release = LinkIPLD(release)
-		track = LinksIPLD(track...)
+		context = spec.LinkIPLD(SCHEMA)
+		byArtist = spec.LinkIPLD(byArtist)
+		release = spec.LinkIPLD(release)
+		track = spec.LinksIPLD(track...)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -268,10 +326,10 @@ func NewAlbum(impl, id string, byArtist interface{}, name string, release interf
 func NewComposition(impl, id string, composer, lyrics, recordedAs interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
-		composer = LinkIPLD(composer)
-		lyrics = LinkIPLD(lyrics)
-		recordedAs = LinkIPLD(recordedAs)
+		context = spec.LinkIPLD(SCHEMA)
+		composer = spec.LinkIPLD(composer)
+		lyrics = spec.LinkIPLD(lyrics)
+		recordedAs = spec.LinkIPLD(recordedAs)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -292,10 +350,10 @@ func NewComposition(impl, id string, composer, lyrics, recordedAs interface{}) s
 func NewRecording(impl, id string, byArtist, inAlbum, recordingOf interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
-		byArtist = LinkIPLD(byArtist)
-		inAlbum = LinkIPLD(inAlbum)
-		recordingOf = LinkIPLD(recordingOf)
+		context = spec.LinkIPLD(SCHEMA)
+		byArtist = spec.LinkIPLD(byArtist)
+		inAlbum = spec.LinkIPLD(inAlbum)
+		recordingOf = spec.LinkIPLD(recordingOf)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -316,10 +374,10 @@ func NewRecording(impl, id string, byArtist, inAlbum, recordingOf interface{}) s
 func NewRelease(impl, id, datePublished string, recordLabel, publisher, releaseOf interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
-		context = LinkIPLD(SCHEMA)
-		recordLabel = LinkIPLD(recordLabel)
-		publisher = LinkIPLD(publisher)
-		releaseOf = LinkIPLD(releaseOf)
+		context = spec.LinkIPLD(SCHEMA)
+		recordLabel = spec.LinkIPLD(recordLabel)
+		publisher = spec.LinkIPLD(publisher)
+		releaseOf = spec.LinkIPLD(releaseOf)
 	}
 	if impl == spec.JSON {
 		context = SCHEMA
@@ -337,3 +395,4 @@ func NewRelease(impl, id, datePublished string, recordLabel, publisher, releaseO
 	}
 	return data
 }
+*/

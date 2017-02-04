@@ -2,7 +2,7 @@ package ed25519
 
 import (
 	"bytes"
-	. "github.com/zballs/envoke/util"
+	. "github.com/zbo14/envoke/util"
 	bcrypt "golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ed25519"
 )

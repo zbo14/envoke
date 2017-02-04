@@ -5,7 +5,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/whyrusleeping/cbor/go"
-	. "github.com/zballs/envoke/util"
+	. "github.com/zbo14/envoke/util"
 )
 
 const (

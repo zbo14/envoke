@@ -1,7 +1,7 @@
 package spec
 
 import (
-	. "github.com/zballs/envoke/util"
+	. "github.com/zbo14/envoke/util"
 	"testing"
 )
 

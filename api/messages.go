@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/zballs/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/crypto/ed25519"
 )
 
 type AlbumInfo struct {

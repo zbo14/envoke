@@ -1,8 +1,8 @@
 package coala
 
 import (
-	// . "github.com/zballs/envoke/util"
-	"github.com/zballs/envoke/spec"
+	// . "github.com/zbo14/envoke/util"
+	"github.com/zbo14/envoke/spec"
 )
 
 // Context URLs

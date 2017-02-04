@@ -1,10 +1,10 @@
 package bigchain
 
 import (
-	"github.com/zballs/envoke/crypto/ed25519"
-	"github.com/zballs/envoke/spec"
-	"github.com/zballs/envoke/spec/coala"
-	. "github.com/zballs/envoke/util"
+	"github.com/zbo14/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/spec"
+	"github.com/zbo14/envoke/spec/coala"
+	. "github.com/zbo14/envoke/util"
 	"testing"
 )
 

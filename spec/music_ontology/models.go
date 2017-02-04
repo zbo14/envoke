@@ -1,8 +1,8 @@
 package music_ontology
 
 import (
-	"github.com/zballs/envoke/spec"
-	. "github.com/zballs/envoke/util"
+	"github.com/zbo14/envoke/spec"
+	. "github.com/zbo14/envoke/util"
 )
 
 const LC_REGEX = `^LC-\d{4,5}$`

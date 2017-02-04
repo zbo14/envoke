@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/zballs/envoke/api"
-	. "github.com/zballs/envoke/util"
+	"github.com/zbo14/envoke/api"
+	. "github.com/zbo14/envoke/util"
 	"net/http"
 )
 

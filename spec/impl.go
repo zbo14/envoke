@@ -18,16 +18,14 @@ const (
 
 type Data map[string]interface{}
 
-// JSON-ld
+// JSON-LD
 
-// json to map[string]interface{} for json-ld interpretation
 func MapJSON(p []byte) Data {
 	data := make(Data)
 	UnmarshalJSON(p, &data)
 	return data
 }
 
-// json-ld methods
 func CompactJSON(p []byte) (Data, error) {
 	proc := ld.NewJsonLdProcessor()
 	data := MapJSON(p)

@@ -7,6 +7,7 @@ import (
 	"github.com/zballs/envoke/crypto/ed25519"
 	"github.com/zballs/envoke/spec"
 	"github.com/zballs/envoke/spec/coala"
+	mo "github.com/zballs/envoke/spec/music_ontology"
 	. "github.com/zballs/envoke/util"
 	"net/http"
 	"net/url"
@@ -70,23 +71,26 @@ func HostSecure(rawurl string) (string, bool) {
 }
 
 func ArtistFromValues(values url.Values) spec.Data {
-	email := values.Get("email")
+	// email := values.Get("email")
 	name := values.Get("name")
 	openId := values.Get("open_id")
 	partnerId := values.Get("partner_id")
-	return coala.NewArtist(email, name, openId, partnerId)
+	return mo.NewArtist(spec.JSON, "", name, openId, partnerId)
+	// return coala.NewArtist(email, name, openId, partnerId)
 }
 
 func PartnerFromValues(values url.Values) spec.Data {
-	email := values.Get("email")
+	// email := values.Get("email")
 	login := values.Get("login")
 	name := values.Get("name")
 	_type := values.Get("type")
 	switch _type {
 	case coala.LABEL:
-		return coala.NewLabel(spec.JSON, "", email, login, name)
+		return mo.NewLabel(spec.JSON, "", name, "", login)
+		// return coala.NewLabel(spec.JSON, "", email, login, name)
 	case coala.PUBLISHER:
-		return coala.NewPublisher(spec.JSON, "", email, login, name)
+		return mo.NewPublisher(spec.JSON, "", name, login)
+		// return coala.NewPublisher(spec.JSON, "", email, login, name)
 	// TODO: add more partner types?
 	default:
 		panic("Unexpected partner type: " + _type)
@@ -111,6 +115,7 @@ func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 	}
 	// New partner
 	partner := PartnerFromValues(values)
+	Println(partner)
 	// Generate keypair from password
 	password := values.Get("password")
 	priv, pub := ed25519.GenerateKeypair(password)
@@ -146,7 +151,6 @@ func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 	// Partner
 	partner := PartnerFromValues(values)
 	json := MustMarshalJSON(partner)
-	Println(json)
 	// PrivKey
 	priv := new(ed25519.PrivateKey)
 	priv58 := values.Get("private_key")
@@ -318,21 +322,18 @@ func (api *Api) UploadAlbum(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "You already have album with title="+albumTitle, http.StatusBadRequest)
 			return
 		}
-		album := coala.NewAlbum(spec.JSON, "", albumTitle, api.artist)
-		// Generate and send transaction to IPDB
-		tx := bigchain.GenerateTx(album, nil, api.pub)
-		tx.Fulfill(api.priv)
-		albumId, err := bigchain.PostTx(tx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		album := mo.NewRecord(spec.JSON, "", albumTitle, 0, partnerId) //rename to record
+		// album := coala.NewAlbum(spec.JSON, "", albumTitle, api.artist)
+		// Generate album tx
+		albumTx := bigchain.GenerateTx(album, nil, api.pub)
+		albumTx.Fulfill(api.priv)
 	*/
 	err = api.cli.MakeBucket(albumTitle, MINIO_REGION)
 	Check(err)
 	// Tracks
 	tracks := form.File["tracks"]
 	trackIds := make([]string, len(tracks))
+	// It would be great if we could batch write tracks
 	for i, track := range tracks {
 		file, err := track.Open()
 		if err != nil {
@@ -360,17 +361,27 @@ func (api *Api) UploadAlbum(w http.ResponseWriter, req *http.Request) {
 		file.Close()
 		trackIds[i] = trackId
 		/*
-			track := coala.NewTrack(spec.JSON, "", trackTitle, nil, albumId, api.artist, datePublished, albumLocation, trackURL)
-			// Generate and send transaction to IPDB
-			tx := bigchain.GenerateTx(track, metadata, api.pub)
-			tx.Fulfill(api.priv)
-			trackIds[i], err = bigchain.PostTx(tx)
+			track := mo.NewTrack(spec.JSON, "", trackTitle, api.artist, i, albumId)
+			// track := coala.NewTrack(spec.JSON, "", trackTitle, nil, albumId, api.artist, datePublished, albumLocation, trackURL)
+			// Generate and send track tx
+			trackTx := bigchain.GenerateTx(track, metadata, api.pub)
+			trackTx.Fulfill(api.priv)
+			trackIds[i], err = bigchain.PostTx(trackTx)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 		*/
 	}
+	/*
+		mo.AddTracks(spec.JSON, album, trackIds)
+		albumTx.SetData(album)
+		albumId, err := bigchain.PostTx(albumTx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	*/
 	albumInfo := NewAlbumInfo(albumId, trackIds)
 	WriteJSON(w, albumInfo)
 }

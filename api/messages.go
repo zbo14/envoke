@@ -17,7 +17,7 @@ func NewAlbumInfo(albumId string, songIds []string) *AlbumInfo {
 }
 
 type PartnerInfo struct {
-	UserId  string              `json:"user_id"`
+	UserId  string              `json:"partner_id"`
 	Privkey *ed25519.PrivateKey `json:"private_key"`
 	Pubkey  *ed25519.PublicKey  `json:"public_key"`
 }

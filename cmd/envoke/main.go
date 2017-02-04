@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/zbo14/envoke/api"
-	. "github.com/zbo14/envoke/util"
+	. "github.com/zbo14/envoke/common"
 	"net/http"
 )
 

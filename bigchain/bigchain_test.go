@@ -1,10 +1,10 @@
 package bigchain
 
 import (
+	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/spec"
 	"github.com/zbo14/envoke/spec/coala"
-	. "github.com/zbo14/envoke/util"
 	"testing"
 )
 
@@ -23,6 +23,7 @@ func TestBigchain(t *testing.T) {
 	if !tx.Fulfilled() {
 		t.Fatal("Transaction is not fulfilled")
 	}
+	// Send POST request with tx
 	response, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)

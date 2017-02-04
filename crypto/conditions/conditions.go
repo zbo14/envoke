@@ -2,8 +2,8 @@ package conditions
 
 import (
 	"bytes"
+	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	. "github.com/zbo14/envoke/util"
 )
 
 // ILP crypto-conditions

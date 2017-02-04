@@ -1,7 +1,7 @@
 package coala
 
 import (
-	// . "github.com/zbo14/envoke/util"
+	// . "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/spec"
 )
 

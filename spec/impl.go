@@ -5,7 +5,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/whyrusleeping/cbor/go"
-	. "github.com/zbo14/envoke/util"
+	. "github.com/zbo14/envoke/common"
 )
 
 const (
@@ -17,6 +17,14 @@ const (
 )
 
 type Data map[string]interface{}
+
+func CopyData(d Data) Data {
+	copy := make(Data)
+	for k, v := range d {
+		copy[k] = v
+	}
+	return copy
+}
 
 // JSON-LD
 
@@ -181,16 +189,13 @@ func DecodeIPLD(p []byte) (Data, error) {
 func TransformIPLD(data Data) interface{} {
 	for k, v := range data {
 		if _, ok := v.(Data); ok {
-			data[k] = TransformIPLD(data)
+			data[k] = TransformIPLD(v.(Data))
 			continue
 		}
 		if value, ok := v.(*cbor.CBORTag); ok {
-			if size := len(data); size != 1 {
-				Panicf("Expected 1 value; got %d\n", size)
-			}
 			if value.Tag == LINK_TAG {
 				str := value.WrappedObject.(string)
-				return Data{LINK_SYMBOL: str}
+				data[k] = Data{LINK_SYMBOL: str[1:]}
 			}
 		}
 	}
@@ -208,12 +213,9 @@ func IterTransformIPLD(data Data) {
 				continue
 			}
 			if value, ok := v.(*cbor.CBORTag); ok {
-				if size := len(inner.(Data)); size != 1 {
-					Panicf("Expected 1 value; got %d\n", size)
-				}
 				if value.Tag == LINK_TAG {
 					str := value.WrappedObject.(string)
-					SetInnerValue(data, i, refs, Data{LINK_SYMBOL: str})
+					SetInnerValue(data, i, refs, Data{LINK_SYMBOL: str[1:]})
 				}
 			}
 		}

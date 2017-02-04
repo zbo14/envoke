@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	. "github.com/zbo14/envoke/util"
+	. "github.com/zbo14/envoke/common"
 )
 
 const NONCE_SIZE = 12 //what should this be?

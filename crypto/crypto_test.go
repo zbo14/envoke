@@ -2,9 +2,9 @@ package crypto
 
 import (
 	"bytes"
+	. "github.com/zbo14/envoke/common"
 	conds "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	. "github.com/zbo14/envoke/util"
 	"testing"
 )
 

@@ -16,8 +16,6 @@ func TestCryptoConditions(t *testing.T) {
 	if !f1.Validate(preimage) {
 		t.Error("Failed to validate pre-image fulfillment")
 	}
-	// Peep the condition
-	t.Log(f1.Condition())
 	// Ed25519
 	msg := []byte("deadbeef")
 	priv, _ := ed25519.GenerateKeypair("password")

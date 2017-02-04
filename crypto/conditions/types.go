@@ -137,7 +137,7 @@ func (f *fulfillmentThreshold) Bitmask() int {
 }
 
 func (f *fulfillmentThreshold) Hash() []byte {
-	if f.hash != nil {
+	if len(f.hash) > 0 {
 		return f.hash
 	}
 	f.hash = ThresholdHash(f.subs, f.threshold)
@@ -184,7 +184,7 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 	var set Fulfillments
 	for i, _ = range sets {
 		if thresholds[i] <= 0 {
-			if sums[i] < sum {
+			if sums[i] < sum || sum == 0 {
 				set = sets[i]
 				sum = sums[i]
 			}
@@ -198,7 +198,7 @@ FOR_LOOP:
 			}
 		}
 		sub.Init()
-		set = append(set, sub.Condition())
+		set = append(set, GetCondition(sub))
 	}
 	if set.Len() != numSubs {
 		//..
@@ -267,8 +267,9 @@ func ThresholdHash(subs Fulfillments, threshold int) []byte {
 	for _, sub := range subs {
 		weight := sub.Weight()
 		hash.Write(UvarintBytes(weight))
-		c := sub.Condition()
-		p, _ := c.MarshalBinary()
+		c := GetCondition(sub)
+		p, err := c.MarshalBinary()
+		Check(err)
 		hash.Write(p)
 	}
 	return hash.Sum(nil)

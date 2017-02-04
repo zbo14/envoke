@@ -16,14 +16,10 @@ const (
 	SUPPORTED_BITMASK = 0x3f
 
 	// Regex
-	CONDITION_BYTES        = `^([1-9a-f][0-9a-f]{0,3}|0)[1-9a-f][0-9a-f]{0,15}[a-zA-Z0-9_-]{0,86}([1-9][0-9]{0,17}|0)$`
-	CONDITION_BYTES_STRICT = `^([1-9a-f][0-9a-f]{0,3}|0)[1-9a-f][0-9a-f]{0,7}[a-zA-Z0-9_-]{0,86}([1-9][0-9]{0,17}|0)$`
-	FULFILLMENT_BYTES      = `^([1-9a-f][0-9a-f]{0,3}|0)[a-zA-Z0-9_-]*$`
-
-	CONDITION_URI        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	CONDITION_URI_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	FULFILLMENT_URI      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
-	FULFILLMENT_TYPE     = "fulfillment"
+	CONDITION_REGEX        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
+	CONDITION_REGEX_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
+	FULFILLMENT_REGEX      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
+	FULFILLMENT_TYPE       = "fulfillment"
 
 	// Types
 	PREIMAGE_ID      = 0
@@ -41,7 +37,6 @@ const (
 
 type Fulfillment interface {
 	Bitmask() int
-	Condition() *Condition
 	FromString(string) error
 	Hash() []byte
 	Id() int
@@ -79,46 +74,80 @@ func (fs Fulfillments) Swap(i, j int) {
 	fs[i], fs[j] = fs[j], fs[i]
 }
 
-func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
-	if MatchBytes(CONDITION_BYTES, p) {
-		c := new(Condition)
-		if err := c.UnmarshalBinary(p); err == nil {
-			return c, nil
-		}
+func GetCondition(f Fulfillment) *Condition {
+	if f.IsCondition() {
+		return f.(*Condition)
 	}
-	if MatchBytes(FULFILLMENT_BYTES, p) {
-		f := new(fulfillment)
-		if err := f.UnmarshalBinary(p); err != nil {
-			return nil, err
-		}
-		if weight < 1 {
-			return nil, Error("Weight cannot be less than 1")
-		}
-		f.weight = weight
-		switch f.id {
-		case PREIMAGE_ID:
-			return &fulfillmentPreImage{f}, nil
-		case ED25519_ID:
-			return &fulfillmentEd25519{f}, nil
-		case THRESHOLD_ID:
-			subs, threshold, err := ThresholdSubs(f.payload)
-			if err != nil {
+	return NewCondition(f.Bitmask(), f.Hash(), f.Id(), f.Size(), f.Weight())
+}
+
+func FulfillmentURI(p []byte) (string, error) {
+	if size := len(p); size <= 2 {
+		return "", Errorf("Expected fulfillment size > 2; got size=%d\n", size)
+	}
+	id := MustUint16(p[:2])
+	payload64 := Base64UrlEncode(p[2:])
+	return Sprintf("cf:%x:%s", id, payload64), nil
+}
+
+func ConditionURI(p []byte) (string, error) {
+	if size := len(p); size != CONDITION_SIZE {
+		return "", Errorf("Expected condition size=%d; got size=%d\n", CONDITION_SIZE, size)
+	}
+	id := MustUint16(p[:2])
+	bitmask := MustUint32(p[2:6])
+	hash64 := Base64UrlEncode(p[6 : 6+HASH_LENGTH])
+	size := MustUint16(p[6+HASH_LENGTH : CONDITION_SIZE])
+	return Sprintf("cc:%x:%x:%s:%d", id, bitmask, hash64, size), nil
+}
+
+func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
+	if uri, err := ConditionURI(p); err == nil {
+		if MatchString(CONDITION_REGEX, uri) {
+			c := new(Condition)
+			c.weight = weight
+			if err := c.UnmarshalBinary(p); err == nil {
+				return c, nil
+			} else {
 				return nil, err
 			}
-			return &fulfillmentThreshold{
-				fulfillment: f,
-				subs:        subs,
-				threshold:   threshold,
-			}, nil
-		default:
-			return nil, Errorf("Unexpected id=%d\n", f.id)
+		}
+	}
+	if uri, err := FulfillmentURI(p); err == nil {
+		if MatchString(FULFILLMENT_REGEX, uri) {
+			f := new(fulfillment)
+			if err := f.UnmarshalBinary(p); err != nil {
+				return nil, err
+			}
+			if weight < 1 {
+				return nil, Error("Weight cannot be less than 1")
+			}
+			f.weight = weight
+			switch f.id {
+			case PREIMAGE_ID:
+				return &fulfillmentPreImage{f}, nil
+			case ED25519_ID:
+				return &fulfillmentEd25519{f}, nil
+			case THRESHOLD_ID:
+				subs, threshold, err := ThresholdSubs(f.payload)
+				if err != nil {
+					return nil, err
+				}
+				return &fulfillmentThreshold{
+					fulfillment: f,
+					subs:        subs,
+					threshold:   threshold,
+				}, nil
+			default:
+				return nil, Errorf("Unexpected id=%d\n", f.id)
+			}
 		}
 	}
 	return nil, Error("Could not match bytes to regex")
 }
 
 func UnmarshalURI(uri string) (f Fulfillment, err error) {
-	if MatchString(CONDITION_URI, uri) {
+	if MatchString(CONDITION_REGEX, uri) {
 		// Try to parse condition
 		c := new(Condition)
 		parts := Split(uri, ":")
@@ -134,7 +163,7 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		case
 			c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
 			c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
-			c.id == THRESHOLD_ID && c.bitmask < THRESHOLD_BITMASK:
+			c.id == THRESHOLD_ID && c.bitmask >= THRESHOLD_BITMASK:
 		default:
 			return nil, Errorf("Unexpected id=%d, bitmask=%d\n", c.id, c.bitmask)
 		}
@@ -155,7 +184,7 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		}
 		return c, nil
 	}
-	if MatchString(FULFILLMENT_URI, uri) {
+	if MatchString(FULFILLMENT_REGEX, uri) {
 		// Try to parse non-condition fulfillment
 		_f := new(fulfillment)
 		parts := Split(uri, ":")
@@ -217,12 +246,8 @@ func NewFulfillment(id int, payload []byte, weight int) *fulfillment {
 	}
 }
 
-func (f *fulfillment) Condition() *Condition {
-	return NewCondition(f.bitmask, f.hash, f.id, f.size, f.weight)
-}
-
 func (f *fulfillment) FromString(uri string) error {
-	if !MatchString(FULFILLMENT_URI, uri) {
+	if !MatchString(FULFILLMENT_REGEX, uri) {
 		return Error("URI does not match fulfillment regex")
 	}
 	parts := Split(uri, ":")
@@ -274,8 +299,8 @@ func (f *fulfillment) Size() int {
 }
 
 func (f *fulfillment) String() string {
-	b64 := Base64UrlEncode(f.payload)
-	return Sprintf("cf:%x:%s", f.id, b64)
+	payload64 := Base64UrlEncode(f.payload)
+	return Sprintf("cf:%x:%s", f.id, payload64)
 }
 
 func (f *fulfillment) UnmarshalBinary(p []byte) error {
@@ -333,7 +358,7 @@ func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
-		id == THRESHOLD_ID && bitmask < THRESHOLD_BITMASK:
+		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
 	default:
 		Panicf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
@@ -357,10 +382,8 @@ func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition
 
 func (c *Condition) Bitmask() int { return c.bitmask }
 
-func (c *Condition) Condition() *Condition { return c }
-
 func (c *Condition) FromString(uri string) error {
-	if !MatchString(CONDITION_URI, uri) {
+	if !MatchString(CONDITION_REGEX, uri) {
 		return Error("URI does not match condition regex")
 	}
 	parts := Split(uri, ":")
@@ -376,7 +399,7 @@ func (c *Condition) FromString(uri string) error {
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
-		id == THRESHOLD_ID && bitmask < THRESHOLD_BITMASK:
+		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
 	default:
 		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
@@ -428,6 +451,7 @@ func ExtractPubKey(p []byte) *ed25519.PublicKey {
 	return pub
 }
 
+// Tailored for bigchain txs
 func (c *Condition) MarshalJSON() ([]byte, error) {
 	if c == nil {
 		return nil, nil
@@ -476,8 +500,8 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 func (c *Condition) Size() int { return c.size }
 
 func (c *Condition) String() string {
-	b64 := Base64UrlEncode(c.hash)
-	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, b64, c.size)
+	payload64 := Base64UrlEncode(c.hash)
+	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, payload64, c.size)
 }
 
 func (c *Condition) UnmarshalBinary(p []byte) error {
@@ -490,7 +514,7 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
-		id == THRESHOLD_ID && bitmask < THRESHOLD_BITMASK:
+		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
 	default:
 		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
@@ -517,7 +541,7 @@ func (c *Condition) Validate(p []byte) bool {
 	case
 		c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
 		c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
-		c.id == THRESHOLD_ID && c.bitmask < THRESHOLD_BITMASK:
+		c.id == THRESHOLD_ID && c.bitmask >= THRESHOLD_BITMASK:
 	default:
 		return false
 	}

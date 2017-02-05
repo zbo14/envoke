@@ -6,6 +6,7 @@ import (
 	conds "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/crypto/rsa"
+	"sort"
 	"testing"
 )
 
@@ -33,6 +34,7 @@ func TestCryptoConditions(t *testing.T) {
 	}
 	// Sha256 Threshold
 	subs := conds.Fulfillments{f1, f2, f3}
+	sort.Sort(subs)
 	threshold := 3
 	f4 := conds.NewFulfillmentThreshold(subs, threshold, 1)
 	buf := new(bytes.Buffer)
@@ -55,10 +57,15 @@ func TestCryptoConditions(t *testing.T) {
 	}
 	// Nested Thresholds
 	subs = conds.Fulfillments{f1, f2, f3, f4}
+	sort.Sort(subs)
+	buf2 := new(bytes.Buffer)
+	MustWriteVarBytes(msg, buf2)
+	MustWriteVarBytes(preimage, buf2)
+	MustWriteVarBytes(buf.Bytes(), buf2)
+	MustWriteVarBytes(anotherMsg, buf2)
 	threshold = 4
 	f6 := conds.NewFulfillmentThreshold(subs, threshold, 1)
-	buf.Write(buf.Bytes())
-	if !f6.Validate(buf.Bytes()) {
+	if !f6.Validate(buf2.Bytes()) {
 		t.Error("Failed to validate nested thresholds")
 	}
 }

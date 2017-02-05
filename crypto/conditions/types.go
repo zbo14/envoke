@@ -3,6 +3,7 @@ package conditions
 import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/crypto/rsa"
 	"sort"
@@ -21,26 +22,10 @@ func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
 	return f
 }
 
-func (f *fulfillmentPreImage) Bitmask() int {
-	if f.bitmask != PREIMAGE_BITMASK {
-		return f.bitmask
-	}
-	f.bitmask = PREIMAGE_BITMASK
-	return f.bitmask
-}
-
-func (f *fulfillmentPreImage) Hash() []byte {
-	if f.hash != nil {
-		return f.hash
-	}
-	f.hash = Checksum256(f.payload)
-	return f.hash
-}
-
 func (f *fulfillmentPreImage) Init() {
-	f.Bitmask()
-	f.Hash()
-	f.Size()
+	f.bitmask = PREIMAGE_BITMASK
+	f.hash = Checksum256(f.payload)
+	f.size = len(f.payload)
 }
 
 func (f *fulfillmentPreImage) Validate(p []byte) bool { return true }
@@ -61,31 +46,31 @@ func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fu
 	return f
 }
 
-func (f *fulfillmentEd25519) Bitmask() int {
-	if f.bitmask != ED25519_BITMASK {
-		return f.bitmask
-	}
-	f.bitmask = ED25519_BITMASK
-	return f.bitmask
-}
-
-func (f *fulfillmentEd25519) Hash() []byte {
-	if f.hash != nil {
-		return f.hash
-	}
-	f.hash = f.payload[:ed25519.PUBKEY_SIZE]
-	return f.hash
-}
-
 func (f *fulfillmentEd25519) Init() {
-	f.Bitmask()
-	f.Hash()
-	f.Size()
+	f.bitmask = ED25519_BITMASK
+	f.hash = f.payload[:ed25519.PUBKEY_SIZE]
+	f.size = ED25519_SIZE
+}
+
+func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
+	pub := new(ed25519.PublicKey)
+	p := f.payload[:ed25519.PUBKEY_SIZE]
+	err := pub.FromBytes(p)
+	Check(err)
+	return pub
+}
+
+func (f *fulfillmentEd25519) Signature() crypto.Signature {
+	sig := new(ed25519.Signature)
+	p := f.payload[ed25519.PUBKEY_SIZE:]
+	err := sig.FromBytes(p)
+	Check(err)
+	return sig
 }
 
 func (f *fulfillmentEd25519) Validate(p []byte) bool {
-	pub, _ := ed25519.NewPublicKey(f.payload[:ed25519.PUBKEY_SIZE])
-	sig, _ := ed25519.NewSignature(f.payload[ed25519.PUBKEY_SIZE:])
+	pub := f.PublicKey()
+	sig := f.Signature()
 	return pub.Verify(p, sig)
 }
 
@@ -105,26 +90,26 @@ func NewFulfillmentRSA(msg []byte, priv *rsa.PrivateKey, weight int) *fulfillmen
 	return f
 }
 
-func (f *fulfillmentRSA) Bitmask() int {
-	if f.bitmask == RSA_BITMASK {
-		return f.bitmask
-	}
-	f.bitmask = RSA_BITMASK
-	return f.bitmask
-}
-
-func (f *fulfillmentRSA) Hash() []byte {
-	if f.hash != nil {
-		return f.hash
-	}
-	f.hash = Checksum256(f.payload[:rsa.KEY_SIZE])
-	return f.hash
-}
-
 func (f *fulfillmentRSA) Init() {
-	f.Bitmask()
-	f.Hash()
-	f.Size()
+	f.bitmask = RSA_BITMASK
+	f.hash = Checksum256(f.payload[:rsa.KEY_SIZE])
+	f.size = RSA_SIZE
+}
+
+func (f *fulfillmentRSA) PublicKey() crypto.PublicKey {
+	pub := new(rsa.PublicKey)
+	p := f.payload[:rsa.KEY_SIZE]
+	err := pub.FromBytes(p)
+	Check(err)
+	return pub
+}
+
+func (f *fulfillmentRSA) Signature() crypto.Signature {
+	sig := new(rsa.Signature)
+	p := f.payload[rsa.KEY_SIZE:]
+	err := sig.FromBytes(p)
+	Check(err)
+	return sig
 }
 
 func (f *fulfillmentRSA) Validate(p []byte) bool {
@@ -140,7 +125,6 @@ func (f *fulfillmentRSA) Validate(p []byte) bool {
 // SHA256 Threshold
 
 type fulfillmentThreshold struct {
-	bitmask int
 	*fulfillment
 	subs      Fulfillments
 	threshold int
@@ -172,25 +156,9 @@ func (f *fulfillmentThreshold) Init() {
 	} else {
 		Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
 	}
-	f.Bitmask()
-	f.Hash()
-	f.Size()
-}
-
-func (f *fulfillmentThreshold) Bitmask() int {
-	if f.bitmask < THRESHOLD_BITMASK {
-		return f.bitmask
-	}
 	f.bitmask = ThresholdBitmask(f.subs)
-	return f.bitmask
-}
-
-func (f *fulfillmentThreshold) Hash() []byte {
-	if len(f.hash) > 0 {
-		return f.hash
-	}
 	f.hash = ThresholdHash(f.subs, f.threshold)
-	return f.hash
+	f.size = ThresholdSize(f.subs, f.threshold)
 }
 
 func ThresholdBitmask(subs Fulfillments) int {
@@ -308,15 +276,20 @@ func ThresholdSubs(p []byte) (Fulfillments, int, error) {
 	return subs, threshold, nil
 }
 
-// Hash the subconditions
+// Sort subconditions then hash them..
 func ThresholdHash(subs Fulfillments, threshold int) []byte {
+	numSubs := len(subs)
+	conds := make(Fulfillments, numSubs)
+	for i, sub := range subs {
+		sub.Init()
+		conds[i] = GetCondition(sub)
+	}
+	sort.Sort(conds)
 	hash := NewSha256()
 	hash.Write(Uint32Bytes(threshold))
-	hash.Write(UvarintBytes(len(subs)))
-	for _, sub := range subs {
-		weight := sub.Weight()
-		hash.Write(UvarintBytes(weight))
-		c := GetCondition(sub)
+	hash.Write(UvarintBytes(numSubs))
+	for _, c := range conds {
+		hash.Write(UvarintBytes(c.Weight()))
 		p, err := c.MarshalBinary()
 		Check(err)
 		hash.Write(p)
@@ -369,7 +342,6 @@ func ThresholdSize(subs Fulfillments, threshold int) int {
 
 func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	subs := f.subs
-	sort.Sort(subs)
 	threshold := f.threshold
 	min, total := 0, 0
 	var subf Fulfillments

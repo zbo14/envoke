@@ -3,7 +3,7 @@ package ed25519
 import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -22,7 +22,7 @@ type PrivateKey struct {
 }
 
 type Signature struct {
-	inner []byte
+	p []byte
 }
 
 func NewPrivateKey(inner ed25519.PrivateKey) (*PrivateKey, error) {
@@ -47,7 +47,7 @@ func NewSignature(inner []byte) (*Signature, error) {
 }
 
 func GenerateKeypair(password string) (*PrivateKey, *PublicKey) {
-	secret := GenerateSecret(password)
+	secret := crypto.GenerateSecret(password)
 	buf := new(bytes.Buffer)
 	buf.Write(secret)
 	pubInner, privInner, err := ed25519.GenerateKey(buf)
@@ -61,96 +61,48 @@ func GenerateKeypair(password string) (*PrivateKey, *PublicKey) {
 
 // Private Key
 
-func (priv *PrivateKey) Sign(message []byte) *Signature {
+func (_ *PrivateKey) IsPrivateKey() {}
+
+func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
 	p := ed25519.Sign(priv.inner, message)
 	sig, err := NewSignature(p)
 	Check(err)
 	return sig
 }
 
-func (priv *PrivateKey) Bytes() []byte {
-	return priv.inner[:]
-}
-
-func (priv *PrivateKey) Public() *PublicKey {
+func (priv *PrivateKey) Public() crypto.PublicKey {
 	p := priv.inner.Public().(ed25519.PublicKey)
 	pub, err := NewPublicKey(p)
 	Check(err)
 	return pub
 }
 
-func (priv *PrivateKey) ToB58() string {
-	return BytesToB58(priv.Bytes())
-}
-
-func (priv *PrivateKey) FromB58(b58 string) error {
-	inner := BytesFromB58(b58)
-	if size := len(inner); size != PRIVKEY_SIZE {
-		return Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
-	}
-	priv.inner = make([]byte, PRIVKEY_SIZE)
-	copy(priv.inner, inner)
-	return nil
-}
-
-func (priv *PrivateKey) ToHex() string {
-	return BytesToHex(priv.Bytes())
-}
-
-func (priv *PrivateKey) FromHex(hex string) error {
-	inner := BytesFromHex(hex)
-	if size := len(inner); size != PRIVKEY_SIZE {
-		return Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
-	}
-	priv.inner = make([]byte, PRIVKEY_SIZE)
-	copy(priv.inner, inner)
-	return nil
-}
-
-func (priv *PrivateKey) MarshalJSON() ([]byte, error) {
-	b58 := priv.ToB58()
-	p := MustMarshalJSON(b58)
-	return p, nil
-}
-
-func (priv *PrivateKey) UnmarshalJSON(inner []byte) error {
-	var b58 string
-	if err := UnmarshalJSON(inner, &b58); err != nil {
-		return err
-	}
-	return priv.FromB58(b58)
-}
-
 // Public Key
+func (_ *PublicKey) IsPublicKey() {}
 
-func (pub *PublicKey) Verify(message []byte, sig *Signature) bool {
-	return ed25519.Verify(pub.inner, message, sig.inner)
+func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
+	return ed25519.Verify(pub.inner, message, sig.Bytes())
 }
 
 func (pub *PublicKey) Bytes() []byte {
-	return pub.inner[:]
+	return pub.inner
 }
 
-func (pub *PublicKey) ToB58() string {
-	return BytesToB58(pub.Bytes())
-}
-
-func (pub *PublicKey) FromB58(b58 string) error {
-	inner := BytesFromB58(b58)
-	if size := len(inner); size != PUBKEY_SIZE {
+func (pub *PublicKey) FromBytes(p []byte) error {
+	if size := len(p); size != PUBKEY_SIZE {
 		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
 	}
 	pub.inner = make([]byte, PUBKEY_SIZE)
-	copy(pub.inner, inner)
+	copy(pub.inner, p)
 	return nil
 }
 
-func (pub *PublicKey) ToHex() string {
-	return BytesToHex(pub.Bytes())
+func (pub *PublicKey) String() string {
+	return BytesToB58(pub.Bytes())
 }
 
-func (pub *PublicKey) FromHex(hex string) error {
-	inner := BytesFromHex(hex)
+func (pub *PublicKey) FromString(str string) error {
+	inner := BytesFromB58(str)
 	if size := len(inner); size != PUBKEY_SIZE {
 		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
 	}
@@ -160,69 +112,58 @@ func (pub *PublicKey) FromHex(hex string) error {
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
-	b58 := pub.ToB58()
-	p := MustMarshalJSON(b58)
-	return p, nil
+	str := pub.String()
+	return MustMarshalJSON(str), nil
 }
 
 func (pub *PublicKey) UnmarshalJSON(inner []byte) error {
-	var b58 string
-	if err := UnmarshalJSON(inner, &b58); err != nil {
+	var str string
+	if err := UnmarshalJSON(inner, &str); err != nil {
 		return err
 	}
-	return pub.FromB58(b58)
+	return pub.FromString(str)
 }
 
 // Signature
 
+func (_ *Signature) IsSignature() {}
+
 func (sig *Signature) Bytes() []byte {
-	return sig.inner[:]
+	return sig.p
 }
 
-func (sig *Signature) ToB58() string {
-	return BytesToB58(sig.Bytes())
-}
-
-func (sig *Signature) FromB58(b58 string) error {
-	inner := BytesFromB58(b58)
-	if size := len(inner); size != SIGNATURE_SIZE {
+func (sig *Signature) FromBytes(p []byte) error {
+	if size := len(p); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
 	}
-	sig.inner = make([]byte, SIGNATURE_SIZE)
-	copy(sig.inner, inner)
+	sig.p = make([]byte, SIGNATURE_SIZE)
+	copy(sig.p, p)
 	return nil
 }
 
-func (sig *Signature) ToHex() string {
-	return BytesToHex(sig.Bytes())
+func (sig *Signature) String() string {
+	return BytesToB58(sig.Bytes())
 }
 
-func (sig *Signature) FromHex(hex string) error {
-	inner := BytesFromHex(hex)
+func (sig *Signature) FromString(str string) error {
+	inner := BytesFromB58(str)
 	if size := len(inner); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
 	}
-	sig.inner = make([]byte, SIGNATURE_SIZE)
-	copy(sig.inner, inner)
+	sig.p = make([]byte, SIGNATURE_SIZE)
+	copy(sig.p, inner)
 	return nil
 }
 
 func (sig *Signature) MarshalJSON() ([]byte, error) {
-	b58 := sig.ToB58()
-	p := MustMarshalJSON(b58)
-	return p, nil
+	str := sig.String()
+	return MustMarshalJSON(str), nil
 }
 
 func (sig *Signature) UnmarshalJSON(inner []byte) error {
-	var b58 string
-	if err := UnmarshalJSON(inner, &b58); err != nil {
+	var str string
+	if err := UnmarshalJSON(inner, &str); err != nil {
 		return err
 	}
-	return sig.FromB58(b58)
-}
-
-func GenerateSecret(password string) []byte {
-	secret, err := bcrypt.GenerateFromPassword([]byte(password), 0)
-	Check(err)
-	return secret
+	return sig.FromString(str)
 }

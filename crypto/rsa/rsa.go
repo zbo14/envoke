@@ -1,10 +1,11 @@
 package rsa
 
 import (
-	"crypto"
+	gocrypto "crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 )
 
 const (
@@ -23,7 +24,7 @@ type PublicKey struct {
 }
 
 type Signature struct {
-	inner []byte
+	p []byte
 }
 
 func NewPrivateKey(inner rsa.PrivateKey) *PrivateKey {
@@ -59,37 +60,41 @@ func GenerateKey() *PrivateKey {
 func NewPSSOptions() *rsa.PSSOptions {
 	opts := new(rsa.PSSOptions)
 	opts.SaltLength = SALT_SIZE
-	opts.Hash = crypto.SHA256
+	opts.Hash = gocrypto.SHA256
 	return opts
 }
 
 // PrivKey
 
-func (priv *PrivateKey) Sign(message []byte) *Signature {
+func (_ *PrivateKey) IsPrivateKey() {}
+
+func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
 	hash := NewSha256()
 	hash.Write(message)
 	hashed := hash.Sum(nil)
 	opts := NewPSSOptions()
-	inner, err := rsa.SignPSS(rand.Reader, &priv.inner, crypto.SHA256, hashed, opts)
+	inner, err := rsa.SignPSS(rand.Reader, &priv.inner, gocrypto.SHA256, hashed, opts)
 	Check(err)
 	return NewSignature(inner)
 }
 
-func (priv *PrivateKey) Public() *PublicKey {
+func (priv *PrivateKey) Public() crypto.PublicKey {
 	inner := priv.inner.PublicKey
 	return NewPublicKey(inner)
 }
 
-func (pub *PublicKey) Verify(message []byte, sig *Signature) bool {
+func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
 	hash := NewSha256()
 	hash.Write(message)
 	hashed := hash.Sum(nil)
 	opts := NewPSSOptions()
-	err := rsa.VerifyPSS(&pub.inner, crypto.SHA256, hashed, sig.inner, opts)
+	err := rsa.VerifyPSS(&pub.inner, gocrypto.SHA256, hashed, sig.Bytes(), opts)
 	return err == nil
 }
 
 // PubKey
+
+func (_ *PublicKey) IsPublicKey() {}
 
 // Returns value of public modulus as a big-endian byte slice
 func (pub *PublicKey) Bytes() []byte {
@@ -105,24 +110,12 @@ func (pub *PublicKey) FromBytes(p []byte) error {
 	return nil
 }
 
-func (pub *PublicKey) ToB58() string {
+func (pub *PublicKey) String() string {
 	return BytesToB58(pub.Bytes())
 }
 
-func (pub *PublicKey) FromB58(b58 string) error {
-	p := BytesFromB58(b58)
-	if size := len(p); size != KEY_SIZE {
-		return Errorf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
-	}
-	return pub.FromBytes(p)
-}
-
-func (pub *PublicKey) ToHex() string {
-	return BytesToHex(pub.Bytes())
-}
-
-func (pub *PublicKey) FromHex(hex string) error {
-	p := BytesFromHex(hex)
+func (pub *PublicKey) FromString(str string) error {
+	p := BytesFromB58(str)
 	if size := len(p); size != KEY_SIZE {
 		return Errorf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
 	}
@@ -130,68 +123,58 @@ func (pub *PublicKey) FromHex(hex string) error {
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
-	b58 := pub.ToB58()
-	p := MustMarshalJSON(b58)
+	str := pub.String()
+	p := MustMarshalJSON(str)
 	return p, nil
 }
 
 func (pub *PublicKey) UnmarshalJSON(inner []byte) error {
-	var b58 string
-	if err := UnmarshalJSON(inner, &b58); err != nil {
+	var str string
+	if err := UnmarshalJSON(inner, &str); err != nil {
 		return err
 	}
-	return pub.FromB58(b58)
+	return pub.FromString(str)
 }
 
 // Signature
 
+func (_ *Signature) IsSignature() {}
+
 func (sig *Signature) Bytes() []byte {
-	return sig.inner
+	return sig.p
 }
 
-func (sig *Signature) FromBytes(inner []byte) error {
-	if size := len(inner); size != SIGNATURE_SIZE {
+func (sig *Signature) FromBytes(p []byte) error {
+	if size := len(p); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
 	}
-	sig.inner = make([]byte, SIGNATURE_SIZE)
-	copy(sig.inner, inner)
+	sig.p = make([]byte, SIGNATURE_SIZE)
+	copy(sig.p, p)
 	return nil
 }
 
-func (sig *Signature) ToB58() string {
+func (sig *Signature) String() string {
 	return BytesToB58(sig.Bytes())
 }
 
-func (sig *Signature) FromB58(b58 string) error {
-	inner := BytesFromB58(b58)
-	if size := len(inner); size != SIGNATURE_SIZE {
+func (sig *Signature) FromString(str string) error {
+	p := BytesFromB58(str)
+	if size := len(p); size != SIGNATURE_SIZE {
 		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
 	}
-	return sig.FromBytes(inner)
-}
-
-func (sig *Signature) ToHex() string {
-	return BytesToHex(sig.Bytes())
-}
-
-func (sig *Signature) FromHex(hex string) error {
-	inner := BytesFromHex(hex)
-	if size := len(inner); size != SIGNATURE_SIZE {
-		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
-	}
-	return sig.FromBytes(inner)
+	return sig.FromBytes(p)
 }
 
 func (sig *Signature) MarshalJSON() ([]byte, error) {
-	b58 := sig.ToB58()
-	p := MustMarshalJSON(b58)
+	str := sig.String()
+	p := MustMarshalJSON(str)
 	return p, nil
 }
 
 func (sig *Signature) UnmarshalJSON(inner []byte) error {
-	var b58 string
-	if err := UnmarshalJSON(inner, &b58); err != nil {
+	var str string
+	if err := UnmarshalJSON(inner, &str); err != nil {
 		return err
 	}
-	return sig.FromB58(b58)
+	return sig.FromString(str)
 }

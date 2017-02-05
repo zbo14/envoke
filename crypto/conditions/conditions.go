@@ -3,8 +3,9 @@ package conditions
 import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	// "github.com/zbo14/envoke/crypto/rsa"
+	"github.com/zbo14/envoke/crypto/rsa"
 )
 
 // ILP crypto-conditions
@@ -31,6 +32,7 @@ const (
 
 	RSA_ID      = 3
 	RSA_BITMASK = 0x11
+	RSA_SIZE    = rsa.KEY_SIZE + rsa.SIGNATURE_SIZE
 
 	ED25519_ID      = 4
 	ED25519_BITMASK = 0x20
@@ -48,6 +50,8 @@ type Fulfillment interface {
 	IsCondition() bool
 	MarshalBinary() ([]byte, error)
 	MarshalJSON() ([]byte, error)
+	PublicKey() crypto.PublicKey
+	Signature() crypto.Signature
 	Size() int
 	String() string
 	UnmarshalBinary([]byte) error
@@ -85,6 +89,56 @@ func GetCondition(f Fulfillment) *Condition {
 	return NewCondition(f.Bitmask(), f.Hash(), f.Id(), f.Size(), f.Weight())
 }
 
+// For bigchain txs..
+// Get JSON-serializable details from non-condition fulfillment
+func GetDetails(f Fulfillment) interface{} {
+	if f == nil {
+		return nil
+	}
+	if f.IsCondition() {
+		panic("Cannot get details from condition")
+	}
+	id := f.Id()
+	bitmask := f.Bitmask()
+	pub := f.PublicKey()
+	uri := GetCondition(f).String()
+	switch {
+	case
+		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
+		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == RSA_ID && bitmask == RSA_BITMASK,
+		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
+		// Ok.. should we allow nil pubkey?
+	default:
+		Panicf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
+	}
+	return struct {
+		Details struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature crypto.Signature `json:"signature"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		} `json:"details"`
+		URI string `json:"uri"`
+	}{
+		Details: struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature crypto.Signature `json:"signature"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		}{
+			Bitmask:   bitmask,
+			PubKey:    pub,
+			Signature: nil,
+			Type:      FULFILLMENT_TYPE,
+			TypeId:    id,
+		},
+		URI: uri,
+	}
+}
+
 func FulfillmentURI(p []byte) (string, error) {
 	if size := len(p); size <= 2 {
 		return "", Errorf("Expected fulfillment size > 2; got size=%d\n", size)
@@ -108,7 +162,7 @@ func ConditionURI(p []byte) (string, error) {
 func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
 	if uri, err := ConditionURI(p); err == nil {
 		if MatchString(CONDITION_REGEX, uri) {
-			c := new(Condition)
+			c := NilCondition()
 			c.weight = weight
 			if err := c.UnmarshalBinary(p); err == nil {
 				return c, nil
@@ -155,7 +209,7 @@ func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
 func UnmarshalURI(uri string) (f Fulfillment, err error) {
 	if MatchString(CONDITION_REGEX, uri) {
 		// Try to parse condition
-		c := new(Condition)
+		c := NilCondition()
 		parts := Split(uri, ":")
 		c.id, err = ParseUint16(parts[1])
 		if err != nil {
@@ -183,7 +237,7 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		if err != nil {
 			return nil, err
 		}
-		// TODO: check ed25519 size
+		// TODO: check ed25519, RSA size
 		if length := len(c.hash); length != HASH_LENGTH {
 			return nil, Errorf("Expected hash with length=%d; got length=%d\n", HASH_LENGTH, length)
 		}
@@ -207,7 +261,7 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		if size := len(_f.payload); size > MAX_PAYLOAD_SIZE {
 			return nil, Error("Exceeds max payload size")
 		}
-		//TODO: check ed25519 size
+		//TODO: check ed25519, RSA size
 		switch _f.id {
 		case PREIMAGE_ID:
 			f = &fulfillmentPreImage{_f}
@@ -240,6 +294,7 @@ type fulfillment struct {
 func NewFulfillment(id int, payload []byte, weight int) *fulfillment {
 	switch id {
 	case PREIMAGE_ID, ED25519_ID, RSA_ID, THRESHOLD_ID:
+		// Ok..
 	default:
 		Panicf("Unexpected id=%d\n", id)
 	}
@@ -255,6 +310,8 @@ func NewFulfillment(id int, payload []byte, weight int) *fulfillment {
 		weight:  weight,
 	}
 }
+
+func (f *fulfillment) Bitmask() int { return f.bitmask }
 
 func (f *fulfillment) FromString(uri string) error {
 	if !MatchString(FULFILLMENT_REGEX, uri) {
@@ -277,13 +334,17 @@ func (f *fulfillment) FromString(uri string) error {
 	if size := len(p); size > MAX_PAYLOAD_SIZE {
 		return Error("Exceeds max payload size")
 	}
-	//TODO: check ed25519 size?
+	//TODO: check ed25519, RSA size
 	f.id = id
 	f.payload = p
 	return nil
 }
 
+func (f *fulfillment) Hash() []byte { return f.hash }
+
 func (f *fulfillment) Id() int { return f.id }
+
+func (c *Condition) Init() { /* no op */ }
 
 func (f *fulfillment) IsCondition() bool { return false }
 
@@ -296,17 +357,15 @@ func (f *fulfillment) MarshalJSON() ([]byte, error) {
 		return nil, nil
 	}
 	uri := f.String()
-	p := MustMarshalJSON(uri)
-	return p, nil
+	json := MustMarshalJSON(uri)
+	return json, nil
 }
 
-func (f *fulfillment) Size() int {
-	if f.size > 0 {
-		return f.size
-	}
-	f.size = len(f.payload)
-	return f.size
-}
+func (f *fulfillment) PublicKey() crypto.PublicKey { return nil }
+
+func (f *fulfillment) Signature() crypto.Signature { return nil }
+
+func (f *fulfillment) Size() int { return f.size }
 
 func (f *fulfillment) String() string {
 	payload64 := Base64UrlEncode(f.payload)
@@ -328,35 +387,18 @@ func (f *fulfillment) UnmarshalBinary(p []byte) error {
 	return nil
 }
 
-/*
-func (f *fulfillment) UnmarshalJSON(p []byte) error {
-	var uri string
-	if err := UnmarshalJSON(p, &uri); err != nil {
-		return err
-	}
-	if err := f.FromString(uri); err != nil {
-		return err
-	}
-	return nil
-}
-*/
-
 func (f *fulfillment) Weight() int {
-	if f.weight >= 1 {
-		return f.weight
-	}
-	f.weight = 1
 	return f.weight
 }
 
 // Condition
 
 type Condition struct {
-	bitmask int
-	hash    []byte
-	id      int
-	size    int
-	weight  int
+	*fulfillment
+}
+
+func NilCondition() *Condition {
+	return &Condition{&fulfillment{}}
 }
 
 func NewConditionEd25519(pub *ed25519.PublicKey, weight int) *Condition {
@@ -384,15 +426,15 @@ func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition
 		panic("Weight cannot be less than 1")
 	}
 	return &Condition{
-		bitmask: bitmask,
-		hash:    hash,
-		id:      id,
-		size:    size,
-		weight:  weight,
+		&fulfillment{
+			bitmask: bitmask,
+			hash:    hash,
+			id:      id,
+			size:    size,
+			weight:  weight,
+		},
 	}
 }
-
-func (c *Condition) Bitmask() int { return c.bitmask }
 
 func (c *Condition) FromString(uri string) error {
 	if !MatchString(CONDITION_REGEX, uri) {
@@ -426,7 +468,7 @@ func (c *Condition) FromString(uri string) error {
 		return err
 	}
 	switch {
-	// TODO: check ed25519 size
+	// TODO: check ed25519, RSA size
 	case len(hash) != HASH_LENGTH:
 		return Errorf("Expected hash with size=%d; got size=%d\n", HASH_LENGTH, len(hash))
 	case size > MAX_PAYLOAD_SIZE:
@@ -439,12 +481,6 @@ func (c *Condition) FromString(uri string) error {
 	return nil
 }
 
-func (c *Condition) Hash() []byte { return c.hash }
-
-func (c *Condition) Id() int { return c.id }
-
-func (c *Condition) Init() { /* no op */ }
-
 func (c *Condition) IsCondition() bool { return true }
 
 func (c *Condition) MarshalBinary() ([]byte, error) {
@@ -456,63 +492,15 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	return p, nil
 }
 
-func ExtractPubKey(p []byte) *ed25519.PublicKey {
-	if len(p) < ed25519.PUBKEY_SIZE {
-		panic("Slice is not big enough")
-	}
-	pub, err := ed25519.NewPublicKey(p[:ed25519.PUBKEY_SIZE])
-	Check(err)
-	return pub
-}
-
-// Tailored for bigchain txs
 func (c *Condition) MarshalJSON() ([]byte, error) {
 	if c == nil {
 		return nil, nil
 	}
-	if !c.Validate(nil) {
-		panic("Invalid condition")
-	}
-	switch id := c.Id(); id {
-	case ED25519_ID:
-		json := MustMarshalJSON(struct {
-			Details struct {
-				Bitmask   int                `json:"bitmask"`
-				PubKey    *ed25519.PublicKey `json:"public_key"`
-				Signature *ed25519.Signature `json:"signature"`
-				Type      string             `json:"type"`
-				TypeId    int                `json:"type_id"`
-			} `json:"details"`
-			URI string `json:"uri"`
-		}{
-			Details: struct {
-				Bitmask   int                `json:"bitmask"`
-				PubKey    *ed25519.PublicKey `json:"public_key"`
-				Signature *ed25519.Signature `json:"signature"`
-				Type      string             `json:"type"`
-				TypeId    int                `json:"type_id"`
-			}{
-				Bitmask:   c.Bitmask(),
-				PubKey:    ExtractPubKey(c.Hash()),
-				Signature: nil,
-				Type:      FULFILLMENT_TYPE,
-				TypeId:    id,
-			},
-			URI: c.String(),
-		})
-		return json, nil
-		return json, nil
-	case PREIMAGE_ID, RSA_ID, THRESHOLD_ID:
-		// Ok..
-	default:
-		Panicf("Unexpected id=%d for MarshalJSON\n", id)
-	}
 	uri := c.String()
-	p := MustMarshalJSON(uri)
-	return p, nil
-}
+	json := MustMarshalJSON(uri)
+	return json, nil
 
-func (c *Condition) Size() int { return c.size }
+}
 
 func (c *Condition) String() string {
 	payload64 := Base64UrlEncode(c.hash)
@@ -538,7 +526,7 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 	hash := p[6 : 6+HASH_LENGTH]
 	size := MustUint16(p[6+HASH_LENGTH : CONDITION_SIZE])
 	switch {
-	// TODO: check ed25519 size?
+	// TODO: check ed25519, RSA size
 	case
 		len(hash) != HASH_LENGTH:
 		return Errorf("Expected hash with size=%d; got size=%d\n", HASH_LENGTH, len(hash))
@@ -546,9 +534,9 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 		size > MAX_PAYLOAD_SIZE:
 		return Error("Exceeded max payload size")
 	}
-	c.id = id
 	c.bitmask = bitmask
 	c.hash = hash
+	c.id = id
 	c.size = size
 	return nil
 }
@@ -568,11 +556,9 @@ func (c *Condition) Validate(p []byte) bool {
 	case
 		len(c.hash) != HASH_LENGTH,
 		c.size > MAX_PAYLOAD_SIZE,
-		// TODO: check ed25519 size?
+		// TODO: check ed25519, RSA size
 		c.weight < 1:
 		return false
 	}
 	return true
 }
-
-func (c *Condition) Weight() int { return c.weight }

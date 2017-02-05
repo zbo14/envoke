@@ -4,10 +4,11 @@ import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/crypto/rsa"
 	"sort"
 )
 
-// Sha256 Pre-Image
+// SHA256 Pre-Image
 
 type fulfillmentPreImage struct {
 	*fulfillment
@@ -20,14 +21,8 @@ func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
 	return f
 }
 
-func (f *fulfillmentPreImage) Init() {
-	f.Bitmask()
-	f.Hash()
-	f.Size()
-}
-
 func (f *fulfillmentPreImage) Bitmask() int {
-	if f.bitmask > 0 {
+	if f.bitmask != PREIMAGE_BITMASK {
 		return f.bitmask
 	}
 	f.bitmask = PREIMAGE_BITMASK
@@ -42,9 +37,15 @@ func (f *fulfillmentPreImage) Hash() []byte {
 	return f.hash
 }
 
+func (f *fulfillmentPreImage) Init() {
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+}
+
 func (f *fulfillmentPreImage) Validate(p []byte) bool { return true }
 
-// Ed25519
+// ED25519
 
 type fulfillmentEd25519 struct {
 	*fulfillment
@@ -60,14 +61,8 @@ func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fu
 	return f
 }
 
-func (f *fulfillmentEd25519) Init() {
-	f.Bitmask()
-	f.Hash()
-	f.Size()
-}
-
 func (f *fulfillmentEd25519) Bitmask() int {
-	if f.bitmask > 0 {
+	if f.bitmask != ED25519_BITMASK {
 		return f.bitmask
 	}
 	f.bitmask = ED25519_BITMASK
@@ -82,13 +77,67 @@ func (f *fulfillmentEd25519) Hash() []byte {
 	return f.hash
 }
 
+func (f *fulfillmentEd25519) Init() {
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+}
+
 func (f *fulfillmentEd25519) Validate(p []byte) bool {
 	pub, _ := ed25519.NewPublicKey(f.payload[:ed25519.PUBKEY_SIZE])
 	sig, _ := ed25519.NewSignature(f.payload[ed25519.PUBKEY_SIZE:])
 	return pub.Verify(p, sig)
 }
 
-// Sha256 Threshold
+// SHA256 RSA
+
+type fulfillmentRSA struct {
+	*fulfillment
+}
+
+func NewFulfillmentRSA(msg []byte, priv *rsa.PrivateKey, weight int) *fulfillmentRSA {
+	f := new(fulfillmentRSA)
+	pub := priv.Public()
+	sig := priv.Sign(msg)
+	payload := append(pub.Bytes(), sig.Bytes()...)
+	f.fulfillment = NewFulfillment(RSA_ID, payload, weight)
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentRSA) Bitmask() int {
+	if f.bitmask == RSA_BITMASK {
+		return f.bitmask
+	}
+	f.bitmask = RSA_BITMASK
+	return f.bitmask
+}
+
+func (f *fulfillmentRSA) Hash() []byte {
+	if f.hash != nil {
+		return f.hash
+	}
+	f.hash = Checksum256(f.payload[:rsa.KEY_SIZE])
+	return f.hash
+}
+
+func (f *fulfillmentRSA) Init() {
+	f.Bitmask()
+	f.Hash()
+	f.Size()
+}
+
+func (f *fulfillmentRSA) Validate(p []byte) bool {
+	pub := new(rsa.PublicKey)
+	err := pub.FromBytes(f.payload[:rsa.KEY_SIZE])
+	Check(err)
+	sig := new(rsa.Signature)
+	err = sig.FromBytes(f.payload[rsa.KEY_SIZE : rsa.KEY_SIZE+rsa.SIGNATURE_SIZE])
+	Check(err)
+	return pub.Verify(p, sig)
+}
+
+// SHA256 Threshold
 
 type fulfillmentThreshold struct {
 	bitmask int
@@ -129,7 +178,7 @@ func (f *fulfillmentThreshold) Init() {
 }
 
 func (f *fulfillmentThreshold) Bitmask() int {
-	if f.bitmask > 0 {
+	if f.bitmask < THRESHOLD_BITMASK {
 		return f.bitmask
 	}
 	f.bitmask = ThresholdBitmask(f.subs)

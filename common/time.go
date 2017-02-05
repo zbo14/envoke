@@ -1,4 +1,4 @@
-package util
+package common
 
 import "strconv"
 import "time"

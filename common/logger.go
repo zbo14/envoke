@@ -1,4 +1,4 @@
-package util
+package common
 
 import log "github.com/inconshreveable/log15"
 

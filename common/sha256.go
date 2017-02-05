@@ -1,4 +1,4 @@
-package util
+package common
 
 import (
 	"golang.org/x/crypto/sha3"

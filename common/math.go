@@ -1,6 +1,9 @@
-package util
+package common
 
-import "math"
+import (
+	"math"
+	"math/big"
+)
 
 func PowOf2(i int) bool {
 	return i != 0 && (i&(i-1)) == 0
@@ -38,4 +41,11 @@ func Log2(i int) int {
 func EvenSquare(n int) bool {
 	sqrt := math.Sqrt(float64(n))
 	return float64(int(sqrt)) != sqrt
+}
+
+// Big Int
+
+func BigIntFromBytes(p []byte) *big.Int {
+	x := new(big.Int)
+	return x.SetBytes(p)
 }

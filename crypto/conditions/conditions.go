@@ -4,6 +4,7 @@ import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
+	// "github.com/zbo14/envoke/crypto/rsa"
 )
 
 // ILP crypto-conditions
@@ -27,6 +28,9 @@ const (
 
 	THRESHOLD_ID      = 2
 	THRESHOLD_BITMASK = 0x09
+
+	RSA_ID      = 3
+	RSA_BITMASK = 0x11
 
 	ED25519_ID      = 4
 	ED25519_BITMASK = 0x20
@@ -128,6 +132,8 @@ func UnmarshalBinary(p []byte, weight int) (Fulfillment, error) {
 				return &fulfillmentPreImage{f}, nil
 			case ED25519_ID:
 				return &fulfillmentEd25519{f}, nil
+			case RSA_ID:
+				return &fulfillmentRSA{f}, nil
 			case THRESHOLD_ID:
 				subs, threshold, err := ThresholdSubs(f.payload)
 				if err != nil {
@@ -163,7 +169,9 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 		case
 			c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
 			c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
+			c.id == RSA_ID && c.bitmask == RSA_BITMASK,
 			c.id == THRESHOLD_ID && c.bitmask >= THRESHOLD_BITMASK:
+			// Ok..
 		default:
 			return nil, Errorf("Unexpected id=%d, bitmask=%d\n", c.id, c.bitmask)
 		}
@@ -205,6 +213,8 @@ func UnmarshalURI(uri string) (f Fulfillment, err error) {
 			f = &fulfillmentPreImage{_f}
 		case ED25519_ID:
 			f = &fulfillmentEd25519{_f}
+		case RSA_ID:
+			f = &fulfillmentRSA{_f}
 		case THRESHOLD_ID:
 			f = &fulfillmentThreshold{
 				fulfillment: _f,
@@ -229,7 +239,7 @@ type fulfillment struct {
 
 func NewFulfillment(id int, payload []byte, weight int) *fulfillment {
 	switch id {
-	case PREIMAGE_ID, ED25519_ID, THRESHOLD_ID:
+	case PREIMAGE_ID, ED25519_ID, RSA_ID, THRESHOLD_ID:
 	default:
 		Panicf("Unexpected id=%d\n", id)
 	}
@@ -256,7 +266,7 @@ func (f *fulfillment) FromString(uri string) error {
 		return err
 	}
 	switch id {
-	case PREIMAGE_ID, ED25519_ID, THRESHOLD_ID:
+	case PREIMAGE_ID, ED25519_ID, RSA_ID, THRESHOLD_ID:
 	default:
 		return Errorf("Unexpected id=%d\n", id)
 	}
@@ -267,7 +277,7 @@ func (f *fulfillment) FromString(uri string) error {
 	if size := len(p); size > MAX_PAYLOAD_SIZE {
 		return Error("Exceeds max payload size")
 	}
-	//TODO: check ed25519 size
+	//TODO: check ed25519 size?
 	f.id = id
 	f.payload = p
 	return nil
@@ -306,7 +316,7 @@ func (f *fulfillment) String() string {
 func (f *fulfillment) UnmarshalBinary(p []byte) error {
 	id := MustUint16(p[:2])
 	switch id {
-	case PREIMAGE_ID, THRESHOLD_ID, ED25519_ID:
+	case PREIMAGE_ID, THRESHOLD_ID, RSA_ID, ED25519_ID:
 	default:
 		return Errorf("Unexpected id=%d\n", id)
 	}
@@ -358,7 +368,9 @@ func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == RSA_ID && bitmask == RSA_BITMASK,
 		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
+		// Ok..
 	default:
 		Panicf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
@@ -399,7 +411,9 @@ func (c *Condition) FromString(uri string) error {
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == RSA_ID && bitmask == RSA_BITMASK,
 		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
+		// Ok..
 	default:
 		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
@@ -487,7 +501,8 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 			URI: c.String(),
 		})
 		return json, nil
-	case PREIMAGE_ID, THRESHOLD_ID:
+		return json, nil
+	case PREIMAGE_ID, RSA_ID, THRESHOLD_ID:
 		// Ok..
 	default:
 		Panicf("Unexpected id=%d for MarshalJSON\n", id)
@@ -514,14 +529,16 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
 		id == ED25519_ID && bitmask == ED25519_BITMASK,
+		id == RSA_ID && bitmask == RSA_BITMASK,
 		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
+		// Ok..
 	default:
 		return Errorf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
 	}
 	hash := p[6 : 6+HASH_LENGTH]
 	size := MustUint16(p[6+HASH_LENGTH : CONDITION_SIZE])
 	switch {
-	// TODO: check ed25519 size
+	// TODO: check ed25519 size?
 	case
 		len(hash) != HASH_LENGTH:
 		return Errorf("Expected hash with size=%d; got size=%d\n", HASH_LENGTH, len(hash))
@@ -541,7 +558,9 @@ func (c *Condition) Validate(p []byte) bool {
 	case
 		c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
 		c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
+		c.id == RSA_ID && c.bitmask == RSA_BITMASK,
 		c.id == THRESHOLD_ID && c.bitmask >= THRESHOLD_BITMASK:
+		// Ok..
 	default:
 		return false
 	}
@@ -549,7 +568,7 @@ func (c *Condition) Validate(p []byte) bool {
 	case
 		len(c.hash) != HASH_LENGTH,
 		c.size > MAX_PAYLOAD_SIZE,
-		// TODO: check ed25519 size
+		// TODO: check ed25519 size?
 		c.weight < 1:
 		return false
 	}

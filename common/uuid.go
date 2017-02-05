@@ -1,4 +1,4 @@
-package util
+package common
 
 import (
 	uuid "github.com/nu7hatch/gouuid"

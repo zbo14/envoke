@@ -5,6 +5,7 @@ import (
 	. "github.com/zbo14/envoke/common"
 	conds "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/crypto/rsa"
 	"testing"
 )
 
@@ -18,15 +19,16 @@ func TestCryptoConditions(t *testing.T) {
 	}
 	// Ed25519
 	msg := []byte("deadbeef")
-	priv, _ := ed25519.GenerateKeypair("password")
-	f2 := conds.NewFulfillmentEd25519(msg, priv, 2)
+	privEd25519, _ := ed25519.GenerateKeypair("password")
+	f2 := conds.NewFulfillmentEd25519(msg, privEd25519, 2)
 	if !f2.Validate(msg) {
 		t.Error("Failed to validate ed25519 fulfillment")
 	}
-	// Another Pre-Image
-	preimage2 := []byte("foobar")
-	f3 := conds.NewFulfillmentPreImage(preimage2, 1)
-	if !f3.Validate(preimage) {
+	// RSA
+	anotherMsg := []byte("foobar")
+	privRSA := rsa.GenerateKey()
+	f3 := conds.NewFulfillmentRSA(anotherMsg, privRSA, 1)
+	if !f3.Validate(anotherMsg) {
 		t.Error("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Threshold
@@ -36,7 +38,7 @@ func TestCryptoConditions(t *testing.T) {
 	buf := new(bytes.Buffer)
 	MustWriteVarBytes(msg, buf)
 	MustWriteVarBytes(preimage, buf)
-	MustWriteVarBytes(preimage2, buf)
+	MustWriteVarBytes(anotherMsg, buf)
 	if !f4.Validate(buf.Bytes()) {
 		t.Error("Failed to validate threshold fulfillment")
 	}

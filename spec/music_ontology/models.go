@@ -5,7 +5,11 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
-const LC_REGEX = `^LC-\d{4,5}$`
+const (
+	LABEL     = "label"
+	LC_REGEX  = `^LC-\d{4,5}$`
+	PUBLISHER = "publisher"
+)
 
 var CONTEXT = spec.Data{
 	"mo":    "http://purl.org/ontology/mo/",
@@ -15,9 +19,14 @@ var CONTEXT = spec.Data{
 	"event": "http://purl.org/NET/c4dm/event.owl#",
 	"foaf":  "http://xmlns.com/foaf/0.1/",
 	"rdfs":  "http://www.w3.org/2000/01/rdf-schema#",
+	"sec":   "https://w3id.org/security#",
 }
 
-func NewTrack(impl, id, title string, artist interface{}, number int, recordId interface{}) spec.Data {
+func SetId(data spec.Data, id string) {
+	data["@id"] = id
+}
+
+func NewTrack(impl string, artist interface{}, number int, recordId interface{}, title string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(context)
@@ -27,26 +36,17 @@ func NewTrack(impl, id, title string, artist interface{}, number int, recordId i
 	if impl == spec.JSON {
 		context = CONTEXT
 	}
-	data := spec.Data{
+	return spec.Data{
 		"@context":        context,
 		"@type":           "mo:Track",
 		"dc:title":        title,
 		"foaf:maker":      artist,
 		"mo:track_number": number,
-		"dc:isPartOf": spec.Data{
-			"@id":   recordId,
-			"@type": "mo:Record",
-		},
+		"dc:isPartOf":     recordId,
 	}
-	if impl == spec.JSON {
-		if id != "" {
-			data["@id"] = id
-		}
-	}
-	return data
 }
 
-func NewArtist(impl, id, name, openId string, partnerId interface{}) spec.Data {
+func NewArtist(impl, name, openId string, partnerId interface{}) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -55,31 +55,44 @@ func NewArtist(impl, id, name, openId string, partnerId interface{}) spec.Data {
 	if impl == spec.JSON {
 		context = CONTEXT
 	}
-	data := spec.Data{
+	return spec.Data{
 		"@context":    context,
 		"@type":       "mo:MusicArtist",
 		"foaf:name":   name,
 		"foaf:openid": openId,
-		"foaf:member": spec.Data{
-			"@id":   partnerId,
-			"@type": "foaf:Agent",
-		},
+		"foaf:member": partnerId,
 	}
-	if impl == spec.JSON {
-		if id != "" {
-			data["@id"] = id
-		}
-	}
-	return data
 }
 
-func NewPublisher(impl, id, name, login string) spec.Data {
-	data := NewOrganization(impl, id, name, login)
+func NewPublicKey(impl, pem string) spec.Data {
+	var context interface{}
+	if impl == spec.IPLD {
+		context = spec.LinkIPLD(CONTEXT)
+	}
+	if impl == spec.JSON {
+		context = CONTEXT
+	}
+	return spec.Data{
+		"@context":     context,
+		"@type":        "sec:publicKey",
+		"publicKeyPem": pem,
+	}
+}
+
+func AddOwner(impl string, ownerId interface{}, pub spec.Data) {
+	if impl == spec.IPLD {
+		ownerId = spec.LinkIPLD(ownerId)
+	}
+	pub["sec:owner"] = ownerId
+}
+
+func NewPublisher(impl, login, name, openId string) spec.Data {
+	data := NewOrganization(impl, login, name, openId)
 	// How to differentiate publisher from general org?
 	return data
 }
 
-func NewOrganization(impl, id, name, login string) spec.Data {
+func NewOrganization(impl, login, name, openId string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -87,21 +100,16 @@ func NewOrganization(impl, id, name, login string) spec.Data {
 	if impl == spec.JSON {
 		context = CONTEXT
 	}
-	data := spec.Data{
-		"@context":  context,
-		"@type":     "foaf:Organization",
-		"foaf:name": name,
-		"foaf:page": login,
+	return spec.Data{
+		"@context":    context,
+		"@type":       "foaf:Organization",
+		"foaf:page":   login,
+		"foaf:name":   name,
+		"foaf:openid": openId,
 	}
-	if impl == spec.JSON {
-		if id != "" {
-			data["@id"] = id
-		}
-	}
-	return data
 }
 
-func NewLabel(impl, id, name, lc, login string) spec.Data {
+func NewLabel(impl, lc, login, name, openId string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -110,15 +118,11 @@ func NewLabel(impl, id, name, lc, login string) spec.Data {
 		context = CONTEXT
 	}
 	data := spec.Data{
-		"@context":  context,
-		"@type":     "mo:Label",
-		"foaf:name": name,
-		"foaf:page": login,
-	}
-	if impl == spec.JSON {
-		if id != "" {
-			data["@id"] = id
-		}
+		"@context":    context,
+		"@type":       "mo:Label",
+		"foaf:page":   login,
+		"foaf:name":   name,
+		"foaf:openid": openId,
 	}
 	if lc != "" {
 		if !MatchString(LC_REGEX, lc) {
@@ -129,7 +133,14 @@ func NewLabel(impl, id, name, lc, login string) spec.Data {
 	return data
 }
 
-func NewRecord(impl, id string, title string, number int, publisherId interface{}) spec.Data {
+func AddPublicKey(impl string, agent spec.Data, pubId interface{}) {
+	if impl == spec.IPLD {
+		pubId = spec.LinkIPLD(pubId)
+	}
+	agent["sec:publicKey"] = pubId
+}
+
+func NewRecord(impl string, number int, publisherId interface{}, title string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -139,18 +150,10 @@ func NewRecord(impl, id string, title string, number int, publisherId interface{
 		context = CONTEXT
 	}
 	data := spec.Data{
-		"@context": context,
-		"@type":    "mo:Record",
-		"dc:title": title,
-		"mo:publisher": spec.Data{
-			"@id":   publisherId,
-			"@type": "foaf:Agent",
-		},
-	}
-	if impl == spec.JSON {
-		if id != "" {
-			data["@id"] = id
-		}
+		"@context":     context,
+		"@type":        "mo:Record",
+		"mo:publisher": publisherId,
+		"dc:title":     title,
 	}
 	if number > 0 {
 		data["record_number"] = number
@@ -159,15 +162,10 @@ func NewRecord(impl, id string, title string, number int, publisherId interface{
 }
 
 func AddTracks(impl string, record spec.Data, trackIds []interface{}) {
-	track := make([]spec.Data, len(trackIds))
-	for i, trackId := range trackIds {
-		if impl == spec.IPLD {
-			trackId = spec.LinkIPLD(trackId)
-		}
-		track[i] = spec.Data{
-			"@id":   trackId,
-			"@type": "mo:Track",
+	if impl == spec.IPLD {
+		for i, trackId := range trackIds {
+			trackIds[i] = spec.LinkIPLD(trackId)
 		}
 	}
-	record["track"] = track
+	record["track"] = trackIds
 }

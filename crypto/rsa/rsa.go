@@ -4,6 +4,7 @@ import (
 	gocrypto "crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 )
@@ -11,6 +12,8 @@ import (
 const (
 	E              = 65537
 	KEY_SIZE       = 128
+	PRIVKEY        = "RSA PRIVATE KEY"
+	PUBKEY         = "RSA PUBLIC KEY"
 	SALT_SIZE      = 32
 	SIGNATURE_SIZE = KEY_SIZE
 )
@@ -80,6 +83,12 @@ func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
 	return NewSignature(inner)
 }
 
+func (priv *PrivateKey) EncodePEM() string {
+	p := x509.MarshalPKCS1PrivateKey(&priv.inner)
+	b := BlockPEM(p, PRIVKEY)
+	return string(EncodePEM(b))
+}
+
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	inner := priv.inner.PublicKey
 	return NewPublicKey(inner)
@@ -97,6 +106,13 @@ func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
 // PubKey
 
 func (_ *PublicKey) IsPublicKey() {}
+
+func (pub *PublicKey) EncodePEM() string {
+	p, err := x509.MarshalPKIXPublicKey(&pub.inner)
+	Check(err)
+	b := BlockPEM(p, PUBKEY)
+	return string(EncodePEM(b))
+}
 
 // Returns value of public modulus as a big-endian byte slice
 func (pub *PublicKey) Bytes() []byte {

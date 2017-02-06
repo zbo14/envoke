@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/zbo14/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/crypto/crypto"
 )
 
 type AlbumInfo struct {
@@ -17,12 +17,12 @@ func NewAlbumInfo(albumId string, songIds []string) *AlbumInfo {
 }
 
 type PartnerInfo struct {
-	UserId  string              `json:"partner_id"`
-	Privkey *ed25519.PrivateKey `json:"private_key"`
-	Pubkey  *ed25519.PublicKey  `json:"public_key"`
+	UserId  string            `json:"partner_id"`
+	Privkey crypto.PrivateKey `json:"private_key"`
+	Pubkey  crypto.PublicKey  `json:"public_key"`
 }
 
-func NewPartnerInfo(userId string, priv *ed25519.PrivateKey, pub *ed25519.PublicKey) *PartnerInfo {
+func NewPartnerInfo(userId string, priv crypto.PrivateKey, pub crypto.PublicKey) *PartnerInfo {
 	return &PartnerInfo{
 		UserId:  userId,
 		Privkey: priv,

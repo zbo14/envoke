@@ -5,9 +5,11 @@ import (
 	"github.com/minio/minio-go"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
+	"github.com/zbo14/envoke/crypto/rsa"
 	"github.com/zbo14/envoke/spec"
-	"github.com/zbo14/envoke/spec/coala"
+	// "github.com/zbo14/envoke/spec/coala"
 	mo "github.com/zbo14/envoke/spec/music_ontology"
 	"net/http"
 	"net/url"
@@ -17,6 +19,7 @@ import (
 const (
 	EXPIRY_TIME = 1000 * time.Second
 	ID_SIZE     = 47
+	IMPL        = spec.JSON
 
 	MINIO_ENDPOINT   = "http://127.0.0.1:9000"
 	MINIO_ACCESS_KEY = "N3R2IT5XGCOMVIAUI25K"
@@ -28,9 +31,9 @@ type Api struct {
 	artist  spec.Data
 	cli     *minio.Client
 	logger  Logger
-	priv    *ed25519.PrivateKey
+	priv    crypto.PrivateKey
 	partner spec.Data
-	pub     *ed25519.PublicKey
+	pub     crypto.PublicKey
 }
 
 func NewApi() *Api {
@@ -75,28 +78,27 @@ func ArtistFromValues(values url.Values) spec.Data {
 	name := values.Get("name")
 	openId := values.Get("open_id")
 	partnerId := values.Get("partner_id")
-	return mo.NewArtist(spec.JSON, "", name, openId, partnerId)
-	// return coala.NewArtist(email, name, openId, partnerId)
+	return mo.NewArtist(IMPL, name, openId, partnerId)
+	// return coala.NewArtist(spec.JSON, email, name, openId, partnerId)
 }
 
 func PartnerFromValues(values url.Values) spec.Data {
+	_type := values.Get("type")
 	// email := values.Get("email")
 	login := values.Get("login")
 	name := values.Get("name")
-	_type := values.Get("type")
+	openId := values.Get("open_id")
 	switch _type {
-	case coala.LABEL:
-		return mo.NewLabel(spec.JSON, "", name, "", login)
-		// return coala.NewLabel(spec.JSON, "", email, login, name)
-	case coala.PUBLISHER:
-		return mo.NewPublisher(spec.JSON, "", name, login)
-		// return coala.NewPublisher(spec.JSON, "", email, login, name)
-	// TODO: add more partner types?
-	default:
-		panic("Unexpected partner type: " + _type)
+	case mo.LABEL:
+		lc := values.Get("label_code")
+		return mo.NewLabel(IMPL, lc, login, name, openId)
+		// return coala.NewLabel(IMPL, id, email, login, name)
+	case mo.PUBLISHER:
+		return mo.NewPublisher(IMPL, login, name, openId)
+		// return coala.NewPublisher(IMPL, id, email, login, name)
+		// TODO: add more partner types?
 	}
-	// shouldn't get here
-	return nil
+	panic("Unexpected partner type: " + _type)
 }
 
 // Partner
@@ -113,29 +115,42 @@ func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Failed to read request data", http.StatusBadRequest)
 		return
 	}
+	// Generate keypair from password
+	// password := values.Get("password")
+	// priv, pub := ed25519.GenerateKeypair(password)
+	privRSA, pubRSA := rsa.GenerateKeypair()
+	pub := mo.NewPublicKey(IMPL, pubRSA.EncodePEM())
+	pubTx := bigchain.GenerateTx(pub, nil, pubRSA)
+	pubTx.Fulfill(privRSA)
+	pubId := pubTx.Id
 	// New partner
 	partner := PartnerFromValues(values)
-	Println(partner)
-	// Generate keypair from password
-	password := values.Get("password")
-	priv, pub := ed25519.GenerateKeypair(password)
-	// send request to IPDB
-	tx := bigchain.GenerateTx(partner, nil, pub)
-	tx.Fulfill(priv)
+	mo.AddPublicKey(IMPL, partner, pubId)
+	partnerTx := bigchain.GenerateTx(partner, nil, pubRSA)
+	partnerTx.Fulfill(privRSA)
+	partnerId := partnerTx.Id
+	mo.AddOwner(IMPL, partnerId, pub)
+	pubTx.SetData(pub) //update tx data
 	/*
-		id, err := bigchain.PostTx(tx)
-		if err != nil {
-			api.logger.Error(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		// send requests to IPDB
+		id, err := bigchain.PostTx(pubTx)
+		Check(err)
+		if id != pubId {
+			Panicf("Expected id=%s; got id=%s\n", pubId, id)
+		}
+		id, err = bigchain.PostTx(partnerTx)
+		Check(err)
+		if id != partnerId {
+			Panicf("Expected id=%s; got id=%s\n", partnerId, id)
 		}
 	*/
-	partnerId := tx.Id
 	api.logger.Info("Partner: " + string(MustMarshalIndentJSON(partner)))
-	partnerInfo := NewPartnerInfo(partnerId, priv, pub)
+	api.logger.Info("Public_Key: " + string(MustMarshalIndentJSON(pub)))
+	partnerInfo := NewPartnerInfo(partnerId, privRSA, pubRSA)
 	WriteJSON(w, partnerInfo)
 }
 
+// TODO: change to RSA keys
 func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
@@ -154,7 +169,7 @@ func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 	// PrivKey
 	priv := new(ed25519.PrivateKey)
 	priv58 := values.Get("private_key")
-	if err = priv.FromB58(priv58); err != nil {
+	if err = priv.FromString(priv58); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

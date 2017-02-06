@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"github.com/jbenet/go-base58"
 )
 
@@ -88,4 +89,16 @@ func WriteJSON(w Writer, v interface{}) error {
 func MustWriteJSON(w Writer, v interface{}) {
 	err := WriteJSON(w, v)
 	Check(err)
+}
+
+// PEM
+func BlockPEM(p []byte, _type string) *pem.Block {
+	return &pem.Block{
+		Bytes: p,
+		Type:  _type,
+	}
+}
+
+func EncodePEM(b *pem.Block) []byte {
+	return pem.EncodeToMemory(b)
 }

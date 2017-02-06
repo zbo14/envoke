@@ -51,10 +51,12 @@ func NewSignature(inner []byte) *Signature {
 	return &Signature{inner}
 }
 
-func GenerateKey() *PrivateKey {
+func GenerateKeypair() (*PrivateKey, *PublicKey) {
 	inner, err := rsa.GenerateKey(rand.Reader, KEY_SIZE*8)
 	Check(err)
-	return NewPrivateKey(*inner)
+	priv := NewPrivateKey(*inner)
+	pub := NewPublicKey(inner.PublicKey)
+	return priv, pub
 }
 
 func NewPSSOptions() *rsa.PSSOptions {
@@ -123,6 +125,9 @@ func (pub *PublicKey) FromString(str string) error {
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
+	if pub == nil {
+		return nil, nil
+	}
 	str := pub.String()
 	p := MustMarshalJSON(str)
 	return p, nil
@@ -166,6 +171,9 @@ func (sig *Signature) FromString(str string) error {
 }
 
 func (sig *Signature) MarshalJSON() ([]byte, error) {
+	if sig == nil {
+		return nil, nil
+	}
 	str := sig.String()
 	p := MustMarshalJSON(str)
 	return p, nil

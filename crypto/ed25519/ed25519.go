@@ -112,6 +112,9 @@ func (pub *PublicKey) FromString(str string) error {
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
+	if pub == nil {
+		return nil, nil
+	}
 	str := pub.String()
 	return MustMarshalJSON(str), nil
 }
@@ -156,6 +159,9 @@ func (sig *Signature) FromString(str string) error {
 }
 
 func (sig *Signature) MarshalJSON() ([]byte, error) {
+	if sig == nil {
+		return nil, nil
+	}
 	str := sig.String()
 	return MustMarshalJSON(str), nil
 }

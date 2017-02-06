@@ -86,57 +86,7 @@ func GetCondition(f Fulfillment) *Condition {
 	if f.IsCondition() {
 		return f.(*Condition)
 	}
-	return NewCondition(f.Bitmask(), f.Hash(), f.Id(), f.Size(), f.Weight())
-}
-
-// For bigchain txs..
-// Get JSON-serializable details from non-condition fulfillment
-func GetDetails(f Fulfillment) interface{} {
-	if f == nil {
-		return nil
-	}
-	if f.IsCondition() {
-		panic("Cannot get details from condition")
-	}
-	id := f.Id()
-	bitmask := f.Bitmask()
-	pub := f.PublicKey()
-	uri := GetCondition(f).String()
-	switch {
-	case
-		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
-		id == ED25519_ID && bitmask == ED25519_BITMASK,
-		id == RSA_ID && bitmask == RSA_BITMASK,
-		id == THRESHOLD_ID && bitmask >= THRESHOLD_BITMASK:
-		// Ok.. should we allow nil pubkey?
-	default:
-		Panicf("Unexpected id=%d, bitmask=%d\n", id, bitmask)
-	}
-	return struct {
-		Details struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
-		} `json:"details"`
-		URI string `json:"uri"`
-	}{
-		Details: struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
-		}{
-			Bitmask:   bitmask,
-			PubKey:    pub,
-			Signature: nil,
-			Type:      FULFILLMENT_TYPE,
-			TypeId:    id,
-		},
-		URI: uri,
-	}
+	return NewCondition(f.Bitmask(), f.Hash(), f.Id(), f.PublicKey(), f.Size(), f.Weight())
 }
 
 func FulfillmentURI(p []byte) (string, error) {
@@ -395,17 +345,38 @@ func (f *fulfillment) Weight() int {
 
 type Condition struct {
 	*fulfillment
+	pub crypto.PublicKey
 }
 
 func NilCondition() *Condition {
-	return &Condition{&fulfillment{}}
+	return &Condition{
+		fulfillment: &fulfillment{},
+	}
 }
 
-func NewConditionEd25519(pub *ed25519.PublicKey, weight int) *Condition {
-	return NewCondition(ED25519_BITMASK, pub.Bytes(), ED25519_ID, ED25519_SIZE, weight)
+func NewConditionWithKey(pub crypto.PublicKey, weight int) *Condition {
+	switch pub.(type) {
+	case *ed25519.PublicKey:
+		return NewCondition(
+			ED25519_BITMASK,
+			pub.Bytes(),
+			ED25519_ID,
+			pub,
+			ED25519_SIZE,
+			weight)
+	case *rsa.PublicKey:
+		return NewCondition(
+			RSA_BITMASK,
+			Checksum256(pub.Bytes()),
+			RSA_ID,
+			pub,
+			RSA_SIZE,
+			weight)
+	}
+	panic("Unexpected key type: " + TypeOf(pub))
 }
 
-func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition {
+func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, weight int) *Condition {
 	switch {
 	case
 		id == PREIMAGE_ID && bitmask == PREIMAGE_BITMASK,
@@ -432,7 +403,7 @@ func NewCondition(bitmask int, hash []byte, id int, size, weight int) *Condition
 			id:      id,
 			size:    size,
 			weight:  weight,
-		},
+		}, pub,
 	}
 }
 
@@ -492,19 +463,52 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	return p, nil
 }
 
+// For bigchain txs..
+// Get JSON-serializable details of condition
 func (c *Condition) MarshalJSON() ([]byte, error) {
 	if c == nil {
 		return nil, nil
 	}
-	uri := c.String()
-	json := MustMarshalJSON(uri)
-	return json, nil
 
+	switch {
+	case
+		c.id == PREIMAGE_ID && c.bitmask == PREIMAGE_BITMASK,
+		c.id == ED25519_ID && c.bitmask == ED25519_BITMASK,
+		c.id == RSA_ID && c.bitmask == RSA_BITMASK,
+		c.id == THRESHOLD_ID && c.bitmask >= THRESHOLD_BITMASK:
+		// Ok..
+	default:
+		Panicf("Unexpected id=%d, bitmask=%d\n", c.id, c.bitmask)
+	}
+	return MustMarshalJSON(struct {
+		Details struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature crypto.Signature `json:"signature,omitempty"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		} `json:"details"`
+		URI string `json:"uri"`
+	}{
+		Details: struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature crypto.Signature `json:"signature,omitempty"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		}{
+			Bitmask: c.bitmask,
+			PubKey:  c.pub,
+			Type:    FULFILLMENT_TYPE,
+			TypeId:  c.id,
+		},
+		URI: c.String(),
+	}), nil
 }
 
 func (c *Condition) String() string {
-	payload64 := Base64UrlEncode(c.hash)
-	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, payload64, c.size)
+	hash64 := Base64UrlEncode(c.hash)
+	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, hash64, c.size)
 }
 
 func (c *Condition) UnmarshalBinary(p []byte) error {

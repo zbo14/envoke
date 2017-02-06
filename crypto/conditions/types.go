@@ -9,6 +9,18 @@ import (
 	"sort"
 )
 
+func NewFulfillmentWithKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
+	switch priv.(type) {
+	case *ed25519.PrivateKey:
+		privEd25519 := priv.(*ed25519.PrivateKey)
+		return NewFulfillmentEd25519(msg, privEd25519, weight)
+	case *rsa.PrivateKey:
+		privRSA := priv.(*rsa.PrivateKey)
+		return NewFulfillmentRSA(msg, privRSA, weight)
+	}
+	panic("Unexpected key type: " + TypeOf(priv))
+}
+
 // SHA256 Pre-Image
 
 type fulfillmentPreImage struct {
@@ -207,11 +219,11 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 			}
 		}
 	}
-FOR_LOOP:
+OUTER:
 	for _, sub := range subs {
 		for _, s := range set {
 			if sub == s {
-				continue FOR_LOOP
+				continue OUTER
 			}
 		}
 		sub.Init()
@@ -370,8 +382,5 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 			valid += f.Weight()
 		}
 	}
-	if valid < threshold {
-		return false
-	}
-	return true
+	return valid >= threshold
 }

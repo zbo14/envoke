@@ -3,7 +3,9 @@
 Note: Envoke is in the early (early) stages of development.
 
 ### Identity 
-We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will initially happen through partner organizations (e.g. labels, publishers). The demo uses Ed25519 public-key cryptography for partner verification and BigchainDB transactions.
+We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will initially happen through partner organizations (e.g. labels, publishers). The demo uses ED25519 public-key cryptography for partner verification and BigchainDB transactions.
+
+TODO: implement RSA crypto for linked-data signatures.
 
 ### Blockchain
 This is not a blockchain application (yet). We are considering platforms and consensus engines such as [Tendermint](https://github.com/tendermint), which would be used for the ordering of transactions, state replication across a network, and payments. This infrastructure would be in addition to BigchainDB/IPDB.
@@ -31,13 +33,13 @@ Note: the API is purely for demo purposes.
 ### Bigchain
 [Handcrafting transactions](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) and sending them to BigchainDB/IPDB.
 
+### Common 
+
 ### Crypto
-Ed25519 public-key cryptography and a minimal ILP [crypto-conditions](https://tools.ietf.org/html/draft-thomas-crypto-conditions-00) library.
+ED25519 and RSA public-key cryptography and a minimal ILP [crypto-conditions](https://tools.ietf.org/html/draft-thomas-crypto-conditions-00) library.
 
 ### Spec
-[Coala IP](https://github.com/COALAIP/specs/tree/master/data-structure), [Music Ontology](http://musicontology.com/specification/), and experimental spec for envoke. 
-
-### Util
+[Coala IP](https://github.com/COALAIP/specs/tree/master/data-structure) and [Music Ontology](http://musicontology.com/specification/).
 
 ## Walkthrough
 TODO:

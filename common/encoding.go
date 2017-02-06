@@ -102,3 +102,7 @@ func BlockPEM(p []byte, _type string) *pem.Block {
 func EncodePEM(b *pem.Block) []byte {
 	return pem.EncodeToMemory(b)
 }
+
+func DecodePEM(p []byte) (*pem.Block, []byte) {
+	return pem.Decode(p)
+}

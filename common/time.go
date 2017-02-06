@@ -3,8 +3,16 @@ package common
 import "strconv"
 import "time"
 
+func Time() time.Time {
+	return time.Now()
+}
+
+func YearFromNow() time.Time {
+	return Time().AddDate(1, 0, 0)
+}
+
 func TimeString() string {
-	return time.Now().String()
+	return Time().String()
 }
 
 func DateString() string {
@@ -30,19 +38,4 @@ func ParseDateString(datestr string) time.Time {
 
 func ToTheDay(timestr string) string {
 	return timestr[:10]
-}
-
-var months = map[string]int{
-	"Jan": 1,
-	"Feb": 2,
-	"Mar": 3,
-	"Apr": 4,
-	"May": 5,
-	"Jun": 6,
-	"Jul": 7,
-	"Aug": 8,
-	"Sep": 9,
-	"Oct": 10,
-	"Nov": 11,
-	"Dec": 12,
 }

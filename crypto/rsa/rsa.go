@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	CERTIFICATE    = "CERTIFICATE"
 	E              = 65537
 	KEY_SIZE       = 128
 	PRIVKEY        = "RSA PRIVATE KEY"
@@ -83,16 +84,31 @@ func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
 	return NewSignature(inner)
 }
 
-func (priv *PrivateKey) EncodePEM() string {
+func (priv *PrivateKey) MarshalPEM() []byte {
 	p := x509.MarshalPKCS1PrivateKey(&priv.inner)
 	b := BlockPEM(p, PRIVKEY)
-	return string(EncodePEM(b))
+	return EncodePEM(b)
+}
+
+func (priv *PrivateKey) UnmarshalPEM(pem []byte) error {
+	b, _ := DecodePEM(pem)
+	if b.Type != PRIVKEY {
+		Panicf("Expected type=%s; got type=%s\n", PRIVKEY, b.Type)
+	}
+	inner, err := x509.ParsePKCS1PrivateKey(b.Bytes)
+	Check(err)
+	priv.inner = *inner
+	return nil
 }
 
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	inner := priv.inner.PublicKey
 	return NewPublicKey(inner)
 }
+
+// PubKey
+
+func (_ *PublicKey) IsPublicKey() {}
 
 func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
 	hash := NewSha256()
@@ -103,15 +119,22 @@ func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
 	return err == nil
 }
 
-// PubKey
-
-func (_ *PublicKey) IsPublicKey() {}
-
-func (pub *PublicKey) EncodePEM() string {
+func (pub *PublicKey) MarshalPEM() []byte {
 	p, err := x509.MarshalPKIXPublicKey(&pub.inner)
 	Check(err)
 	b := BlockPEM(p, PUBKEY)
-	return string(EncodePEM(b))
+	return EncodePEM(b)
+}
+
+func (pub *PublicKey) UnmarshalPEM(pem []byte) error {
+	b, _ := DecodePEM(pem)
+	if b.Type != PUBKEY {
+		Panicf("Expected type=%s; got type=%s\n", PUBKEY, b.Type)
+	}
+	inner, err := x509.ParsePKIXPublicKey(b.Bytes)
+	Check(err)
+	pub.inner = *inner.(*rsa.PublicKey)
+	return nil
 }
 
 // Returns value of public modulus as a big-endian byte slice

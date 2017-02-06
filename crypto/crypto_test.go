@@ -11,6 +11,18 @@ import (
 )
 
 func TestCryptoConditions(t *testing.T) {
+	// RSA-PEM encoding
+	privRSA, pubRSA := rsa.GenerateKeypair()
+	t.Log("Keys", "priv", privRSA, "pub", pubRSA)
+	privPEM := privRSA.MarshalPEM()
+	if err := privRSA.UnmarshalPEM(privPEM); err != nil {
+		t.Error(err.Error())
+	}
+	pubPEM := pubRSA.MarshalPEM()
+	if err := pubRSA.UnmarshalPEM(pubPEM); err != nil {
+		t.Error(err.Error())
+	}
+	t.Log("Keys", "priv", privRSA, "pub", pubRSA)
 	// Sha256 Pre-Image
 	preimage := []byte("hello world")
 	f1 := conds.NewFulfillmentPreImage(preimage, 1)
@@ -27,7 +39,6 @@ func TestCryptoConditions(t *testing.T) {
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
-	privRSA := rsa.GenerateKey()
 	f3 := conds.NewFulfillmentRSA(anotherMsg, privRSA, 1)
 	if !f3.Validate(anotherMsg) {
 		t.Error("Failed to validate pre-image fulfillment")

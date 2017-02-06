@@ -1,9 +1,5 @@
 package api
 
-import (
-	"github.com/zbo14/envoke/crypto/crypto"
-)
-
 type AlbumInfo struct {
 	AlbumId  string   `json:"album_id"`
 	TrackIds []string `json:"track_ids"`
@@ -17,31 +13,31 @@ func NewAlbumInfo(albumId string, songIds []string) *AlbumInfo {
 }
 
 type PartnerInfo struct {
-	UserId  string            `json:"partner_id"`
-	Privkey crypto.PrivateKey `json:"private_key"`
-	Pubkey  crypto.PublicKey  `json:"public_key"`
+	PartnerId string `json:"partner_id"`
+	PrivPEM   []byte `json:"private_key"`
+	PubPEM    []byte `json:"public_key"`
 }
 
-func NewPartnerInfo(userId string, priv crypto.PrivateKey, pub crypto.PublicKey) *PartnerInfo {
+func NewPartnerInfo(partnerId string, privPEM, pubPEM []byte) *PartnerInfo {
 	return &PartnerInfo{
-		UserId:  userId,
-		Privkey: priv,
-		Pubkey:  pub,
+		PartnerId: partnerId,
+		PrivPEM:   privPEM,
+		PubPEM:    pubPEM,
 	}
 }
 
 type Stream struct {
-	Artist      string `json:"artist"`
-	ProjecTitle string `json:"album_title"`
-	TrackTitle  string `json:"track_title"`
-	URL         string `json:"url"`
+	AlbumTitle string `json:"album_title"`
+	Artist     string `json:"artist"`
+	TrackTitle string `json:"track_title"`
+	URL        string `json:"url"`
 }
 
-func NewStream(artist, albumTitle, trackTitle, url string) *Stream {
+func NewStream(albumTitle, artist, trackTitle, url string) *Stream {
 	return &Stream{
-		Artist:      artist,
-		ProjecTitle: albumTitle,
-		TrackTitle:  trackTitle,
-		URL:         url,
+		AlbumTitle: albumTitle,
+		Artist:     artist,
+		TrackTitle: trackTitle,
+		URL:        url,
 	}
 }

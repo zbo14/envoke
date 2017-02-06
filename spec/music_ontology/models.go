@@ -22,15 +22,16 @@ var CONTEXT = spec.Data{
 	"sec":   "https://w3id.org/security#",
 }
 
+// json-ld for now
+
 func SetId(data spec.Data, id string) {
 	data["@id"] = id
 }
 
-func NewTrack(impl string, artist interface{}, number int, recordId interface{}, title string) spec.Data {
+func NewTrack(impl string, artist spec.Data, number int, recordId interface{}, title string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(context)
-		artist = spec.LinkIPLD(artist)
 		recordId = spec.LinkIPLD(recordId)
 	}
 	if impl == spec.JSON {
@@ -64,6 +65,8 @@ func NewArtist(impl, name, openId string, partnerId interface{}) spec.Data {
 	}
 }
 
+// PubKey
+
 func NewPublicKey(impl, pem string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
@@ -73,9 +76,9 @@ func NewPublicKey(impl, pem string) spec.Data {
 		context = CONTEXT
 	}
 	return spec.Data{
-		"@context":     context,
-		"@type":        "sec:publicKey",
-		"publicKeyPem": pem,
+		"@context":         context,
+		"@type":            "sec:publicKey",
+		"sec:publicKeyPem": pem,
 	}
 }
 
@@ -84,6 +87,22 @@ func AddOwner(impl string, ownerId interface{}, pub spec.Data) {
 		ownerId = spec.LinkIPLD(ownerId)
 	}
 	pub["sec:owner"] = ownerId
+}
+
+func GetOwner(pub spec.Data) string {
+	ownerId := pub["sec:owner"]
+	if ownerData, ok := ownerId.(spec.Data); ok {
+		ownerId = ownerData[spec.LINK_SYMBOL]
+	}
+	return ownerId.(string)
+}
+
+func GetPEM(pub spec.Data) string {
+	pem := pub["sec:publicKeyPem"]
+	if pemData, ok := pem.(spec.Data); ok {
+		pem = pemData[spec.LINK_SYMBOL]
+	}
+	return pem.(string)
 }
 
 func NewPublisher(impl, login, name, openId string) spec.Data {
@@ -133,11 +152,27 @@ func NewLabel(impl, lc, login, name, openId string) spec.Data {
 	return data
 }
 
-func AddPublicKey(impl string, agent spec.Data, pubId interface{}) {
+func AddPublicKey(impl string, org spec.Data, pubId interface{}) {
 	if impl == spec.IPLD {
 		pubId = spec.LinkIPLD(pubId)
 	}
-	agent["sec:publicKey"] = pubId
+	org["sec:publicKey"] = pubId
+}
+
+func GetPublicKey(org spec.Data) string {
+	pubId := org["sec:publicKey"]
+	if pubIdData, ok := pubId.(spec.Data); ok {
+		pubId = pubIdData[spec.LINK_SYMBOL]
+	}
+	return pubId.(string)
+}
+
+func GetLogin(org spec.Data) string {
+	login := org["foaf:page"]
+	if loginData, ok := login.(spec.Data); ok {
+		login = loginData[spec.LINK_SYMBOL]
+	}
+	return login.(string)
 }
 
 func NewRecord(impl string, number int, publisherId interface{}, title string) spec.Data {

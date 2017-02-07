@@ -18,7 +18,7 @@ func NewFulfillmentWithKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfi
 		privRSA := priv.(*rsa.PrivateKey)
 		return NewFulfillmentRSA(msg, privRSA, weight)
 	}
-	panic("Unexpected key type: " + TypeOf(priv))
+	panic(ErrInvalidKey.Error())
 }
 
 // SHA256 Pre-Image
@@ -29,7 +29,7 @@ type fulfillmentPreImage struct {
 
 func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
 	f := new(fulfillmentPreImage)
-	f.fulfillment = NewFulfillment(PREIMAGE_ID, preimage, weight)
+	f.fulfillment = NewFulfillment(PREIMAGE_ID, f, preimage, weight)
 	f.Init()
 	return f
 }
@@ -40,7 +40,56 @@ func (f *fulfillmentPreImage) Init() {
 	f.size = len(f.payload)
 }
 
-func (f *fulfillmentPreImage) Validate(p []byte) bool { return true }
+// SHA256 Prefix
+
+type fulfillmentPrefix struct {
+	*fulfillment
+	prefix []byte
+	sub    Fulfillment
+}
+
+func NewFulfillmentPrefix(prefix []byte, sub Fulfillment, weight int) *fulfillmentPrefix {
+	if sub.IsCondition() {
+		panic("Expected non-condition fulfillment")
+	}
+	f := new(fulfillmentPrefix)
+	p, _ := sub.MarshalBinary()
+	payload := append(VarBytes(prefix), p...)
+	f.fulfillment = NewFulfillment(PREFIX_ID, f, payload, weight)
+	f.prefix = prefix
+	f.sub = sub
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentPrefix) Init() {
+	if f.prefix == nil && f.sub == nil {
+		buf := new(bytes.Buffer)
+		buf.Write(f.payload)
+		f.prefix = MustReadVarBytes(buf)
+		var err error
+		f.sub, err = UnmarshalBinary(buf.Bytes(), f.weight)
+		Check(err)
+		if f.sub.IsCondition() {
+			panic("Expected non-condition fulfillment")
+		}
+	}
+	if f.prefix != nil && f.sub != nil {
+		f.bitmask = PREFIX_BITMASK
+		p, _ := GetCondition(f.sub).MarshalBinary()
+		f.hash = Checksum256(append(f.prefix, p...))
+		f.size = len(f.payload)
+		return
+	}
+	panic("Prefix and subfulfillment must both be set")
+}
+
+func (f *fulfillmentPrefix) Validate(p []byte) bool {
+	if !f.fulfillment.Validate(nil) {
+		return false
+	}
+	return f.sub.Validate(append(f.prefix, p...))
+}
 
 // ED25519
 
@@ -53,7 +102,7 @@ func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fu
 	pub := priv.Public()
 	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
-	f.fulfillment = NewFulfillment(ED25519_ID, payload, weight)
+	f.fulfillment = NewFulfillment(ED25519_ID, f, payload, weight)
 	f.Init()
 	return f
 }
@@ -81,6 +130,9 @@ func (f *fulfillmentEd25519) Signature() crypto.Signature {
 }
 
 func (f *fulfillmentEd25519) Validate(p []byte) bool {
+	if !f.fulfillment.Validate(nil) {
+		return false
+	}
 	pub := f.PublicKey()
 	sig := f.Signature()
 	return pub.Verify(p, sig)
@@ -97,7 +149,7 @@ func NewFulfillmentRSA(msg []byte, priv *rsa.PrivateKey, weight int) *fulfillmen
 	pub := priv.Public()
 	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
-	f.fulfillment = NewFulfillment(RSA_ID, payload, weight)
+	f.fulfillment = NewFulfillment(RSA_ID, f, payload, weight)
 	f.Init()
 	return f
 }
@@ -125,6 +177,9 @@ func (f *fulfillmentRSA) Signature() crypto.Signature {
 }
 
 func (f *fulfillmentRSA) Validate(p []byte) bool {
+	if !f.fulfillment.Validate(nil) {
+		return false
+	}
 	pub := new(rsa.PublicKey)
 	err := pub.FromBytes(f.payload[:rsa.KEY_SIZE])
 	Check(err)
@@ -152,7 +207,7 @@ func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillm
 	sort.Sort(subs)
 	payload := ThresholdPayload(subs, threshold)
 	f := new(fulfillmentThreshold)
-	f.fulfillment = NewFulfillment(THRESHOLD_ID, payload, weight)
+	f.fulfillment = NewFulfillment(THRESHOLD_ID, f, payload, weight)
 	f.subs = subs
 	f.threshold = threshold
 	f.Init()
@@ -353,6 +408,9 @@ func ThresholdSize(subs Fulfillments, threshold int) int {
 }
 
 func (f *fulfillmentThreshold) Validate(p []byte) bool {
+	if !f.fulfillment.Validate(nil) {
+		return false
+	}
 	subs := f.subs
 	threshold := f.threshold
 	min, total := 0, 0

@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	CERTIFICATE    = "CERTIFICATE"
 	E              = 65537
 	KEY_SIZE       = 128
 	PRIVKEY        = "RSA PRIVATE KEY"
@@ -32,8 +31,8 @@ type Signature struct {
 }
 
 func NewPrivateKey(inner rsa.PrivateKey) *PrivateKey {
-	if size := len(inner.N.Bytes()); size != KEY_SIZE {
-		Panicf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
+	if len(inner.N.Bytes()) != KEY_SIZE {
+		panic(ErrInvalidSize.Error())
 	}
 	// TODO: check private exponent?
 	inner.E = E
@@ -41,16 +40,16 @@ func NewPrivateKey(inner rsa.PrivateKey) *PrivateKey {
 }
 
 func NewPublicKey(inner rsa.PublicKey) *PublicKey {
-	if size := len(inner.N.Bytes()); size != KEY_SIZE {
-		Panicf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
+	if len(inner.N.Bytes()) != KEY_SIZE {
+		panic(ErrInvalidSize.Error())
 	}
 	inner.E = E
 	return &PublicKey{inner}
 }
 
 func NewSignature(inner []byte) *Signature {
-	if size := len(inner); size != SIGNATURE_SIZE {
-		Panicf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(inner) != SIGNATURE_SIZE {
+		panic(ErrInvalidSize.Error())
 	}
 	return &Signature{inner}
 }
@@ -93,7 +92,7 @@ func (priv *PrivateKey) MarshalPEM() []byte {
 func (priv *PrivateKey) UnmarshalPEM(pem []byte) error {
 	b, _ := DecodePEM(pem)
 	if b.Type != PRIVKEY {
-		Panicf("Expected type=%s; got type=%s\n", PRIVKEY, b.Type)
+		panic(ErrInvalidType.Error())
 	}
 	inner, err := x509.ParsePKCS1PrivateKey(b.Bytes)
 	Check(err)
@@ -129,7 +128,7 @@ func (pub *PublicKey) MarshalPEM() []byte {
 func (pub *PublicKey) UnmarshalPEM(pem []byte) error {
 	b, _ := DecodePEM(pem)
 	if b.Type != PUBKEY {
-		Panicf("Expected type=%s; got type=%s\n", PUBKEY, b.Type)
+		panic(ErrInvalidType.Error())
 	}
 	inner, err := x509.ParsePKIXPublicKey(b.Bytes)
 	Check(err)
@@ -143,8 +142,8 @@ func (pub *PublicKey) Bytes() []byte {
 }
 
 func (pub *PublicKey) FromBytes(p []byte) error {
-	if size := len(p); size != KEY_SIZE {
-		return Errorf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
+	if len(p) != KEY_SIZE {
+		return ErrInvalidSize
 	}
 	pub.inner.E = E
 	pub.inner.N = BigIntFromBytes(p)
@@ -158,7 +157,7 @@ func (pub *PublicKey) String() string {
 func (pub *PublicKey) FromString(str string) error {
 	p := BytesFromB58(str)
 	if size := len(p); size != KEY_SIZE {
-		return Errorf("Expected key with size=%d; got size=%d\n", KEY_SIZE, size)
+		return ErrInvalidSize
 	}
 	return pub.FromBytes(p)
 }
@@ -189,8 +188,8 @@ func (sig *Signature) Bytes() []byte {
 }
 
 func (sig *Signature) FromBytes(p []byte) error {
-	if size := len(p); size != SIGNATURE_SIZE {
-		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(p) != SIGNATURE_SIZE {
+		return ErrInvalidSize
 	}
 	sig.p = make([]byte, SIGNATURE_SIZE)
 	copy(sig.p, p)
@@ -203,8 +202,8 @@ func (sig *Signature) String() string {
 
 func (sig *Signature) FromString(str string) error {
 	p := BytesFromB58(str)
-	if size := len(p); size != SIGNATURE_SIZE {
-		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(p) != SIGNATURE_SIZE {
+		return ErrInvalidSize
 	}
 	return sig.FromBytes(p)
 }

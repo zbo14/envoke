@@ -1,0 +1,36 @@
+{
+  "asset": {
+    "data": {
+      "dummy": "dummy"
+    }
+  },
+  "id": "0b328bf9f4b472c89a6941de22d1e18d5e0e33133a05a8e45c8c21bd9bb3c5bd",
+  "inputs": [{
+    "fulfillment": "cf:4:ddeuaHJ9Q4P6vNdVIOXlKMz-A1ZDT_zYLg0zI7hP-VBv4QZH_5YYpFS3zaFYE9GfZfJA63Gf6H_OTGyUCnthvOr0mRV-GbmT5aoNEFmTivIUpOPkideh4nhWTxs8myAE",
+    "fulfills": null,
+    "owners_before": [
+      "8w1T7fTbjcbB3si6oD3HMrBZENXNaFAkEStueKzASwxj"
+    ]
+  }],
+  "metadata": {
+    "dummy": "dummy"
+  },
+  "operation": "CREATE",
+  "outputs": [{
+    "amount": 1,
+    "condition": {
+      "details": {
+        "bitmask": 32,
+        "public_key": "8w1T7fTbjcbB3si6oD3HMrBZENXNaFAkEStueKzASwxj",
+        "signature": null,
+        "type": "fulfillment",
+        "type_id": 4
+      },
+      "uri": "cc:4:20:ddeuaHJ9Q4P6vNdVIOXlKMz-A1ZDT_zYLg0zI7hP-VA:96"
+    },
+    "public_keys": [
+      "8w1T7fTbjcbB3si6oD3HMrBZENXNaFAkEStueKzASwxj"
+    ]
+  }],
+  "version": "0.9"
+}

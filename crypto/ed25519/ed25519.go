@@ -26,22 +26,22 @@ type Signature struct {
 }
 
 func NewPrivateKey(inner ed25519.PrivateKey) (*PrivateKey, error) {
-	if size := len(inner); size != PRIVKEY_SIZE {
-		return nil, Errorf("Expected privkey with size=%d; got size=%d\n", PRIVKEY_SIZE, size)
+	if len(inner) != PRIVKEY_SIZE {
+		return nil, ErrInvalidSize
 	}
 	return &PrivateKey{inner}, nil
 }
 
 func NewPublicKey(inner ed25519.PublicKey) (*PublicKey, error) {
-	if size := len(inner); size != PUBKEY_SIZE {
-		return nil, Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
+	if len(inner) != PUBKEY_SIZE {
+		return nil, ErrInvalidSize
 	}
 	return &PublicKey{inner}, nil
 }
 
 func NewSignature(inner []byte) (*Signature, error) {
-	if size := len(inner); size != SIGNATURE_SIZE {
-		return nil, Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(inner) != SIGNATURE_SIZE {
+		return nil, ErrInvalidSize
 	}
 	return &Signature{inner}, nil
 }
@@ -63,11 +63,22 @@ func GenerateKeypair(password string) (*PrivateKey, *PublicKey) {
 
 func (_ *PrivateKey) IsPrivateKey() {}
 
-func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
-	p := ed25519.Sign(priv.inner, message)
-	sig, err := NewSignature(p)
-	Check(err)
-	return sig
+func (priv *PrivateKey) Bytes() []byte {
+	return priv.inner
+}
+
+func (priv *PrivateKey) FromBytes(p []byte) error {
+	if len(p) != PRIVKEY_SIZE {
+		return ErrInvalidSize
+	}
+	priv.inner = make([]byte, PRIVKEY_SIZE)
+	copy(priv.inner, p)
+	return nil
+}
+
+func (priv *PrivateKey) FromString(str string) error {
+	p := BytesFromB58(str)
+	return priv.FromBytes(p)
 }
 
 func (priv *PrivateKey) Public() crypto.PublicKey {
@@ -75,6 +86,17 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	pub, err := NewPublicKey(p)
 	Check(err)
 	return pub
+}
+
+func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
+	p := ed25519.Sign(priv.inner, message)
+	sig, err := NewSignature(p)
+	Check(err)
+	return sig
+}
+
+func (priv *PrivateKey) String() string {
+	return BytesToB58(priv.Bytes())
 }
 
 // Public Key
@@ -89,8 +111,8 @@ func (pub *PublicKey) Bytes() []byte {
 }
 
 func (pub *PublicKey) FromBytes(p []byte) error {
-	if size := len(p); size != PUBKEY_SIZE {
-		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
+	if len(p) != PUBKEY_SIZE {
+		return ErrInvalidSize
 	}
 	pub.inner = make([]byte, PUBKEY_SIZE)
 	copy(pub.inner, p)
@@ -102,13 +124,8 @@ func (pub *PublicKey) String() string {
 }
 
 func (pub *PublicKey) FromString(str string) error {
-	inner := BytesFromB58(str)
-	if size := len(inner); size != PUBKEY_SIZE {
-		return Errorf("Expected pubkey with size=%d; got size=%d\n", PUBKEY_SIZE, size)
-	}
-	pub.inner = make([]byte, PUBKEY_SIZE)
-	copy(pub.inner, inner)
-	return nil
+	p := BytesFromB58(str)
+	return pub.FromBytes(p)
 }
 
 func (pub *PublicKey) MarshalJSON() ([]byte, error) {
@@ -136,8 +153,8 @@ func (sig *Signature) Bytes() []byte {
 }
 
 func (sig *Signature) FromBytes(p []byte) error {
-	if size := len(p); size != SIGNATURE_SIZE {
-		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(p) != SIGNATURE_SIZE {
+		return ErrInvalidSize
 	}
 	sig.p = make([]byte, SIGNATURE_SIZE)
 	copy(sig.p, p)
@@ -150,8 +167,8 @@ func (sig *Signature) String() string {
 
 func (sig *Signature) FromString(str string) error {
 	inner := BytesFromB58(str)
-	if size := len(inner); size != SIGNATURE_SIZE {
-		return Errorf("Expected signature with size=%d; got size=%d\n", SIGNATURE_SIZE, size)
+	if len(inner) != SIGNATURE_SIZE {
+		return ErrInvalidSize
 	}
 	sig.p = make([]byte, SIGNATURE_SIZE)
 	copy(sig.p, inner)

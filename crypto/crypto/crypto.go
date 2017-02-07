@@ -29,9 +29,9 @@ type Signature interface {
 	Bytes() []byte
 	FromBytes([]byte) error
 	FromString(string) error
-	MarshalJSON() ([]byte, error)
+	// MarshalJSON() ([]byte, error)
 	String() string
-	UnmarshalJSON([]byte) error
+	// UnmarshalJSON([]byte) error
 }
 
 // Generate secret from password using bcrypt

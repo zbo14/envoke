@@ -42,14 +42,6 @@ const (
 	ED25519_SIZE    = ed25519.PUBKEY_SIZE + ed25519.SIGNATURE_SIZE
 )
 
-var (
-	ErrInvalidCondition   = Error("Invalid condition")
-	ErrInvalidFulfillment = Error("Invalid fulfillment")
-	ErrInvalidKey         = Error("Invalid key")
-	ErrInvalidRegex       = Error("Invalid regex")
-	ErrInvalidSize        = Error("Invalid size")
-)
-
 // Fulfillment
 
 type Fulfillment interface {
@@ -465,7 +457,7 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 		Details struct {
 			Bitmask   int              `json:"bitmask"`
 			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature,omitempty"`
+			Signature crypto.Signature `json:"signature"`
 			Type      string           `json:"type"`
 			TypeId    int              `json:"type_id"`
 		} `json:"details"`
@@ -474,14 +466,15 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 		Details: struct {
 			Bitmask   int              `json:"bitmask"`
 			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature,omitempty"`
+			Signature crypto.Signature `json:"signature"`
 			Type      string           `json:"type"`
 			TypeId    int              `json:"type_id"`
 		}{
-			Bitmask: c.bitmask,
-			PubKey:  c.pub,
-			Type:    FULFILLMENT_TYPE,
-			TypeId:  c.id,
+			Bitmask:   c.bitmask,
+			PubKey:    c.pub,
+			Signature: nil,
+			Type:      FULFILLMENT_TYPE,
+			TypeId:    c.id,
 		},
 		URI: c.String(),
 	}), nil

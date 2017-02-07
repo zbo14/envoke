@@ -122,13 +122,13 @@ func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 	privRSA, pubRSA := rsa.GenerateKeypair()
 	privPEM, pubPEM := privRSA.MarshalPEM(), pubRSA.MarshalPEM()
 	pub := mo.NewPublicKey(IMPL, string(pubPEM))
-	pubTx := bigchain.GenerateTx(pub, nil, pubRSA)
+	pubTx := bigchain.GenerateTx(pub, nil, bigchain.CREATE, pubRSA)
 	pubTx.Fulfill(privRSA)
 	pubId := pubTx.Id
 	// New partner
 	partner := PartnerFromValues(values)
 	mo.AddPublicKey(IMPL, partner, pubId)
-	partnerTx := bigchain.GenerateTx(partner, nil, pubRSA)
+	partnerTx := bigchain.GenerateTx(partner, nil, bigchain.CREATE, pubRSA)
 	partnerTx.Fulfill(privRSA)
 	partnerId := partnerTx.Id
 	mo.AddOwner(IMPL, partnerId, pub)

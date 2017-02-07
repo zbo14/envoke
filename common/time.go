@@ -7,10 +7,6 @@ func Time() time.Time {
 	return time.Now()
 }
 
-func YearFromNow() time.Time {
-	return Time().AddDate(1, 0, 0)
-}
-
 func TimeString() string {
 	return Time().String()
 }

@@ -3,10 +3,14 @@ package common
 import "github.com/pkg/errors"
 
 var (
+	ErrExpectedPost       = Error("Expected POST request")
 	ErrInvalidCondition   = Error("Invalid condition")
 	ErrInvalidFulfillment = Error("Invalid fulfillment")
+	ErrInvalidId          = Error("Invalid id")
 	ErrInvalidKey         = Error("Invalid key")
 	ErrInvalidRegex       = Error("Invalid regex")
+	ErrInvalidRequest     = Error("Invalid request")
+	ErrInvalidSignature   = Error("Invalid signature")
 	ErrInvalidSize        = Error("Invalid size")
 	ErrInvalidType        = Error("Invalid type")
 )

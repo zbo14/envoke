@@ -62,6 +62,55 @@ type Fulfillment interface {
 	Weight() int
 }
 
+// Fufillment from key
+
+func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
+	switch priv.(type) {
+	case *ed25519.PrivateKey:
+		privEd25519 := priv.(*ed25519.PrivateKey)
+		pubEd25519 := privEd25519.Public().(*ed25519.PublicKey)
+		sigEd25519 := privEd25519.Sign(msg).(*ed25519.Signature)
+		return NewFulfillmentEd25519(pubEd25519, sigEd25519, weight)
+	case *rsa.PrivateKey:
+		privRSA := priv.(*rsa.PrivateKey)
+		pubRSA := privRSA.Public().(*rsa.PublicKey)
+		sigRSA := privRSA.Sign(msg).(*rsa.Signature)
+		return NewFulfillmentRSA(pubRSA, sigRSA, weight)
+	}
+	panic(ErrInvalidKey.Error())
+}
+
+func FulfillmentFromPubKey(pub crypto.PublicKey, weight int) Fulfillment {
+	switch pub.(type) {
+	case *ed25519.PublicKey:
+		pubEd25519 := pub.(*ed25519.PublicKey)
+		return NewFulfillmentEd25519(pubEd25519, nil, weight)
+	case *rsa.PublicKey:
+		pubRSA := pub.(*rsa.PublicKey)
+		return NewFulfillmentRSA(pubRSA, nil, weight)
+	}
+	panic(ErrInvalidKey.Error())
+}
+
+func FulfillWithPrivKey(f Fulfillment, msg []byte, priv crypto.PrivateKey) {
+	sig := priv.Sign(msg)
+	if !f.PublicKey().Verify(msg, sig) {
+		panic(ErrInvalidSignature.Error())
+	}
+	switch sig.(type) {
+	case *ed25519.Signature:
+		ful := f.(*fulfillmentEd25519)
+		ful.payload = append(ful.payload, sig.Bytes()...)
+		ful.sig = sig.(*ed25519.Signature)
+	case *rsa.Signature:
+		ful := f.(*fulfillmentRSA)
+		ful.payload = append(ful.payload, sig.Bytes()...)
+		ful.sig = sig.(*rsa.Signature)
+	default:
+		panic(ErrInvalidSignature.Error())
+	}
+}
+
 type Fulfillments []Fulfillment
 
 func (fs Fulfillments) Len() int {
@@ -138,9 +187,13 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 					fulfillment: ful,
 				}
 			case ED25519_ID:
-				f = &fulfillmentEd25519{ful}
+				f = &fulfillmentEd25519{
+					fulfillment: ful,
+				}
 			case RSA_ID:
-				f = &fulfillmentRSA{ful}
+				f = &fulfillmentRSA{
+					fulfillment: ful,
+				}
 			case THRESHOLD_ID:
 				f = &fulfillmentThreshold{
 					fulfillment: ful,
@@ -204,9 +257,13 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 				fulfillment: ful,
 			}
 		case ED25519_ID:
-			f = &fulfillmentEd25519{ful}
+			f = &fulfillmentEd25519{
+				fulfillment: ful,
+			}
 		case RSA_ID:
-			f = &fulfillmentRSA{ful}
+			f = &fulfillmentRSA{
+				fulfillment: ful,
+			}
 		case THRESHOLD_ID:
 			f = &fulfillmentThreshold{
 				fulfillment: ful,
@@ -292,9 +349,27 @@ func (f *fulfillment) MarshalJSON() ([]byte, error) {
 	if f == nil {
 		return nil, nil
 	}
-	uri := f.String()
-	json := MustMarshalJSON(uri)
-	return json, nil
+	if !f.Validate(nil) {
+		panic(ErrInvalidFulfillment.Error())
+	}
+	if f.outer.PublicKey() != nil {
+		if f.outer.Signature() == nil {
+			return MustMarshalJSON(struct {
+				Bitmask   int              `json:"bitmask"`
+				PubKey    crypto.PublicKey `json:"public_key"`
+				Signature crypto.Signature `json:"signature"`
+				Type      string           `json:"type"`
+				TypeId    int              `json:"type_id"`
+			}{
+				Bitmask:   f.bitmask,
+				PubKey:    f.outer.PublicKey(),
+				Signature: nil,
+				Type:      FULFILLMENT_TYPE,
+				TypeId:    f.id,
+			}), nil
+		}
+	}
+	return MustMarshalJSON(f.String()), nil
 }
 
 func (f *fulfillment) PublicKey() crypto.PublicKey { return nil }
@@ -451,7 +526,7 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 		return nil, nil
 	}
 	if !c.Validate(nil) {
-		return nil, ErrInvalidCondition
+		panic(ErrInvalidCondition.Error())
 	}
 	return MustMarshalJSON(struct {
 		Details struct {

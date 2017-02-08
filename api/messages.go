@@ -1,43 +1,29 @@
 package api
 
-type AlbumInfo struct {
-	AlbumId  string   `json:"album_id"`
-	TrackIds []string `json:"track_ids"`
+type TxInfo struct {
+	Content interface{} `json:"content"`
+	Id      string      `json:"id"`
+	Type    string      `json:"type"`
 }
 
-func NewAlbumInfo(albumId string, songIds []string) *AlbumInfo {
-	return &AlbumInfo{
-		AlbumId:  albumId,
-		TrackIds: songIds,
+func NewTxInfo(content interface{}, id, _type string) *TxInfo {
+	return &TxInfo{
+		Content: content,
+		Id:      id,
+		Type:    _type,
 	}
 }
 
-type PartnerInfo struct {
-	PartnerId string `json:"partner_id"`
-	PrivPEM   []byte `json:"private_key"`
-	PubPEM    []byte `json:"public_key"`
+type UserInfo struct {
+	Id      string `json:"user_id"`
+	PrivKey string `json:"private_key"`
+	PubKey  string `json:"public_key"`
 }
 
-func NewPartnerInfo(partnerId string, privPEM, pubPEM []byte) *PartnerInfo {
-	return &PartnerInfo{
-		PartnerId: partnerId,
-		PrivPEM:   privPEM,
-		PubPEM:    pubPEM,
-	}
-}
-
-type Stream struct {
-	AlbumTitle string `json:"album_title"`
-	Artist     string `json:"artist"`
-	TrackTitle string `json:"track_title"`
-	URL        string `json:"url"`
-}
-
-func NewStream(albumTitle, artist, trackTitle, url string) *Stream {
-	return &Stream{
-		AlbumTitle: albumTitle,
-		Artist:     artist,
-		TrackTitle: trackTitle,
-		URL:        url,
+func NewUserInfo(id, priv, pub string) *UserInfo {
+	return &UserInfo{
+		Id:      id,
+		PrivKey: priv,
+		PubKey:  pub,
 	}
 }

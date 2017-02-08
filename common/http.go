@@ -23,7 +23,6 @@ func HttpRequest(method, url string, body io.Reader, kv map[string]string) (*htt
 	for k, v := range kv {
 		req.Header.Set(k, v)
 	}
-	Println(req)
 	cli := new(http.Client)
 	return cli.Do(req)
 }

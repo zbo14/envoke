@@ -7,37 +7,30 @@ import (
 	"testing"
 )
 
-const (
-	privstr = "iyVaTCBKcuHEn93vxRkSvGehadeMkGL13KQS5Yas2wwRKu4GT3tDgUZ5C2NVz78pYE6NuCUtrASqpaa6rUCoRR1"
-	pubstr  = "8w1T7fTbjcbB3si6oD3HMrBZENXNaFAkEStueKzASwxj"
-)
+var seedstr = "13jGvCoZsEiqu5kiBLFz8vPVUS5pchjkQFmeP2bNbHae"
 
 func TestBigchain(t *testing.T) {
 	// Keys
-	priv := new(ed25519.PrivateKey)
-	if err := priv.FromString(privstr); err != nil {
-		t.Fatal(err.Error())
-	}
-	pub := new(ed25519.PublicKey)
-	if err := pub.FromString(pubstr); err != nil {
-		t.Fatal(err.Error())
-	}
+	seed := BytesFromB58(seedstr)
+	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
 	// Dummy data
 	dummy := spec.Data{"dummy": "dummy"}
 	// Generate tx
 	tx := GenerateTx(dummy, dummy, CREATE, pub)
+	// Print prepared tx
+	Println(string(MustMarshalIndentJSON(tx)))
 	// Fulfill the tx
 	tx.Fulfill(priv)
 	// Check if it's fulfilled
 	if !tx.Fulfilled() {
-		t.Fatal("tx is not fulfilled")
+		t.Error("tx is not fulfilled")
 	}
-	// Print tx
+	// Print fulfilled tx
 	Println(string(MustMarshalIndentJSON(tx)))
 	// Send POST request with tx
-	response, err := PostTx(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(response)
+	// response, err := PostTx(tx)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// t.Log(response)
 }

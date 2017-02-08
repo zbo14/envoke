@@ -9,18 +9,6 @@ import (
 	"sort"
 )
 
-func NewFulfillmentWithKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
-	switch priv.(type) {
-	case *ed25519.PrivateKey:
-		privEd25519 := priv.(*ed25519.PrivateKey)
-		return NewFulfillmentEd25519(msg, privEd25519, weight)
-	case *rsa.PrivateKey:
-		privRSA := priv.(*rsa.PrivateKey)
-		return NewFulfillmentRSA(msg, privRSA, weight)
-	}
-	panic(ErrInvalidKey.Error())
-}
-
 // SHA256 Pre-Image
 
 type fulfillmentPreImage struct {
@@ -95,14 +83,16 @@ func (f *fulfillmentPrefix) Validate(p []byte) bool {
 
 type fulfillmentEd25519 struct {
 	*fulfillment
+	pub *ed25519.PublicKey
+	sig *ed25519.Signature
 }
 
-func NewFulfillmentEd25519(msg []byte, priv *ed25519.PrivateKey, weight int) *fulfillmentEd25519 {
+func NewFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature, weight int) *fulfillmentEd25519 {
 	f := new(fulfillmentEd25519)
-	pub := priv.Public()
-	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(ED25519_ID, f, payload, weight)
+	f.pub = pub
+	f.sig = sig
 	f.Init()
 	return f
 }
@@ -114,42 +104,40 @@ func (f *fulfillmentEd25519) Init() {
 }
 
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
-	pub := new(ed25519.PublicKey)
-	p := f.payload[:ed25519.PUBKEY_SIZE]
-	err := pub.FromBytes(p)
-	Check(err)
-	return pub
+	if f.pub.Bytes() == nil {
+		return nil
+	}
+	return f.pub
 }
 
 func (f *fulfillmentEd25519) Signature() crypto.Signature {
-	sig := new(ed25519.Signature)
-	p := f.payload[ed25519.PUBKEY_SIZE:]
-	err := sig.FromBytes(p)
-	Check(err)
-	return sig
+	if f.sig.Bytes() == nil {
+		return nil
+	}
+	return f.sig
 }
 
 func (f *fulfillmentEd25519) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	pub := f.PublicKey()
-	sig := f.Signature()
-	return pub.Verify(p, sig)
+	return f.pub.Verify(p, f.sig)
 }
 
 // SHA256 RSA
 
 type fulfillmentRSA struct {
 	*fulfillment
+	pub *rsa.PublicKey
+	sig *rsa.Signature
 }
 
-func NewFulfillmentRSA(msg []byte, priv *rsa.PrivateKey, weight int) *fulfillmentRSA {
+func NewFulfillmentRSA(pub *rsa.PublicKey, sig *rsa.Signature, weight int) *fulfillmentRSA {
 	f := new(fulfillmentRSA)
-	pub := priv.Public()
-	sig := priv.Sign(msg)
 	payload := append(pub.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(RSA_ID, f, payload, weight)
+	f.pub = pub
+	f.sig = sig
 	f.Init()
 	return f
 }
@@ -161,32 +149,24 @@ func (f *fulfillmentRSA) Init() {
 }
 
 func (f *fulfillmentRSA) PublicKey() crypto.PublicKey {
-	pub := new(rsa.PublicKey)
-	p := f.payload[:rsa.KEY_SIZE]
-	err := pub.FromBytes(p)
-	Check(err)
-	return pub
+	if f.pub.Bytes() == nil {
+		return nil
+	}
+	return f.pub
 }
 
 func (f *fulfillmentRSA) Signature() crypto.Signature {
-	sig := new(rsa.Signature)
-	p := f.payload[rsa.KEY_SIZE:]
-	err := sig.FromBytes(p)
-	Check(err)
-	return sig
+	if f.sig.Bytes() == nil {
+		return nil
+	}
+	return f.sig
 }
 
 func (f *fulfillmentRSA) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	pub := new(rsa.PublicKey)
-	err := pub.FromBytes(f.payload[:rsa.KEY_SIZE])
-	Check(err)
-	sig := new(rsa.Signature)
-	err = sig.FromBytes(f.payload[rsa.KEY_SIZE : rsa.KEY_SIZE+rsa.SIGNATURE_SIZE])
-	Check(err)
-	return pub.Verify(p, sig)
+	return f.pub.Verify(p, f.sig)
 }
 
 // SHA256 Threshold

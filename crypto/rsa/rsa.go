@@ -138,6 +138,9 @@ func (pub *PublicKey) UnmarshalPEM(pem []byte) error {
 
 // Returns value of public modulus as a big-endian byte slice
 func (pub *PublicKey) Bytes() []byte {
+	if pub == nil {
+		return nil
+	}
 	return pub.inner.N.Bytes()
 }
 
@@ -184,6 +187,9 @@ func (pub *PublicKey) UnmarshalJSON(inner []byte) error {
 func (_ *Signature) IsSignature() {}
 
 func (sig *Signature) Bytes() []byte {
+	if sig == nil {
+		return nil
+	}
 	return sig.p
 }
 

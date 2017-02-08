@@ -10,6 +10,7 @@ import (
 const (
 	PRIVKEY_SIZE   = ed25519.PrivateKeySize
 	PUBKEY_SIZE    = ed25519.PublicKeySize
+	SEED_SIZE      = 32
 	SIGNATURE_SIZE = ed25519.SignatureSize
 )
 
@@ -46,10 +47,25 @@ func NewSignature(inner []byte) (*Signature, error) {
 	return &Signature{inner}, nil
 }
 
-func GenerateKeypair(password string) (*PrivateKey, *PublicKey) {
+func GenerateKeypairFromPassword(password string) (*PrivateKey, *PublicKey) {
 	secret := crypto.GenerateSecret(password)
 	buf := new(bytes.Buffer)
 	buf.Write(secret)
+	pubInner, privInner, err := ed25519.GenerateKey(buf)
+	Check(err)
+	priv, err := NewPrivateKey(privInner)
+	Check(err)
+	pub, err := NewPublicKey(pubInner)
+	Check(err)
+	return priv, pub
+}
+
+func GenerateKeypairFromSeed(seed []byte) (*PrivateKey, *PublicKey) {
+	if len(seed) != SEED_SIZE {
+		panic(ErrInvalidSize.Error())
+	}
+	buf := new(bytes.Buffer)
+	buf.Write(seed)
 	pubInner, privInner, err := ed25519.GenerateKey(buf)
 	Check(err)
 	priv, err := NewPrivateKey(privInner)
@@ -64,6 +80,9 @@ func GenerateKeypair(password string) (*PrivateKey, *PublicKey) {
 func (_ *PrivateKey) IsPrivateKey() {}
 
 func (priv *PrivateKey) Bytes() []byte {
+	if priv == nil {
+		return nil
+	}
 	return priv.inner
 }
 
@@ -107,6 +126,9 @@ func (pub *PublicKey) Verify(message []byte, sig crypto.Signature) bool {
 }
 
 func (pub *PublicKey) Bytes() []byte {
+	if pub == nil {
+		return nil
+	}
 	return pub.inner
 }
 
@@ -149,6 +171,9 @@ func (pub *PublicKey) UnmarshalJSON(inner []byte) error {
 func (_ *Signature) IsSignature() {}
 
 func (sig *Signature) Bytes() []byte {
+	if sig == nil {
+		return nil
+	}
 	return sig.p
 }
 

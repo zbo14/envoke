@@ -3,31 +3,28 @@
 {{end}}
 
 {{define "body"}}
-<div id="artist">
-  <form id="artist-login-form">
-    <h2>Artist Login</h2>
-    <input type="text" name="name" placeholder="name" required /><br>
-    <input type="text" name="open_id" placeholder="open ID" required /><br>  
-    <input type="text" name="partner_id" placeholder="partner ID" required /><br>
-    <input type="submit" value="register"/>
-  </form>
-</div>
-<div id="partner">
-   <form id="partner-login-form">
-    <h2>Partner Login</h2>
-    <input type="text" name="partner_id" placeholder="partner ID" required /><br>
+<div>
+  <form id="login-form">
+    <h2>Login</h2>
+    <select form="login-form" name="type" id="login-type" required>
+      <option value="artist">artist</option>
+      <option value="label">record label</option>
+      <option value="publisher">publisher</option>
+      <option value="organization">organization</option>
+    </select><br>
+    <input type="text" name="user_id" placeholder="user ID" required /><br>
     <input type="password" name="private_key" placeholder="private key" required /><br>
     <input type="submit" value="login" />
   </form>
-  <form id="partner-register-form">
-    <h2>Partner Registration</h2>
-    <select form="partner-register-form" name="type">
+  <form id="register-form">
+    <h2>Registration</h2>
+    <select form="register-form" name="type" id="register-type" required>
+      <option value="artist">artist</option>
       <option value="label">record label</option>
       <option value="publisher">publisher</option>
+      <option value="organization">organization</option>
     </select><br>
     <input type="text" name="name" placeholder="name" required /><br>
-    <input type="text" name="label_code" placeholder="label code" /><br>
-    <input type="text" name="login" placeholder="login page" required /><br>
     <input type="text" name="open_id" placeholder="open ID" required /><br> 
     <input type="submit" value="register"/>
   </form>
@@ -50,42 +47,39 @@ function httpPostAsync(addr, data, callback) {
 };
 
 // Callbacks
-var artistLoginCallback = function(responseText) {
+var loginCallback = function(responseText) {
   var json = JSON.parse(responseText);
   console.log(json); //for now
 };
 
-var partnerLoginCallback = function(responseText) {
-  var json = JSON.parse(responseText);
-  console.log(json); //for now
-};
-
-var partnerRegisterCallback = function(responseText) {
+var registerCallback = function(responseText) {
   var json = JSON.parse(responseText);
   console.log(json); //for now
 };
 
 window.onload = function(){
-    // Artist login
-    var artistLoginForm = document.getElementById("artist-login-form");
-    artistLoginForm.onsubmit = function(event) {
+    // Login
+    var loginForm = document.getElementById("login-form");
+    loginForm.onsubmit = function(event) {
       event.preventDefault();
-      var formData = $("#artist-login-form").serialize();
-      httpPostAsync("http://localhost:8888/artist_login", formData, artistLoginCallback);
+      var formData = $("#login-form").serialize();
+      var type = $("#login-type").val();
+      if (type == "artist") {
+        httpPostAsync("http://localhost:8888/artist_login", formData, loginCallback);
+      } else {
+        httpPostAsync("http://localhost:8888/partner_login", formData, loginCallback);
     };
-    // Partner login
-    var partnerLoginForm = document.getElementById("partner-login-form");
-    partnerLoginForm.onsubmit = function(event) {
+    // Registration 
+    var registerForm = document.getElementById("register-form");
+    registerForm.onsubmit = function(event) {
       event.preventDefault();
-      var formData = $("#partner-login-form").serialize();
-      httpPostAsync("http://localhost:8888/partner_login", formData, partnerLoginCallback);
-    };
-    // Partner register 
-    var partnerRegisterForm = document.getElementById("partner-register-form");
-    partnerRegisterForm.onsubmit = function(event) {
-      event.preventDefault();
-      var formData = $("#partner-register-form").serialize();    
-      httpPostAsync("http://localhost:8888/partner_register", formData, partnerRegisterCallback); 
+      var formData = $("#register-form").serialize();    
+      var type = $("#register-type").val();
+      if (type == "artist") {
+        httpPostAsync("http://localhost:8888/artist_register", formData, registerCallback); 
+      } else {
+        httpPostAsync("http://localhost:8888/partner_register", formData, registerCallback);
+      }
     };
 }
 </script>

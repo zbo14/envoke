@@ -20,17 +20,17 @@ func TestBigchain(t *testing.T) {
 	// Print prepared tx
 	Println(string(MustMarshalIndentJSON(tx)))
 	// Fulfill the tx
-	tx.Fulfill(priv)
+	FulfillTx(tx, priv)
 	// Check if it's fulfilled
-	if !tx.Fulfilled() {
+	if !FulfilledTx(tx) {
 		t.Error("tx is not fulfilled")
 	}
 	// Print fulfilled tx
 	Println(string(MustMarshalIndentJSON(tx)))
 	// Send POST request with tx
-	// response, err := PostTx(tx)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// t.Log(response)
+	response, err := PostTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(response)
 }

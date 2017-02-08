@@ -52,7 +52,7 @@ type Fulfillment interface {
 	Init()
 	IsCondition() bool
 	MarshalBinary() ([]byte, error)
-	MarshalJSON() ([]byte, error)
+	// MarshalJSON() ([]byte, error)
 	PublicKey() crypto.PublicKey
 	Signature() crypto.Signature
 	Size() int
@@ -443,7 +443,7 @@ func NilCondition() *Condition {
 	}
 }
 
-func NewConditionWithKey(pub crypto.PublicKey, weight int) *Condition {
+func NewConditionWithPubKey(pub crypto.PublicKey, weight int) *Condition {
 	switch pub.(type) {
 	case *ed25519.PublicKey:
 		return NewCondition(

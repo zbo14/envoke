@@ -98,8 +98,18 @@ func NewFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature, weigh
 }
 
 func (f *fulfillmentEd25519) Init() {
+	if f.pub.Bytes() == nil {
+		f.pub = new(ed25519.PublicKey)
+		err := f.pub.FromBytes(f.payload[:ed25519.PUBKEY_SIZE])
+		Check(err)
+	}
+	if f.sig.Bytes() == nil {
+		f.sig = new(ed25519.Signature)
+		err := f.sig.FromBytes(f.payload[ed25519.PUBKEY_SIZE:])
+		Check(err)
+	}
 	f.bitmask = ED25519_BITMASK
-	f.hash = f.payload[:ed25519.PUBKEY_SIZE]
+	f.hash = f.pub.Bytes()
 	f.size = ED25519_SIZE
 }
 
@@ -143,8 +153,18 @@ func NewFulfillmentRSA(pub *rsa.PublicKey, sig *rsa.Signature, weight int) *fulf
 }
 
 func (f *fulfillmentRSA) Init() {
+	if f.pub.Bytes() == nil {
+		f.pub = new(rsa.PublicKey)
+		err := f.pub.FromBytes(f.payload[:rsa.KEY_SIZE])
+		Check(err)
+	}
+	if f.sig.Bytes() == nil {
+		f.sig = new(rsa.Signature)
+		err := f.sig.FromBytes(f.payload[rsa.KEY_SIZE:])
+		Check(err)
+	}
 	f.bitmask = RSA_BITMASK
-	f.hash = Checksum256(f.payload[:rsa.KEY_SIZE])
+	f.hash = Checksum256(f.pub.Bytes())
 	f.size = RSA_SIZE
 }
 

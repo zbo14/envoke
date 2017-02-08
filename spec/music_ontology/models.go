@@ -80,7 +80,7 @@ func NewSignature(impl string, pubId interface{}, sig string) spec.Data {
 	return spec.Data{
 		"@context":           context,
 		"@type":              "sec:LinkedDataSignature2015",
-		"sec:created":        TimeString(),
+		"sec:created":        Timestr(),
 		"sec:creator":        pubId,
 		"sec:signatureValue": sig,
 	}
@@ -95,11 +95,10 @@ func SignData(impl string, data spec.Data, sigId interface{}) {
 
 // Agents
 
-func NewArtist(impl, name, openId string, partnerId interface{}) spec.Data {
+func NewArtist(impl, name, openId, pub string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
-		partnerId = spec.LinkIPLD(partnerId)
 	}
 	if impl == spec.JSON {
 		context = CONTEXT
@@ -109,11 +108,11 @@ func NewArtist(impl, name, openId string, partnerId interface{}) spec.Data {
 		"@type":       "mo:MusicArtist",
 		"foaf:name":   name,
 		"foaf:openid": openId,
-		"foaf:member": partnerId,
+		"publicKey":   pub,
 	}
 }
 
-func NewOrganization(impl, name, openId string) spec.Data {
+func NewOrganization(impl, name, openId, pub string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -126,16 +125,17 @@ func NewOrganization(impl, name, openId string) spec.Data {
 		"@type":       "foaf:Organization",
 		"foaf:name":   name,
 		"foaf:openid": openId,
+		"publicKey":   pub,
 	}
 }
 
-func NewPublisher(impl, name, openId string) spec.Data {
-	data := NewOrganization(impl, name, openId)
+func NewPublisher(impl, name, openId, pub string) spec.Data {
+	data := NewOrganization(impl, name, openId, pub)
 	// How to differentiate publisher from general org?
 	return data
 }
 
-func NewLabel(impl, lc, name, openId string) spec.Data {
+func NewLabel(impl, lc, name, openId, pub string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
@@ -148,6 +148,7 @@ func NewLabel(impl, lc, name, openId string) spec.Data {
 		"@type":       "mo:Label",
 		"foaf:name":   name,
 		"foaf:openid": openId,
+		"publicKey":   pub,
 	}
 	if lc != "" {
 		if !MatchString(LC_REGEX, lc) {
@@ -166,12 +167,22 @@ func AddPublicKey(impl string, agent spec.Data, pubId interface{}) {
 }
 
 func GetPublicKey(agent spec.Data) string {
+	pubId := agent["publicKey"]
+	if pubData, ok := pubId.(spec.Data); ok {
+		pubId = pubData[spec.LINK_SYMBOL]
+	}
+	return pubId.(string)
+}
+
+/*
+func GetPublicKey(agent spec.Data) string {
 	pubId := agent["sec:publicKey"]
 	if pubIdData, ok := pubId.(spec.Data); ok {
 		pubId = pubIdData[spec.LINK_SYMBOL]
 	}
 	return pubId.(string)
 }
+*/
 
 func GetLogin(agent spec.Data) string {
 	login := agent["foaf:page"]

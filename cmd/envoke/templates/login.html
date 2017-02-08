@@ -26,6 +26,7 @@
     </select><br>
     <input type="text" name="name" placeholder="name" required /><br>
     <input type="text" name="open_id" placeholder="open ID" required /><br> 
+    <input type="password" name="password" placeholder="password" required /><br>
     <input type="submit" value="register"/>
   </form>
 </div>
@@ -48,8 +49,7 @@ function httpPostAsync(addr, data, callback) {
 
 // Callbacks
 var loginCallback = function(responseText) {
-  var json = JSON.parse(responseText);
-  console.log(json); //for now
+  console.log(responseText); //for now
 };
 
 var registerCallback = function(responseText) {
@@ -68,6 +68,7 @@ window.onload = function(){
         httpPostAsync("http://localhost:8888/artist_login", formData, loginCallback);
       } else {
         httpPostAsync("http://localhost:8888/partner_login", formData, loginCallback);
+      }
     };
     // Registration 
     var registerForm = document.getElementById("register-form");

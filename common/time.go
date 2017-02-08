@@ -1,21 +1,39 @@
 package common
 
-import "strconv"
-import "time"
+import (
+	"encoding/binary"
+	"strconv"
+	"time"
+)
 
 func Time() time.Time {
 	return time.Now()
 }
 
-func TimeString() string {
+func Timestr() string {
 	return Time().String()
 }
 
-func DateString() string {
-	return ToTheDay(TimeString())
+func Datestr() string {
+	return ToTheDay(Timestr())
 }
 
-func ParseTimeString(timestr string) time.Time {
+func Timestamp() int64 {
+	return Time().Unix()
+}
+
+func TimestampBytes(x int64) []byte {
+	p := make([]byte, 10)
+	n := binary.PutVarint(p, x)
+	return p[:n]
+}
+
+func TimestampFromBytes(p []byte) int64 {
+	x, _ := binary.Varint(p)
+	return x
+}
+
+func ParseTimestr(timestr string) time.Time {
 	yr, _ := strconv.Atoi(timestr[:4])
 	mo, _ := strconv.Atoi(timestr[5:7])
 	d, _ := strconv.Atoi(timestr[8:10])
@@ -25,7 +43,7 @@ func ParseTimeString(timestr string) time.Time {
 	return time.Date(yr, time.Month(mo), d, hr, min, sec, 0, time.Local)
 }
 
-func ParseDateString(datestr string) time.Time {
+func ParseDatestr(datestr string) time.Time {
 	yr, _ := strconv.Atoi(datestr[:4])
 	mo, _ := strconv.Atoi(datestr[5:7])
 	d, _ := strconv.Atoi(datestr[8:10])

@@ -1,11 +1,12 @@
 package api
 
 import (
+	// "bytes"
 	"github.com/dhowden/tag"
 	"github.com/minio/minio-go"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/crypto/rsa"
+	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/spec"
 	mo "github.com/zbo14/envoke/spec/music_ontology"
 	"net/http"
@@ -22,19 +23,16 @@ const (
 	MINIO_SECRET_KEY = "I9zaxZWzbdvpbQO0hT6+bBaEJyHJF78RA2wAFNvJ"
 	MINIO_REGION     = "us-east-1"
 
-	ARTIST_ID  = "artist_id"
-	PARTNER_ID = "partner_id"
-
 	ALBUM     = "album"
 	SIGNATURE = "signature"
 )
 
 type Api struct {
-	cli     *minio.Client
-	user    spec.Data
-	logger  Logger
-	userId  string
-	privRSA *rsa.PrivateKey
+	cli    *minio.Client
+	user   spec.Data
+	logger Logger
+	userId string
+	priv   *ed25519.PrivateKey
 }
 
 func NewApi() *Api {
@@ -45,8 +43,10 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/login", api.Login)
-	mux.HandleFunc("/register", api.Register)
+	mux.HandleFunc("/artist_login", api.ArtistLogin)
+	mux.HandleFunc("/artist_register", api.ArtistRegister)
+	mux.HandleFunc("/partner_login", api.PartnerLogin)
+	mux.HandleFunc("/partner_register", api.PartnerRegister)
 	mux.HandleFunc("/sign_album", api.SignAlbum)
 	mux.HandleFunc("/upload_album", api.UploadAlbum)
 }
@@ -70,20 +70,21 @@ func HostSecure(rawurl string) (string, bool) {
 func ArtistFromValues(values url.Values) spec.Data {
 	name := values.Get("name")
 	openId := values.Get("open_id")
-	partnerId := values.Get("partner_id")
-	return mo.NewArtist(IMPL, name, openId, partnerId)
+	pub := values.Get("public_key")
+	return mo.NewArtist(IMPL, name, openId, pub)
 }
 
 func PartnerFromValues(values url.Values) spec.Data {
 	_type := values.Get("type")
 	name := values.Get("name")
 	openId := values.Get("open_id")
+	pub := values.Get("public_key")
 	switch _type {
 	case mo.LABEL:
 		lc := values.Get("label_code")
-		return mo.NewLabel(IMPL, lc, name, openId)
+		return mo.NewLabel(IMPL, lc, name, openId, pub)
 	case mo.PUBLISHER:
-		return mo.NewPublisher(IMPL, name, openId)
+		return mo.NewPublisher(IMPL, name, openId, pub)
 		// TODO: add more partner types?
 	}
 	panic(ErrInvalidType.Error())
@@ -107,7 +108,7 @@ func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 		}
 		album := mo.NewRecord(IMPL, api.userId, 0, publisherId, albumTitle)
 		// Generate album tx
-		albumTx := bigchain.GenerateTx(album, nil, api.pubRSA)
+		albumTx := bigchain.GenerateTx(album, nil, api.pub)
 		albumId := albumTx.Id
 	*/
 	albumId := ""
@@ -144,7 +145,7 @@ func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 		/*
 			track := mo.NewTrack(IMPL, api.userId, i, albumId, trackTitle)
 			// Generate track tx
-			trackTx := bigchain.GenerateTx(track, metadata, api.privRSA.Public())
+			trackTx := bigchain.GenerateTx(track, metadata, api.priv.Public())
 			trackIds[i] = trackTx.Id
 		*/
 		trackIds[i] = trackURL
@@ -176,12 +177,12 @@ func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	album := albumTx.GetData()
+	album := bigchain.GetTxData(albumTx)
 	json := MustMarshalJSON(album)
-	sigstr := api.privRSA.Sign(json).String()
+	sigstr := api.priv.Sign(json).String()
 	sig := mo.NewSignature(IMPL, api.userId, sigstr)
 	// Send tx with signature to IPDB
-	sigTx := bigchain.GenerateTx(sig, nil, bigchain.CREATE, api.privRSA.Public())
+	sigTx := bigchain.GenerateTx(sig, nil, bigchain.CREATE, api.priv.Public())
 	sigId, err := bigchain.PostTx(sigTx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -203,35 +204,21 @@ func Register(w http.ResponseWriter, req *http.Request, userFromValues func(url.
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 		return
 	}
-	// Generate random keypair
-	privRSA, pubRSA := rsa.GenerateKeypair()
-	privPEM, pubPEM := privRSA.MarshalPEM(), pubRSA.MarshalPEM()
-	pub := mo.NewPublicKey(IMPL, string(pubPEM))
-	pubTx := bigchain.GenerateTx(pub, nil, bigchain.CREATE, pubRSA)
-	pubTx.Fulfill(privRSA)
-	pubId := pubTx.Id
+	// Generate keypair from password
+	password := values.Get("password")
+	priv, pub := ed25519.GenerateKeypairFromPassword(password)
+	values.Set("public_key", pub.String())
 	// New user
 	user := userFromValues(values)
-	mo.AddPublicKey(IMPL, user, pubId)
-	userTx := bigchain.GenerateTx(user, nil, bigchain.CREATE, pubRSA)
-	userTx.Fulfill(privRSA)
-	userId := userTx.Id
-	mo.AddOwner(IMPL, userId, pub)
-	pubTx.SetData(pub) //update tx data
-	/*
-		// send requests to IPDB
-		_, err = bigchain.PostTx(pubTx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		_, err = bigchain.PostTx(userTx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	*/
-	userInfo := NewUserInfo(userId, string(privPEM), string(pubPEM))
+	tx := bigchain.GenerateTx(user, nil, bigchain.CREATE, pub)
+	bigchain.FulfillTx(tx, priv)
+	// send request to IPDB
+	id, err := bigchain.PostTx(tx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userInfo := NewUserInfo(id, priv.String(), pub.String())
 	WriteJSON(w, userInfo)
 }
 
@@ -241,7 +228,7 @@ func Register(w http.ResponseWriter, req *http.Request, userFromValues func(url.
 // but artist must be verified by partner org before they
 // create profile..
 
-func (api *Api) Login(w http.ResponseWriter, req *http.Request, typeId string) {
+func (api *Api) Login(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
@@ -254,47 +241,37 @@ func (api *Api) Login(w http.ResponseWriter, req *http.Request, typeId string) {
 		return
 	}
 	// PrivKey
-	privRSA := new(rsa.PrivateKey)
-	privPEM := values.Get("private_key")
-	if err := privRSA.UnmarshalPEM([]byte(privPEM)); err != nil {
+	priv := new(ed25519.PrivateKey)
+	privstr := values.Get("private_key")
+	if err := priv.FromString(privstr); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	pubPEM := privRSA.Public().(*rsa.PublicKey).MarshalPEM()
-	Println(string(pubPEM))
+	pub := priv.Public()
+	// Query tx with user id
+	userId := values.Get("user_id")
+	tx, err := bigchain.GetTx(userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	Println(tx)
+	user := bigchain.GetTxData(tx)
+	pubstr := mo.GetPublicKey(user)
+	if pub.String() != pubstr {
+		http.Error(w, ErrInvalidKey.Error(), http.StatusUnauthorized)
+		return
+	}
 	/*
-		// Query tx with user id
-		userId := values.Get(typeId)
-		userTx, err := bigchain.GetTx(userId)
+		api.cli, err = NewClient(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		user := userTx.GetData()
-		pubId := GetPublicKey(user)
-		pubTx, err := bigchain.GetTx(pubId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		pub := pubTx.GetData()
-		if GetOwner(pub) != userId {
-			http.Error(w, ErrInvalidId.Error(), http.StatusUnauthorized)
-			return
-		}
-		if !bytes.Equal([]byte(GetPEM(pub)), pubPEM) {
-			http.Error(w, ErrInvalidKey.Error(), http.StatusUnauthorized)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	*/
-	api.cli, err = NewClient(MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// api.userId = userId
-	api.privRSA = privRSA
-	// api.user = user
+	api.priv = priv
+	api.user = user
+	api.userId = userId
 	w.Write([]byte("Login successful!"))
 }
 
@@ -309,16 +286,16 @@ func (api *Api) HandleAction(w http.ResponseWriter, req *http.Request, handler h
 		http.Error(w, "Minio client is not set", http.StatusUnauthorized)
 		return
 	}
+	if api.priv == nil {
+		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
+		return
+	}
 	if api.user == nil {
 		http.Error(w, "User profile is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.userId == "" {
 		http.Error(w, "User id is not set", http.StatusUnauthorized)
-		return
-	}
-	if api.privRSA == nil {
-		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
 		return
 	}
 	handler(w, req)
@@ -333,11 +310,11 @@ func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
 }
 
 func (api *Api) ArtistLogin(w http.ResponseWriter, req *http.Request) {
-	api.Login(w, req, ARTIST_ID)
+	api.Login(w, req)
 }
 
 func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
-	api.Login(w, req, PARTNER_ID)
+	api.Login(w, req)
 }
 
 func (api *Api) SignAlbum(w http.ResponseWriter, req *http.Request) {

@@ -21,9 +21,11 @@ const (
 	CONDITION_REGEX        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
 	CONDITION_REGEX_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
 	FULFILLMENT_REGEX      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
-	FULFILLMENT_TYPE       = "fulfillment"
+	TIMESTAMP_REGEX        = `^\d{10}(\.\d+)?$`
 
 	// Types
+	FULFILLMENT_TYPE = "fulfillment"
+
 	PREIMAGE_ID      = 0
 	PREIMAGE_BITMASK = 0x03
 
@@ -40,6 +42,9 @@ const (
 	ED25519_ID      = 4
 	ED25519_BITMASK = 0x20
 	ED25519_SIZE    = ed25519.PUBKEY_SIZE + ed25519.SIGNATURE_SIZE
+
+	TIMEOUT_ID      = 5
+	TIMEOUT_BITMASK = 0x00
 )
 
 // Fulfillment

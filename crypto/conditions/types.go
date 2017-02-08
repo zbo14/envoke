@@ -442,3 +442,35 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	}
 	return valid >= threshold
 }
+
+// SHA256 Timeout
+type fulfillmentTimeout struct {
+	expires int64
+	*fulfillment
+}
+
+func NewFulfillmentTimeout(expires int64, weight int) *fulfillmentTimeout {
+	f := new(fulfillmentTimeout)
+	payload := TimestampBytes(expires)
+	f.fulfillment = NewFulfillment(TIMEOUT_ID, f, payload, weight)
+	f.expires = expires
+	f.Init()
+	return f
+}
+
+func (f *fulfillmentTimeout) Init() {
+	if f.expires == 0 {
+		f.expires = TimestampFromBytes(f.payload)
+	}
+	f.bitmask = TIMEOUT_BITMASK
+	f.hash = Checksum256(f.payload)
+	f.size = len(f.payload)
+}
+
+func (f *fulfillmentTimeout) Validate(p []byte) bool {
+	if !f.fulfillment.Validate(nil) {
+		return false
+	}
+	timestamp := TimestampFromBytes(p)
+	return timestamp <= f.expires
+}

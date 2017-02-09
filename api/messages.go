@@ -1,16 +1,14 @@
 package api
 
 type TxInfo struct {
-	Content interface{} `json:"content"`
-	Id      string      `json:"id"`
-	Type    string      `json:"type"`
+	Id   string `json:"id"`
+	Type string `json:"type"`
 }
 
-func NewTxInfo(content interface{}, id, _type string) *TxInfo {
+func NewTxInfo(id, _type string) *TxInfo {
 	return &TxInfo{
-		Content: content,
-		Id:      id,
-		Type:    _type,
+		Id:   id,
+		Type: _type,
 	}
 }
 

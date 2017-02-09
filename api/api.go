@@ -6,6 +6,7 @@ import (
 	"github.com/minio/minio-go"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/spec"
 	mo "github.com/zbo14/envoke/spec/music_ontology"
@@ -25,6 +26,7 @@ const (
 
 	ALBUM     = "album"
 	SIGNATURE = "signature"
+	TRACK     = "track"
 )
 
 type Api struct {
@@ -32,7 +34,8 @@ type Api struct {
 	user   spec.Data
 	logger Logger
 	userId string
-	priv   *ed25519.PrivateKey
+	priv   crypto.PrivateKey
+	pub    crypto.PublicKey
 }
 
 func NewApi() *Api {
@@ -96,27 +99,31 @@ func PartnerFromValues(values url.Values) spec.Data {
 func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 	form, err := MultipartForm(req)
 	if err != nil {
-		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	albumTitle := form.Value["album_title"][0]
 	publisherId := form.Value["publisher_id"][0]
-	Println(publisherId)
 	/*
 		if exists, _ := cli.BucketExists(albumTitle); exists {
 			panic("You already have album with title=" + albumTitle)
 		}
-		album := mo.NewRecord(IMPL, api.userId, 0, publisherId, albumTitle)
-		// Generate album tx
-		albumTx := bigchain.GenerateTx(album, nil, api.pub)
-		albumId := albumTx.Id
 	*/
-	albumId := ""
-	err = api.cli.MakeBucket(albumTitle, MINIO_REGION)
-	Check(err)
+	album := mo.NewRecord(IMPL, api.userId, 0, publisherId, albumTitle)
+	// Generate and send tx with album
+	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	albumId, err := bigchain.PostTx(tx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	albumInfo := NewTxInfo(albumId, ALBUM)
+	WriteJSON(w, albumInfo)
+	// err = api.cli.MakeBucket(albumTitle, MINIO_REGION)
+	// Check(err)
 	// Tracks
 	tracks := form.File["tracks"]
-	trackIds := make([]string, len(tracks))
 	// It would be great if we could batch write tracks
 	for i, track := range tracks {
 		file, err := track.Open()
@@ -124,71 +131,66 @@ func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		s, r := MustTeeSeeker(file)
+		s, _ := MustTeeSeeker(file) //r
 		// Extract metadata
 		meta, err := tag.ReadFrom(s)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// metadata := meta.Raw()
+		metadata := meta.Raw()
 		trackTitle := meta.Title()
-		Println(trackTitle)
-		trackURL := ""
-		// Upload track to minio
-		_, err = api.cli.PutObject(albumTitle, track.Filename, r, "audio/mp3")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		file.Close()
 		/*
-			track := mo.NewTrack(IMPL, api.userId, i, albumId, trackTitle)
-			// Generate track tx
-			trackTx := bigchain.GenerateTx(track, metadata, api.priv.Public())
-			trackIds[i] = trackTx.Id
+			// Upload track to minio
+			_, err = api.cli.PutObject(albumTitle, track.Filename, r, "audio/mp3")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			trackURL := ""
+			file.Close()
 		*/
-		trackIds[i] = trackURL
-	}
-	/*
-		mo.AddTracks(IMPL, album, trackIds)
-		albumTx.SetData(album) //update tx data
-		_, err := bigchain.PostTx(albumTx)
+		track := mo.NewTrack(IMPL, api.userId, i, albumId, trackTitle)
+		// Generate and send tx with track
+		tx = bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
+		bigchain.FulfillTx(tx, api.priv)
+		trackId, err := bigchain.PostTx(tx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	*/
-	albumInfo := NewTxInfo(trackIds, albumId, ALBUM)
-	WriteJSON(w, albumInfo)
+		trackInfo := NewTxInfo(trackId, TRACK)
+		WriteJSON(w, trackInfo)
+	}
 }
 
 func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
 	// Get request data
 	values, err := UrlValues(req)
 	if err != nil {
-		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	albumId := values.Get("album_id")
 	// Query IPDB
-	albumTx, err := bigchain.GetTx(albumId)
+	tx, err := bigchain.GetTx(albumId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	album := bigchain.GetTxData(albumTx)
+	album := bigchain.GetTxData(tx)
 	json := MustMarshalJSON(album)
 	sigstr := api.priv.Sign(json).String()
 	sig := mo.NewSignature(IMPL, api.userId, sigstr)
 	// Send tx with signature to IPDB
-	sigTx := bigchain.GenerateTx(sig, nil, bigchain.CREATE, api.priv.Public())
-	sigId, err := bigchain.PostTx(sigTx)
+	tx = bigchain.GenerateTx(sig, nil, bigchain.CREATE, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	id, err := bigchain.PostTx(tx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	sigInfo := NewTxInfo(nil, sigId, SIGNATURE)
+	sigInfo := NewTxInfo(id, SIGNATURE)
 	WriteJSON(w, sigInfo)
 }
 
@@ -270,6 +272,7 @@ func (api *Api) Login(w http.ResponseWriter, req *http.Request) {
 		}
 	*/
 	api.priv = priv
+	api.pub = pub
 	api.user = user
 	api.userId = userId
 	w.Write([]byte("Login successful!"))
@@ -282,12 +285,18 @@ func (api *Api) HandleAction(w http.ResponseWriter, req *http.Request, handler h
 		return
 	}
 	// Make sure we're logged in properly
-	if api.cli == nil {
-		http.Error(w, "Minio client is not set", http.StatusUnauthorized)
-		return
-	}
+	/*
+		if api.cli == nil {
+			http.Error(w, "Minio client is not set", http.StatusUnauthorized)
+			return
+		}
+	*/
 	if api.priv == nil {
 		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
+		return
+	}
+	if api.pub == nil {
+		http.Error(w, "Pubkey is not set", http.StatusUnauthorized)
 		return
 	}
 	if api.user == nil {
@@ -318,11 +327,11 @@ func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
 }
 
 func (api *Api) SignAlbum(w http.ResponseWriter, req *http.Request) {
-	api.HandleAction(w, req, api.AlbumFromRequest)
+	api.HandleAction(w, req, api.SignatureFromRequest)
 }
 
 func (api *Api) UploadAlbum(w http.ResponseWriter, req *http.Request) {
-	api.HandleAction(w, req, api.SignatureFromRequest)
+	api.HandleAction(w, req, api.AlbumFromRequest)
 }
 
 /*

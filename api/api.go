@@ -134,7 +134,6 @@ func (api *Api) Login(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	Println(tx)
 	user := bigchain.GetTxData(tx)
 	pubstr := mo.GetPublicKey(user)
 	if pub.String() != pubstr {
@@ -145,6 +144,7 @@ func (api *Api) Login(w http.ResponseWriter, req *http.Request) {
 	api.pub = pub
 	api.user = user
 	api.userId = userId
+	api.logger.Info(Sprintf("User %s... logged in", userId[:3]))
 	w.Write([]byte("Login successful!"))
 }
 
@@ -193,6 +193,7 @@ func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
 	music := bigchain.GetTxData(tx)
 	publisherId := mo.GetPublisher(music)
 	if api.userId != publisherId {
+		api.logger.Error("IDs don't match", "publisher_id", publisherId, "user_id", api.userId)
 		http.Error(w, ErrInvalidId.Error(), http.StatusUnauthorized)
 		return
 	}

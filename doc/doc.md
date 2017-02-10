@@ -2,31 +2,23 @@
 
 Note: Envoke is in the early (early) stages of development.
 
-### Identity 
-We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will initially happen through partner organizations (e.g. labels, publishers). The demo uses ED25519 public-key cryptography for partner verification and BigchainDB transactions.
-
-TODO: implement RSA crypto for linked-data signatures.
-
-### Blockchain
-This is not a blockchain application (yet). We are considering platforms and consensus engines such as [Tendermint](https://github.com/tendermint), which would be used for the ordering of transactions, state replication across a network, and payments. This infrastructure would be in addition to BigchainDB/IPDB.
+### Identity and Cryptography
+We are looking at identity modules such as [uPort](https://github.com/ConsenSys/uport-lib) and [Blockstack](https://github.com/blockstack), though user registration/login will initially happen through partner organizations (e.g. labels, publishers). The demo uses ED25519 public-key cryptography for user registration/login and fulfillment of BigchainDB transactions.
 
 ### Metadata and Rights 
-Metadata and rights will be persisted to BigchainDB/IPDB via user transactions. When an album/track is uploaded to the file system, a transaction containing the title and metadata will be sent to the BigchainDB/IPDB network. Metadata and rights assignments/transfers are defined as Coala IP data models, with additional specifications if needed (e.g. adding music-specific fields to the schema).
+Metadata and rights are persisted to BigchainDB/IPDB via user transactions containing asset payloads. Metadata assets are defined as Music Ontology data models while rights assignments/transfers are defined as Coala IP data models.
 
-TODO: assess whether Music Ontology is better suited for core data models (not including rights).
-
-### File storage 
-We are looking at several distributed and decentralized file systems, including S3, minio (compatible with S3), IPFS, and storj. At the moment, we are using minio locally for file uploads and queries.
+TODO: use own spec for core data models?
+TODO: integrate core data models with Coala IP rights
 
 ## Directories
 
 ### API
-The API communicates with BigchainDB/IPDB and the file system over http. Currently in flux, but we are working on the following functionality:
-- Register a partner
-- Artist/partner login
-- Persist a work to the db
-- Upload an album to the file system
-- Stream a track from the file system
+The API communicates with BigchainDB/IPDB over http. Currently in flux, but we are working on the following functionality:
+- Register/login (artist/partner)
+- Persist track/album metadata to the db (artist)
+- Persist a signature to the db (partner)
+- Verify a signature (artist/partner)
 
 Note: the API is purely for demo purposes.
 
@@ -44,10 +36,12 @@ ED25519 and RSA public-key cryptography and a minimal ILP [crypto-conditions](ht
 ## Walkthrough
 TODO:
 
-### Registering a partner
+### Registration
 
-### Logging in
+### Login
 
-### Uploading an album
+### Persisting track/album metadata
 
-### Streaming a track
+### Persisting a signature
+
+### Verifying a signature

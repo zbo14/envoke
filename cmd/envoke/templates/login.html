@@ -51,10 +51,10 @@ function httpPostAsync(addr, data, callback) {
 var loginCallback = function(responseText) {
   console.log(responseText); //for now
   var type = $("#login-type").val()
-  if (type == artist) {
-    location.replace("http://localhost:8888/music");
+  if (type == "artist") {
+    location.replace("http://localhost:8888/artist");
   } else {
-     location.replace("http://localhost:8888/sign");
+     location.replace("http://localhost:8888/partner");
   }
 };
 

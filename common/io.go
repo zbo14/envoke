@@ -26,6 +26,14 @@ func Copy(w io.Writer, r io.Reader) error {
 	return nil
 }
 
+func CopySize(w io.Writer, r io.Reader) (int64, error) {
+	n, err := io.Copy(w, r)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func MustCopy(w io.Writer, r io.Reader) {
 	err := Copy(w, r)
 	Check(err)

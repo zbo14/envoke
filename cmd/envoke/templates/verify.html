@@ -1,0 +1,46 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<div id="verify">
+    <form id="verify-form" method="GET">
+        <h2>Verify Release</h2>
+        <input type="text" name="music_id" placeholder="music ID" required /><br>
+        <input type="text" name="signature_id" placeholder="signature ID" required /><br>
+        <input type="submit" value="verify" />
+    </form>
+</div>
+<script type="text/javascript">
+
+function httpGetAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState == 4) {
+        if (xhr.status == 200) {
+          callback(xhr.responseText);
+        } else {
+          alert(xhr.responseText);
+        };
+      };
+    };
+    xhr.open("GET", addr, true); 
+    xhr.send(data);
+};
+
+var verifyCallback = function(responseText) {
+  var json = JSON.parse(responseText);
+  console.log(json); //for now
+};
+
+window.onload = function() {
+    // Verify 
+    var verifyForm = document.getElementById("verify-form");
+    verifyForm.onsubmit = function(event) {
+      event.preventDefault();
+      var formData = $("#verify-form").serialize();
+      httpGetAsync("http://localhost:8888/verify", formData, verifyCallback);
+    };
+}
+</script>
+{{end}}

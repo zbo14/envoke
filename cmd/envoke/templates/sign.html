@@ -1,0 +1,45 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<div id="sign">
+    <form id="sign-form" name="sign-form">
+        <h2>Sign Release</h2>
+        <input type="text" name="music_id" placeholder="music ID" required /><br>
+        <input type="submit" value="sign" />
+    </form>
+</div>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState == 4) {
+        if (xhr.status == 200) {
+          callback(xhr.responseText);
+        } else {
+          alert(xhr.responseText);
+        };
+      };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var signCallback = function(responseText) {
+  var json = JSON.parse(responseText);
+  console.log(json); //for now
+};
+
+window.onload = function() {
+    // Sign 
+    var signForm = document.getElementById("sign-form");
+    signForm.onsubmit = function(event) {
+      event.preventDefault();
+      var formData = $("#sign-form").serialize();
+      httpPostAsync("http://localhost:8888/sign", formData, signCallback);
+    };
+}
+</script>
+{{end}}

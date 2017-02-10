@@ -68,11 +68,11 @@ func GetPEM(pub spec.Data) string {
 
 // Signature
 
-func NewSignature(impl string, pubId interface{}, sig string) spec.Data {
+func NewSignature(impl string, agentId interface{}, sig string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
-		pubId = spec.LinkIPLD(pubId)
+		agentId = spec.LinkIPLD(agentId)
 	}
 	if impl == spec.JSON {
 		context = CONTEXT
@@ -81,9 +81,25 @@ func NewSignature(impl string, pubId interface{}, sig string) spec.Data {
 		"@context":           context,
 		"@type":              "sec:LinkedDataSignature2015",
 		"sec:created":        Timestr(),
-		"sec:creator":        pubId,
+		"sec:creator":        agentId,
 		"sec:signatureValue": sig,
 	}
+}
+
+func GetSig(signature spec.Data) string {
+	sig := signature["sec:signatureValue"]
+	if sigData, ok := sig.(spec.Data); ok {
+		sig = sigData[spec.LINK_SYMBOL]
+	}
+	return sig.(string)
+}
+
+func GetSigner(signature spec.Data) string {
+	signerId := signature["sec:creator"]
+	if signerData, ok := signerId.(spec.Data); ok {
+		signerId = signerData[spec.LINK_SYMBOL]
+	}
+	return signerId.(string)
 }
 
 func SignData(impl string, data spec.Data, sigId interface{}) {
@@ -194,31 +210,42 @@ func GetLogin(agent spec.Data) string {
 
 // Track, Record
 
-func NewTrack(impl string, artistId interface{}, number int, recordId interface{}, title string) spec.Data {
+func NewTrack(impl string, artistId interface{}, number int, publisherId, recordId interface{}, title string) spec.Data {
+	if recordId != nil && number <= 0 {
+		panic("Track number must be greater than 0")
+	} else if publisherId == nil {
+		panic("Must provide publisher ID for single track")
+	}
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(context)
-		artistId = spec.LinksIPLD(artistId)
+		artistId = spec.LinkIPLD(artistId)
+		publisherId = spec.LinkIPLD(publisherId)
 		recordId = spec.LinkIPLD(recordId)
 	}
 	if impl == spec.JSON {
 		context = CONTEXT
 	}
-	return spec.Data{
-		"@context":        context,
-		"@type":           "mo:Track",
-		"dc:isPartOf":     recordId,
-		"dc:title":        title,
-		"foaf:maker":      artistId,
-		"mo:track_number": number,
+	data := spec.Data{
+		"@context":   context,
+		"@type":      "mo:Track",
+		"dc:title":   title,
+		"foaf:maker": artistId,
 	}
+	if recordId != nil {
+		data["dc:isPartOf"] = recordId
+		data["mo:track_number"] = number
+	} else {
+		data["mo:publisher"] = publisherId
+	}
+	return data
 }
 
 func NewRecord(impl string, artistId interface{}, number int, publisherId interface{}, title string) spec.Data {
 	var context interface{}
 	if impl == spec.IPLD {
 		context = spec.LinkIPLD(CONTEXT)
-		artistId = spec.LinksIPLD(artistId)
+		artistId = spec.LinkIPLD(artistId)
 		publisherId = spec.LinkIPLD(publisherId)
 	}
 	if impl == spec.JSON {
@@ -246,10 +273,18 @@ func AddTracks(impl string, record spec.Data, trackIds []interface{}) {
 	record["track"] = trackIds
 }
 
-func GetPublisher(album spec.Data) string {
-	publisherId := album["mo:publisher"]
+func GetPublisher(music spec.Data) string {
+	publisherId := music["mo:publisher"]
 	if publisherData, ok := publisherId.(spec.Data); ok {
 		publisherId = publisherData[spec.LINK_SYMBOL]
 	}
 	return publisherId.(string)
+}
+
+func GetRecord(track spec.Data) string {
+	recordId := track["dc:isPartOf"]
+	if recordData, ok := recordId.(spec.Data); ok {
+		recordId = recordData[spec.LINK_SYMBOL]
+	}
+	return recordId.(string)
 }

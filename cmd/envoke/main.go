@@ -9,22 +9,25 @@ import (
 func main() {
 
 	CreatePages(
-		"listen",
 		"login",
-		"upload",
+		"music",
+		"sign",
+		"verify",
 	)
 
 	RegisterTemplates(
-		"listen.html",
 		"login.html",
-		"upload.html",
+		"music.html",
+		"sign.html",
+		"verify.html",
 	)
 
 	// Create request multiplexer
 	mux := http.NewServeMux()
-	mux.HandleFunc("/listen", TemplateHandler("listen.html"))
 	mux.HandleFunc("/login", TemplateHandler("login.html"))
-	mux.HandleFunc("/upload", TemplateHandler("upload.html"))
+	mux.HandleFunc("/music", TemplateHandler("music.html"))
+	mux.HandleFunc("/sign", TemplateHandler("sign.html"))
+	mux.HandleFunc("/verify", TemplateHandler("verify.html"))
 	fs := http.Dir("static/")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(fs)))
 

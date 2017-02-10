@@ -13,6 +13,10 @@ var (
 	ErrInvalidSignature   = Error("Invalid signature")
 	ErrInvalidSize        = Error("Invalid size")
 	ErrInvalidType        = Error("Invalid type")
+
+	ErrServerReset = Error("Server failed to reset")
+	ErrServerStart = Error("Server failed to start")
+	ErrServerStop  = Error("Server failed to stop")
 )
 
 func Check(err error) {

@@ -1,14 +1,26 @@
 package api
 
-type TxInfo struct {
+type ActionInfo struct {
 	Id   string `json:"id"`
 	Type string `json:"type"`
 }
 
-func NewTxInfo(id, _type string) *TxInfo {
-	return &TxInfo{
+func NewActionInfo(id, _type string) *ActionInfo {
+	return &ActionInfo{
 		Id:   id,
 		Type: _type,
+	}
+}
+
+type QueryResult struct {
+	Log string `json:"log"`
+	Ok  bool   `json:"ok"`
+}
+
+func NewQueryResult(log string, ok bool) *QueryResult {
+	return &QueryResult{
+		Log: log,
+		Ok:  ok,
 	}
 }
 

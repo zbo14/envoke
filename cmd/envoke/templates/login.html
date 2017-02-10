@@ -50,6 +50,12 @@ function httpPostAsync(addr, data, callback) {
 // Callbacks
 var loginCallback = function(responseText) {
   console.log(responseText); //for now
+  var type = $("#login-type").val()
+  if (type == artist) {
+    location.replace("http://localhost:8888/music");
+  } else {
+     location.replace("http://localhost:8888/sign");
+  }
 };
 
 var registerCallback = function(responseText) {

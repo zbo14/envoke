@@ -157,6 +157,9 @@ func IterTransformJSON(data Data) {
 // IPLD
 
 func LinkIPLD(link interface{}) interface{} {
+	if link == nil {
+		return nil
+	}
 	data := make(Data)
 	data[LINK_SYMBOL] = link
 	return data

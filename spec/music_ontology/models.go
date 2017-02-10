@@ -211,8 +211,10 @@ func GetLogin(agent spec.Data) string {
 // Track, Record
 
 func NewTrack(impl string, artistId interface{}, number int, publisherId, recordId interface{}, title string) spec.Data {
-	if recordId != nil && number <= 0 {
-		panic("Track number must be greater than 0")
+	if recordId != nil {
+		if number <= 0 {
+			panic("Track number must be greater than 0")
+		}
 	} else if publisherId == nil {
 		panic("Must provide publisher ID for single track")
 	}

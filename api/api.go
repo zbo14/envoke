@@ -10,24 +10,14 @@ import (
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	"github.com/zbo14/envoke/spec"
-	mo "github.com/zbo14/envoke/spec/music_ontology"
-)
-
-const (
-	IMPL = spec.JSON
-
-	ALBUM     = "album"
-	SIGNATURE = "signature"
-	TRACK     = "track"
+	"github.com/zbo14/envoke/spec/core"
 )
 
 type Api struct {
-	logger Logger
-	priv   crypto.PrivateKey
-	pub    crypto.PublicKey
-	user   spec.Data
-	userId string
+	agent   *core.Agent
+	agentId string
+	logger  Logger
+	priv    crypto.PrivateKey
 }
 
 func NewApi() *Api {
@@ -37,30 +27,12 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/artist_login", api.ArtistLogin)
-	mux.HandleFunc("/artist_register", api.ArtistRegister)
-	mux.HandleFunc("/partner_login", api.PartnerLogin)
-	mux.HandleFunc("/partner_register", api.PartnerRegister)
+	mux.HandleFunc("/login", api.Login)
+	mux.HandleFunc("/register", api.Register)
 	mux.HandleFunc("/album", api.Album)
 	mux.HandleFunc("/track", api.Track)
 	mux.HandleFunc("/sign", api.Sign)
 	mux.HandleFunc("/verify", api.Verify)
-}
-
-func (api *Api) ArtistLogin(w http.ResponseWriter, req *http.Request) {
-	api.Login(w, req)
-}
-
-func (api *Api) ArtistRegister(w http.ResponseWriter, req *http.Request) {
-	Register(w, req, ArtistFromValues)
-}
-
-func (api *Api) PartnerLogin(w http.ResponseWriter, req *http.Request) {
-	api.Login(w, req)
-}
-
-func (api *Api) PartnerRegister(w http.ResponseWriter, req *http.Request) {
-	Register(w, req, PartnerFromValues)
 }
 
 func (api *Api) Album(w http.ResponseWriter, req *http.Request) {
@@ -86,16 +58,12 @@ func (api *Api) HandleAction(w http.ResponseWriter, req *http.Request, handler h
 		http.Error(w, "Privkey is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.pub == nil {
-		http.Error(w, "Pubkey is not set", http.StatusUnauthorized)
+	if api.agent == nil {
+		http.Error(w, "Agent profile is not set", http.StatusUnauthorized)
 		return
 	}
-	if api.user == nil {
-		http.Error(w, "User profile is not set", http.StatusUnauthorized)
-		return
-	}
-	if api.userId == "" {
-		http.Error(w, "User ID is not set", http.StatusUnauthorized)
+	if api.agentId == "" {
+		http.Error(w, "Agent ID is not set", http.StatusUnauthorized)
 		return
 	}
 	handler(w, req)
@@ -126,29 +94,30 @@ func (api *Api) Login(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	pub := priv.Public()
-	// Query tx with user id
-	userId := values.Get("user_id")
-	tx, err := bigchain.GetTx(userId)
+	// Query tx with agent id
+	agentId := values.Get("agent_id")
+	tx, err := bigchain.GetTx(agentId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	user := bigchain.GetTxData(tx)
-	pubstr := mo.GetPublicKey(user)
-	if pub.String() != pubstr {
-		http.Error(w, ErrInvalidKey.Error(), http.StatusUnauthorized)
+	agent, ok := tx.GetData().(*core.Agent)
+	if !ok {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	_type := values.Get("type")
+	if agent.Type != _type {
+		http.Error(w, ErrInvalidType.Error(), http.StatusBadRequest)
+		return
+	}
+	api.agent = agent
+	api.agentId = agentId
 	api.priv = priv
-	api.pub = pub
-	api.user = user
-	api.userId = userId
-	api.logger.Info(Sprintf("User %s... logged in", userId[:3]))
 	w.Write([]byte("Login successful!"))
 }
 
-func Register(w http.ResponseWriter, req *http.Request, userFromValues func(url.Values) spec.Data) {
+func (api *Api) Register(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
@@ -164,17 +133,21 @@ func Register(w http.ResponseWriter, req *http.Request, userFromValues func(url.
 	password := values.Get("password")
 	priv, pub := ed25519.GenerateKeypairFromPassword(password)
 	values.Set("public_key", pub.String())
-	// New user
-	user := userFromValues(values)
-	tx := bigchain.GenerateTx(user, nil, bigchain.CREATE, pub)
-	bigchain.FulfillTx(tx, priv)
+	// New agent
+	agent, err := AgentFromValues(values)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tx := bigchain.GenerateTx(agent, nil, bigchain.CREATE, pub)
+	tx.Fulfill(priv)
 	// send request to IPDB
-	id, err := bigchain.PostTx(tx)
+	id, err := tx.Post()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	WriteJSON(w, NewUserInfo(id, priv.String(), pub.String()))
+	WriteJSON(w, NewAgentInfo(id, priv.String(), pub.String()))
 }
 
 func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
@@ -190,28 +163,32 @@ func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	music := bigchain.GetTxData(tx)
-	publisherId := mo.GetPublisher(music)
-	if api.userId != publisherId {
-		api.logger.Error("IDs don't match", "publisher_id", publisherId, "user_id", api.userId)
+	music := tx.GetData()
+	publisherId, err := core.GetMusicPublisher(music)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if api.agentId != publisherId {
 		http.Error(w, ErrInvalidId.Error(), http.StatusUnauthorized)
 		return
 	}
 	json := MustMarshalJSON(music)
-	sigstr := api.priv.Sign(json).String()
-	sig := mo.NewSignature(IMPL, api.userId, sigstr)
+	sig := api.priv.Sign(json)
+	signature := core.NewSignature(api.agentId, sig)
 	// Send tx with signature to IPDB
-	tx = bigchain.GenerateTx(sig, nil, bigchain.CREATE, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	tx = bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.agent.PubKey)
+	tx.Fulfill(api.priv)
+	id, err := tx.Post()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	WriteJSON(w, NewActionInfo(id, SIGNATURE))
+	api.logger.Info("SUCCESS sent tx with signature")
+	WriteJSON(w, NewActionInfo(id, core.SIGNATURE))
 }
 
-func (api *Api) SendTrack(file multipart.File, number int, publisherId, recordId interface{}) (string, error) {
+func (api *Api) SendTrack(albumId string, file multipart.File, number int, publisherId string) (string, error) {
 	// Extract metadata
 	meta, err := tag.ReadFrom(file)
 	if err != nil {
@@ -220,11 +197,11 @@ func (api *Api) SendTrack(file multipart.File, number int, publisherId, recordId
 	metadata := meta.Raw()
 	trackTitle := meta.Title()
 	// Create new track
-	track := mo.NewTrack(IMPL, api.userId, number, publisherId, recordId, trackTitle)
+	track := core.NewTrack(albumId, api.agentId, number, publisherId, trackTitle)
 	// Generate and send tx with track
-	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
-	trackId, err := bigchain.PostTx(tx)
+	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.agent.PubKey)
+	tx.Fulfill(api.priv)
+	trackId, err := tx.Post()
 	if err != nil {
 		return "", err
 	}
@@ -244,12 +221,16 @@ func (api *Api) TrackFromRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	trackId, err := api.SendTrack(file, 0, publisherId, nil)
+	trackId, err := api.SendTrack("", file, 0, publisherId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, NewActionInfo(trackId, TRACK))
+	api.logger.Info("SUCCESS sent tx with track")
+	WriteJSON(w, NewActionInfo(trackId, core.TRACK))
+	tx, err := bigchain.GetTx(trackId)
+	Check(err)
+	Println(string(MustMarshalIndentJSON(tx)))
 }
 
 func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
@@ -260,16 +241,17 @@ func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 	}
 	albumTitle := form.Value["album_title"][0]
 	publisherId := form.Value["publisher_id"][0]
-	album := mo.NewRecord(IMPL, api.userId, 0, publisherId, albumTitle)
+	album := core.NewAlbum(api.agentId, publisherId, albumTitle)
 	// Generate and send tx with album
-	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
-	albumId, err := bigchain.PostTx(tx)
+	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.agent.PubKey)
+	tx.Fulfill(api.priv)
+	albumId, err := tx.Post()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	albumInfo := NewActionInfo(albumId, ALBUM)
+	api.logger.Info("SUCCESS sent tx with album")
+	albumInfo := NewActionInfo(albumId, core.ALBUM)
 	WriteJSON(w, albumInfo)
 	tracks := form.File["tracks"]
 	// It would be great if we could batch write tracks
@@ -279,19 +261,19 @@ func (api *Api) AlbumFromRequest(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		trackId, err := api.SendTrack(file, i+1, nil, albumId)
+		trackId, err := api.SendTrack(albumId, file, i+1, "")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		WriteJSON(w, NewActionInfo(trackId, TRACK))
+		WriteJSON(w, NewActionInfo(trackId, core.TRACK))
 	}
 }
 
 func (api *Api) Verify(w http.ResponseWriter, req *http.Request) {
-	// Should be GET request
-	if req.Method != http.MethodGet {
-		http.Error(w, Sprintf("Expected GET request; got %s request", req.Method), http.StatusBadRequest)
+	// Should be POST request
+	if req.Method != http.MethodPost {
+		http.Error(w, Sprintf("Expected POST request; got %s request", req.Method), http.StatusBadRequest)
 		return
 	}
 	values, err := UrlValues(req)
@@ -306,13 +288,17 @@ func (api *Api) Verify(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	music := bigchain.GetTxData(tx)
-	publisherId := mo.GetPublisher(music)
+	music := tx.GetData()
+	publisherId, err := core.GetMusicPublisher(music)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if publisherId != "" {
 		api.VerifyMusic(music, signatureId, w)
 		return
 	}
-	albumId := mo.GetRecord(music)
+	albumId := music.(*core.Track).AlbumId
 	if albumId == "" {
 		WriteJSON(w, NewQueryResult(ErrInvalidId.Error(), false))
 		return
@@ -322,19 +308,23 @@ func (api *Api) Verify(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	album := bigchain.GetTxData(tx)
+	album := tx.GetData()
 	api.VerifyMusic(album, signatureId, w)
 }
 
-func (api *Api) VerifyMusic(music spec.Data, signatureId string, w http.ResponseWriter) {
-	publisherId := mo.GetPublisher(music)
+func (api *Api) VerifyMusic(music interface{}, signatureId string, w http.ResponseWriter) {
+	publisherId, err := core.GetMusicPublisher(music)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	tx, err := bigchain.GetTx(signatureId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	signature := bigchain.GetTxData(tx)
-	signerId := mo.GetSigner(signature)
+	signature := tx.GetData().(*core.Signature)
+	signerId := signature.SignerId
 	if publisherId != signerId {
 		WriteJSON(w, NewQueryResult(ErrInvalidId.Error(), false))
 		return
@@ -344,41 +334,35 @@ func (api *Api) VerifyMusic(music spec.Data, signatureId string, w http.Response
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	publisher := bigchain.GetTxData(tx)
-	keystr := mo.GetPublicKey(publisher)
-	key := new(ed25519.PublicKey)
-	err = key.FromString(keystr)
-	Check(err)
-	sigstr := mo.GetSig(signature)
-	sig := new(ed25519.Signature)
-	err = sig.FromString(sigstr)
-	Check(err)
-	if !key.Verify(MustMarshalJSON(music), sig) {
+	publisher := tx.GetData().(*core.Agent)
+	pub := publisher.PubKey
+	if !pub.Verify(MustMarshalJSON(music), signature.Value) {
 		WriteJSON(w, NewQueryResult(ErrInvalidSignature.Error(), false))
 		return
 	}
+	api.logger.Info("SUCCESS verified release")
 	WriteJSON(w, NewQueryResult("", true))
 }
 
-func ArtistFromValues(values url.Values) spec.Data {
+func AgentFromValues(values url.Values) (*core.Agent, error) {
+	email := values.Get("email")
 	name := values.Get("name")
-	openId := values.Get("open_id")
-	pub := values.Get("public_key")
-	return mo.NewArtist(IMPL, name, openId, pub)
-}
-
-func PartnerFromValues(values url.Values) spec.Data {
+	pub := new(ed25519.PublicKey)
+	pubstr := values.Get("public_key")
+	if err := pub.FromString(pubstr); err != nil {
+		return nil, err
+	}
 	_type := values.Get("type")
-	name := values.Get("name")
-	openId := values.Get("open_id")
-	pub := values.Get("public_key")
 	switch _type {
-	case mo.LABEL:
-		lc := values.Get("label_code")
-		return mo.NewLabel(IMPL, lc, name, openId, pub)
-	case mo.PUBLISHER:
-		return mo.NewPublisher(IMPL, name, openId, pub)
+	case core.ARTIST:
+		return core.NewArtist(email, name, pub), nil
+	case core.LABEL:
+		return core.NewLabel(email, name, pub), nil
+	case core.ORGANIZATION:
+		return core.NewOrganization(email, name, pub), nil
+	case core.PUBLISHER:
+		return core.NewPublisher(email, name, pub), nil
 		// TODO: add more partner types?
 	}
-	panic(ErrInvalidType.Error())
+	return nil, ErrInvalidType
 }

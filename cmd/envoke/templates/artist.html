@@ -3,21 +3,21 @@
 {{end}}
 
 {{define "body"}}
-<div id="upload-track">
-    <form id="upload-track-form" name="upload-track-form" enctype="multipart/form-data">
-        <h2>Upload Track</h2>
+<div id="new-track">
+    <form id="new-track-form" name="new-track-form" enctype="multipart/form-data">
+        <h2>New Track</h2>
         <input type="text" name="publisher_id" placeholder="publisher ID" required /><br>
         <input accept="audio" type="file" name="tracks" required /><br>
-        <input type="submit" value="upload" />
+        <input type="submit" value="new" />
     </form>
 </div>
-<div id="upload-album">
-    <form id="upload-album-form" name="upload-album-form" enctype="multipart/form-data">
-        <h2>Upload Album</h2>
+<div id="new-album">
+    <form id="new-album-form" name="new-album-form" enctype="multipart/form-data">
+        <h2>New Album</h2>
         <input type="text" name="album_title" placeholder="album title" required /><br>
         <input type="text" name="publisher_id" placeholder="publisher ID" required /><br>
         <input accept="audio" type="file" name="tracks" multiple required /><br>
-        <input type="submit" value="upload" />
+        <input type="submit" value="submit" />
     </form>
 </div>
 <script type="text/javascript">
@@ -37,30 +37,30 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var uploadTrackCallback = function(responseText) {
+var newTrackCallback = function(responseText) {
   var json = JSON.parse(responseText);
   console.log(json); //for now
 };
 
-var uploadAlbumCallback = function(responseText) {
+var newAlbumCallback = function(responseText) {
   var json = JSON.parse(responseText);
   console.log(json); //for now
 };
 
 window.onload = function() {
     // Upload track
-    var uploadTrackForm = document.getElementById("upload-track-form");
-    uploadTrackForm.onsubmit = function(event) {
+    var newTrackForm = document.getElementById("new-track-form");
+    newTrackForm.onsubmit = function(event) {
       event.preventDefault();
       var formData = new FormData(event.target);
-      httpPostAsync("http://localhost:8888/track", formData, uploadTrackCallback);
+      httpPostAsync("http://localhost:8888/track", formData, newTrackCallback);
     };
     // Upload album
-    var uploadAlbumForm = document.getElementById("upload-album-form");
-    uploadAlbumForm.onsubmit = function(event) {
+    var newAlbumForm = document.getElementById("new-album-form");
+    newAlbumForm.onsubmit = function(event) {
       event.preventDefault();
       var formData = new FormData(event.target);
-      httpPostAsync("http://localhost:8888/album", formData, uploadAlbumCallback);
+      httpPostAsync("http://localhost:8888/album", formData, newAlbumCallback);
     };
 }
 </script>

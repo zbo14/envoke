@@ -4,7 +4,7 @@
 
 {{define "body"}}
 <div id="verify">
-    <form id="verify-form" method="GET">
+    <form id="verify-form">
         <h2>Verify Release</h2>
         <input type="text" name="music_id" placeholder="music ID" required /><br>
         <input type="text" name="signature_id" placeholder="signature ID" required /><br>
@@ -13,7 +13,7 @@
 </div>
 <script type="text/javascript">
 
-function httpGetAsync(addr, data, callback) {
+function httpPostAsync(addr, data, callback) {
     var xhr = new XMLHttpRequest ();
     xhr.onreadystatechange = function() {
       if (xhr.readyState == 4) {
@@ -24,7 +24,7 @@ function httpGetAsync(addr, data, callback) {
         };
       };
     };
-    xhr.open("GET", addr, true); 
+    xhr.open("POST", addr, true); 
     xhr.send(data);
 };
 
@@ -39,7 +39,8 @@ window.onload = function() {
     verifyForm.onsubmit = function(event) {
       event.preventDefault();
       var formData = $("#verify-form").serialize();
-      httpGetAsync("http://localhost:8888/verify", formData, verifyCallback);
+      console.log(formData);
+      httpPostAsync("http://localhost:8888/verify", formData, verifyCallback);
     };
 }
 </script>

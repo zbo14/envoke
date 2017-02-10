@@ -57,7 +57,7 @@ type Fulfillment interface {
 	Init()
 	IsCondition() bool
 	MarshalBinary() ([]byte, error)
-	// MarshalJSON() ([]byte, error)
+	MarshalJSON() ([]byte, error)
 	PublicKey() crypto.PublicKey
 	Signature() crypto.Signature
 	Size() int

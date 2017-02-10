@@ -100,6 +100,14 @@ func (priv *PrivateKey) FromString(str string) error {
 	return priv.FromBytes(p)
 }
 
+func (priv *PrivateKey) MarshalJSON() ([]byte, error) {
+	if priv == nil {
+		return nil, nil
+	}
+	str := priv.String()
+	return MustMarshalJSON(str), nil
+}
+
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	p := priv.inner.Public().(ed25519.PublicKey)
 	pub, err := NewPublicKey(p)

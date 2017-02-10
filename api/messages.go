@@ -12,6 +12,20 @@ func NewActionInfo(id, _type string) *ActionInfo {
 	}
 }
 
+type AgentInfo struct {
+	Id      string `json:"agent_id"`
+	PrivKey string `json:"private_key"`
+	PubKey  string `json:"public_key"`
+}
+
+func NewAgentInfo(id, priv, pub string) *AgentInfo {
+	return &AgentInfo{
+		Id:      id,
+		PrivKey: priv,
+		PubKey:  pub,
+	}
+}
+
 type QueryResult struct {
 	Log string `json:"log"`
 	Ok  bool   `json:"ok"`
@@ -21,19 +35,5 @@ func NewQueryResult(log string, ok bool) *QueryResult {
 	return &QueryResult{
 		Log: log,
 		Ok:  ok,
-	}
-}
-
-type UserInfo struct {
-	Id      string `json:"user_id"`
-	PrivKey string `json:"private_key"`
-	PubKey  string `json:"public_key"`
-}
-
-func NewUserInfo(id, priv, pub string) *UserInfo {
-	return &UserInfo{
-		Id:      id,
-		PrivKey: priv,
-		PubKey:  pub,
 	}
 }

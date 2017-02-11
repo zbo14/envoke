@@ -1,5 +1,9 @@
 package api
 
+import (
+	"github.com/zbo14/envoke/spec/core"
+)
+
 type ActionInfo struct {
 	Id   string `json:"id"`
 	Type string `json:"type"`
@@ -27,13 +31,15 @@ func NewAgentInfo(id, priv, pub string) *AgentInfo {
 }
 
 type QueryResult struct {
-	Log string `json:"log"`
-	Ok  bool   `json:"ok"`
+	Data core.Data `json:"data"`
+	Log  string    `json:"log"`
+	Ok   bool      `json:"ok"`
 }
 
-func NewQueryResult(log string, ok bool) *QueryResult {
+func NewQueryResult(data core.Data, log string, ok bool) *QueryResult {
 	return &QueryResult{
-		Log: log,
-		Ok:  ok,
+		Data: data,
+		Log:  log,
+		Ok:   ok,
 	}
 }

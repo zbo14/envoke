@@ -4,19 +4,17 @@ import "github.com/pkg/errors"
 
 var (
 	ErrExpectedPost       = Error("Expected POST request")
+	ErrExpectedGet        = Error("Expected GET request")
 	ErrInvalidCondition   = Error("Invalid condition")
-	ErrInvalidFulfillment = Error("Invalid fulfillment")
 	ErrInvalidId          = Error("Invalid id")
+	ErrInvalidFulfillment = Error("Invalid fulfillment")
 	ErrInvalidKey         = Error("Invalid key")
+	ErrInvalidModel       = Error("Invalid model")
 	ErrInvalidRegex       = Error("Invalid regex")
 	ErrInvalidRequest     = Error("Invalid request")
 	ErrInvalidSignature   = Error("Invalid signature")
 	ErrInvalidSize        = Error("Invalid size")
 	ErrInvalidType        = Error("Invalid type")
-
-	ErrServerReset = Error("Server failed to reset")
-	ErrServerStart = Error("Server failed to start")
-	ErrServerStop  = Error("Server failed to stop")
 )
 
 func Check(err error) {
@@ -35,4 +33,8 @@ func Errorf(format string, args ...interface{}) error {
 
 func Panicf(format string, args ...interface{}) {
 	panic(Sprintf(format, args...))
+}
+
+func ErrorAppend(err error, msg string) error {
+	return Error(err.Error() + ": " + msg)
 }

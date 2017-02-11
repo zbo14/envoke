@@ -10,7 +10,7 @@ import (
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	// "github.com/zbo14/envoke/spec"
+	ld "github.com/zbo14/envoke/linked_data"
 	"github.com/zbo14/envoke/spec/core"
 )
 
@@ -158,27 +158,23 @@ func (api *Api) SignatureFromRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	// Validate linked music
 	musicId := values.Get("music_id")
-	// Query IPDB
-	tx, err := bigchain.GetTx(musicId)
+	music, err := ld.ValidLinkedMusicId(musicId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	music := bigchain.GetTxData(tx)
-	if !core.ValidMusic(music) {
-		panic("Invalid music")
-	}
-	publisherId := core.GetMusicPublisher(music)
-	if api.agentId != publisherId {
+	// Check that user agentId == music publisher_id
+	if api.agentId != core.GetMusicPublisher(music) {
 		http.Error(w, ErrInvalidId.Error(), http.StatusUnauthorized)
 		return
 	}
 	json := MustMarshalJSON(music)
 	sig := api.priv.Sign(json)
-	signature := core.NewSignature(sig, api.agentId)
+	signature := core.NewSignature(api.agentId, musicId, sig)
 	// Send tx with signature to IPDB
-	tx = bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
 	if err != nil {
@@ -282,49 +278,14 @@ func (api *Api) Verify(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	musicId := values.Get("music_id")
 	signatureId := values.Get("signature_id")
-	tx, err := bigchain.GetTx(musicId)
+	signature, err := ld.ValidLinkedSignatureId(signatureId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	music := bigchain.GetTxData(tx)
-	if !core.ValidMusic(music) {
-		panic("Invalid music")
-	}
-	publisherId := core.GetMusicPublisher(music)
-	tx, err = bigchain.GetTx(signatureId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	signature := bigchain.GetTxData(tx)
-	if !core.ValidSignature(signature) {
-		panic("Invalid signature")
-	}
-	signerId := core.GetSignatureSigner(signature)
-	if publisherId != signerId {
-		WriteJSON(w, NewQueryResult(ErrInvalidId.Error(), false))
-		return
-	}
-	sig := core.GetSignatureValue(signature)
-	tx, err = bigchain.GetTx(publisherId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	publisher := bigchain.GetTxData(tx)
-	if !core.ValidAgentWithType(publisher, core.PUBLISHER) {
-		panic("Invalid agent")
-	}
-	pub := core.GetAgentPublicKey(publisher)
-	if !pub.Verify(MustMarshalJSON(music), sig) {
-		WriteJSON(w, NewQueryResult(ErrInvalidSignature.Error(), false))
 		return
 	}
 	api.logger.Info("SUCCESS verified release")
-	WriteJSON(w, NewQueryResult("", true))
+	WriteJSON(w, NewQueryResult(signature, "", true))
 }
 
 func AgentFromValues(values url.Values) (core.Data, error) {

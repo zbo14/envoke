@@ -22,15 +22,13 @@ const (
 	ALBUM_SIZE        = 4
 	TRACK_ALBUM_SIZE  = 5
 	TRACK_SINGLE_SIZE = 4
-	SIGNATURE_SIZE    = 3
+	SIGNATURE_SIZE    = 4
 
 	EMAIL_REGEX     = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	ID_REGEX        = `[A-Fa-f0-9]{64}`
 	PUBKEY_REGEX    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$`
 	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87}$`
 )
-
-// TODO: replace regex validation with id queries and data model validation
 
 type Data map[string]interface{}
 
@@ -132,7 +130,7 @@ func GetAgentName(agent Data) string {
 }
 
 func GetAgentPublicKey(agent Data) crypto.PublicKey {
-	pubstr := AssertStr(agent["public_key"])
+	pubstr := GetAgentPublicKeyStr(agent)
 	if pubstr == "" {
 		return nil
 	}
@@ -140,6 +138,10 @@ func GetAgentPublicKey(agent Data) crypto.PublicKey {
 	err := pub.FromString(pubstr)
 	Check(err)
 	return pub
+}
+
+func GetAgentPublicKeyStr(agent Data) string {
+	return AssertStr(agent["public_key"])
 }
 
 func NewArtist(email, name string, pub crypto.PublicKey) Data {
@@ -206,8 +208,8 @@ func ValidAgent(agent Data) bool {
 	if name == "" {
 		return false
 	}
-	pub := GetAgentPublicKey(agent)
-	if !MatchString(PUBKEY_REGEX, pub.String()) {
+	pubstr := GetAgentPublicKeyStr(agent)
+	if !MatchString(PUBKEY_REGEX, pubstr) {
 		return false
 	}
 	return len(agent) == AGENT_SIZE
@@ -338,20 +340,25 @@ func ValidTrack(track Data) bool {
 
 // Signature
 
-func NewSignature(sig crypto.Signature, signerId string) Data {
+func NewSignature(agentId string, musicId string, sig crypto.Signature) Data {
 	return Data{
-		"entity":    NewEntity(SIGNATURE),
-		"signer_id": signerId,
-		"value":     sig.String(),
+		"agent_id": agentId,
+		"entity":   NewEntity(SIGNATURE),
+		"music_id": musicId,
+		"value":    sig.String(),
 	}
 }
 
-func GetSignatureSigner(signature Data) string {
-	return AssertStr(signature["signer_id"])
+func GetSignatureAgent(signature Data) string {
+	return AssertStr(signature["agent_id"])
+}
+
+func GetSignatureMusic(signature Data) string {
+	return AssertStr(signature["music_id"])
 }
 
 func GetSignatureValue(signature Data) crypto.Signature {
-	sigstr := AssertStr(signature["value"])
+	sigstr := GetSignatureValueStr(signature)
 	if sigstr == "" {
 		return nil
 	}
@@ -359,6 +366,10 @@ func GetSignatureValue(signature Data) crypto.Signature {
 	err := sig.FromString(sigstr)
 	Check(err)
 	return sig
+}
+
+func GetSignatureValueStr(signature Data) string {
+	return AssertStr(signature["value"])
 }
 
 func ValidSignature(signature Data) bool {
@@ -369,12 +380,12 @@ func ValidSignature(signature Data) bool {
 	if GetEntityType(entity) != SIGNATURE {
 		return false
 	}
-	signerId := GetSignatureSigner(signature)
-	if !MatchString(ID_REGEX, signerId) {
+	agentId := GetSignatureAgent(signature)
+	if !MatchString(ID_REGEX, agentId) {
 		return false
 	}
-	value := GetSignatureValue(signature)
-	if !MatchString(SIGNATURE_REGEX, value.String()) {
+	valueStr := GetSignatureValueStr(signature)
+	if !MatchString(SIGNATURE_REGEX, valueStr) {
 		return false
 	}
 	return len(signature) == SIGNATURE_SIZE

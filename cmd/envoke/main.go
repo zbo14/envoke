@@ -10,14 +10,14 @@ func main() {
 
 	CreatePages(
 		"artist",
-		"login",
+		"login-register",
 		"partner",
 		"verification",
 	)
 
 	RegisterTemplates(
 		"artist.html",
-		"login.html",
+		"login-register.html",
 		"partner.html",
 		"verification.html",
 	)
@@ -25,7 +25,7 @@ func main() {
 	// Create request multiplexer
 	mux := http.NewServeMux()
 	mux.HandleFunc("/artist", TemplateHandler("artist.html"))
-	mux.HandleFunc("/login", TemplateHandler("login.html"))
+	mux.HandleFunc("/login-register", TemplateHandler("login-register.html"))
 	mux.HandleFunc("/partner", TemplateHandler("partner.html"))
 	mux.HandleFunc("/verification", TemplateHandler("verification.html"))
 	fs := http.Dir("static/")

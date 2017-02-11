@@ -105,8 +105,8 @@ func (f *fulfillmentEd25519) Init() {
 	}
 	if f.sig.Bytes() == nil {
 		f.sig = new(ed25519.Signature)
-		err := f.sig.FromBytes(f.payload[ed25519.PUBKEY_SIZE:])
-		Check(err)
+		f.sig.FromBytes(f.payload[ed25519.PUBKEY_SIZE:])
+		// ignore err for now
 	}
 	f.bitmask = ED25519_BITMASK
 	f.hash = f.pub.Bytes()

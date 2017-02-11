@@ -4,6 +4,7 @@ import (
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/spec"
+	"github.com/zbo14/envoke/spec/core"
 	"testing"
 )
 
@@ -13,12 +14,13 @@ func TestBigchain(t *testing.T) {
 	// Keys
 	seed := BytesFromB58(seedstr)
 	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
-	// Dummy data
+	// Data model
+	artist := core.NewArtist("artist@email.com", "artist_name", pub)
 	dummy := spec.Data{"dummy": "dummy"}
 	// Generate tx
-	tx := GenerateTx(dummy, dummy, CREATE, pub)
+	tx := GenerateTx(artist, dummy, CREATE, pub)
 	// Print prepared tx
-	Println(string(MustMarshalIndentJSON(tx)))
+	// Println(string(MustMarshalIndentJSON(tx)))
 	// Fulfill the tx
 	FulfillTx(tx, priv)
 	// Check if it's fulfilled
@@ -26,11 +28,21 @@ func TestBigchain(t *testing.T) {
 		t.Error("tx is not fulfilled")
 	}
 	// Print fulfilled tx
-	Println(string(MustMarshalIndentJSON(tx)))
+	// Println(string(MustMarshalIndentJSON(tx)))
 	// Send POST request with tx
-	response, err := PostTx(tx)
+	txId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(response)
+	tx, err = GetTx(txId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := GetTxData(tx)
+	Println(data)
+	artist = new(core.Agent)
+	if err := FillStruct(artist, data); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(artist)
 }

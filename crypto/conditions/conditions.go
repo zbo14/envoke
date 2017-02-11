@@ -63,6 +63,7 @@ type Fulfillment interface {
 	Size() int
 	String() string
 	UnmarshalBinary([]byte) error
+	UnmarshalJSON([]byte) error
 	Validate([]byte) bool
 	Weight() int
 }
@@ -219,11 +220,11 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		// Try to parse condition
 		parts := Split(uri, ":")
 		c := NilCondition()
-		c.id, err = ParseUint16(parts[1])
+		c.id, err = ParseUint16(parts[1], 16)
 		if err != nil {
 			return nil, err
 		}
-		c.bitmask, err = ParseUint32(parts[2])
+		c.bitmask, err = ParseUint32(parts[2], 16)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +232,7 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		if err != nil {
 			return nil, err
 		}
-		c.size, err = ParseUint16(parts[4])
+		c.size, err = ParseUint16(parts[4], 10)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +246,7 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		// Try to parse non-condition fulfillment
 		ful := new(fulfillment)
 		parts := Split(uri, ":")
-		ful.id, err = ParseUint16(parts[1])
+		ful.id, err = ParseUint16(parts[1], 16)
 		if err != nil {
 			return nil, err
 		}
@@ -321,7 +322,7 @@ func (f *fulfillment) FromString(uri string) (err error) {
 		return ErrInvalidRegex
 	}
 	parts := Split(uri, ":")
-	f.id, err = ParseUint16(parts[1])
+	f.id, err = ParseUint16(parts[1], 16)
 	if err != nil {
 		return err
 	}
@@ -357,23 +358,25 @@ func (f *fulfillment) MarshalJSON() ([]byte, error) {
 	if !f.Validate(nil) {
 		panic(ErrInvalidFulfillment.Error())
 	}
-	if f.outer.PublicKey() != nil {
-		if f.outer.Signature() == nil {
-			return MustMarshalJSON(struct {
-				Bitmask   int              `json:"bitmask"`
-				PubKey    crypto.PublicKey `json:"public_key"`
-				Signature crypto.Signature `json:"signature"`
-				Type      string           `json:"type"`
-				TypeId    int              `json:"type_id"`
-			}{
-				Bitmask:   f.bitmask,
-				PubKey:    f.outer.PublicKey(),
-				Signature: nil,
-				Type:      FULFILLMENT_TYPE,
-				TypeId:    f.id,
-			}), nil
+	/*
+		if f.outer.PublicKey() != nil {
+			if f.outer.Signature() == nil {
+				return MustMarshalJSON(struct {
+					Bitmask   int              `json:"bitmask"`
+					PubKey    crypto.PublicKey `json:"public_key"`
+					Signature crypto.Signature `json:"signature"`
+					Type      string           `json:"type"`
+					TypeId    int              `json:"type_id"`
+				}{
+					Bitmask:   f.bitmask,
+					PubKey:    f.outer.PublicKey(),
+					Signature: nil,
+					Type:      FULFILLMENT_TYPE,
+					TypeId:    f.id,
+				}), nil
+			}
 		}
-	}
+	*/
 	return MustMarshalJSON(f.String()), nil
 }
 
@@ -403,6 +406,17 @@ func (f *fulfillment) UnmarshalBinary(p []byte) error {
 	return nil
 }
 
+func (f *fulfillment) UnmarshalJSON(p []byte) error {
+	var uri string
+	if err := UnmarshalJSON(p, &uri); err != nil {
+		return err
+	}
+	if err := f.FromString(uri); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (f *fulfillment) Validate(p []byte) bool {
 	switch {
 	case
@@ -412,20 +426,23 @@ func (f *fulfillment) Validate(p []byte) bool {
 		// Ok..
 	case f.id == ED25519_ID && f.bitmask == ED25519_BITMASK:
 		if f.size != ED25519_SIZE {
+			Println(1)
 			return false
 		}
 	case f.id == RSA_ID && f.bitmask == RSA_BITMASK:
 		if f.size != RSA_SIZE {
+			Println(2)
 			return false
 		}
 	default:
+		Println(3)
 		return false
 	}
 	switch {
 	case
 		len(f.hash) != HASH_LENGTH,
-		f.size > MAX_PAYLOAD_SIZE,
-		f.weight < 1:
+		f.size > MAX_PAYLOAD_SIZE:
+		// f.weight < 1
 		return false
 	}
 	return true
@@ -491,11 +508,11 @@ func (c *Condition) FromString(uri string) (err error) {
 		return ErrInvalidRegex
 	}
 	parts := Split(uri, ":")
-	c.id, err = ParseUint16(parts[1])
+	c.id, err = ParseUint16(parts[1], 16)
 	if err != nil {
 		return err
 	}
-	c.bitmask, err = ParseUint32(parts[2])
+	c.bitmask, err = ParseUint32(parts[2], 16)
 	if err != nil {
 		return err
 	}
@@ -503,7 +520,7 @@ func (c *Condition) FromString(uri string) (err error) {
 	if err != nil {
 		return err
 	}
-	c.size, err = ParseUint16(parts[4])
+	c.size, err = ParseUint16(parts[4], 10)
 	if err != nil {
 		return err
 	}
@@ -537,7 +554,7 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 		Details struct {
 			Bitmask   int              `json:"bitmask"`
 			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature"`
+			Signature interface{}      `json:"signature"`
 			Type      string           `json:"type"`
 			TypeId    int              `json:"type_id"`
 		} `json:"details"`
@@ -546,7 +563,7 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 		Details: struct {
 			Bitmask   int              `json:"bitmask"`
 			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature crypto.Signature `json:"signature"`
+			Signature interface{}      `json:"signature"`
 			Type      string           `json:"type"`
 			TypeId    int              `json:"type_id"`
 		}{
@@ -575,6 +592,26 @@ func (c *Condition) UnmarshalBinary(p []byte) error {
 	c.size = MustUint16(p[6+HASH_LENGTH:])
 	if !c.Validate(nil) {
 		return ErrInvalidCondition
+	}
+	return nil
+}
+
+func (c *Condition) UnmarshalJSON(p []byte) error {
+	v := struct {
+		Details struct {
+			Bitmask   int    `json:"bitmask"`
+			PubKey    string `json:"public_key"`
+			Signature string `json:"signature"`
+			Type      string `json:"type"`
+			TypeId    int    `json:"type_id"`
+		} `json:"details"`
+		URI string `json:"uri"`
+	}{}
+	if err := UnmarshalJSON(p, &v); err != nil {
+		return err
+	}
+	if err := c.FromString(v.URI); err != nil {
+		return err
 	}
 	return nil
 }

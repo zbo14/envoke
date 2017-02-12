@@ -12,11 +12,11 @@ import (
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	ld "github.com/zbo14/envoke/linked_data"
-	"github.com/zbo14/envoke/spec/core"
+	"github.com/zbo14/envoke/spec"
 )
 
 type Api struct {
-	agent   core.Data
+	agent   Data
 	agentId string
 	logger  Logger
 	priv    crypto.PrivateKey
@@ -225,11 +225,11 @@ func (api *Api) Login(agentId, privstr, _type string) (string, error) {
 	}
 	// Validate agent
 	agent := bigchain.GetTxData(tx)
-	if !core.ValidAgentWithType(agent, _type) {
+	if !spec.ValidAgentWithType(agent, _type) {
 		return "", ErrorAppend(ErrInvalidModel, _type)
 	}
 	// Check that privkey matches agent pubkey
-	pub := core.GetAgentPublicKey(agent)
+	pub := spec.GetAgentPublicKey(agent)
 	if !bytes.Equal(priv.Public().Bytes(), pub.Bytes()) {
 		return "", ErrInvalidKey
 	}
@@ -237,7 +237,7 @@ func (api *Api) Login(agentId, privstr, _type string) (string, error) {
 	api.agentId = agentId
 	api.priv = priv
 	api.pub = pub
-	agentName := core.GetAgentName(agent)
+	agentName := spec.GetAgentName(agent)
 	api.logger.Info("SUCCESS you are logged in")
 	return NewLoginMessage(agentName), nil
 }
@@ -259,13 +259,14 @@ func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS registered new user")
+	_type := spec.GetEntityType(agent)
+	api.logger.Info("SUCCESS registered new " + _type)
 	return NewRegisterMessage(agentId, priv.String(), pub.String()), nil
 }
 
 func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader) (*AlbumMessage, error) {
 	// Generate and send tx with album
-	album := core.NewAlbum(api.agentId, publisherId, title)
+	album := spec.NewAlbum(api.agentId, publisherId, title)
 	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	albumId, err := bigchain.PostTx(tx)
@@ -298,7 +299,7 @@ func (api *Api) Track(albumId string, file multipart.File, number int, publisher
 	metadata := meta.Raw()
 	trackTitle := meta.Title()
 	// Create new track
-	track := core.NewTrack(albumId, api.agentId, number, publisherId, trackTitle)
+	track := spec.NewTrack(albumId, api.agentId, number, publisherId, trackTitle)
 	// Generate and send tx with track
 	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
@@ -312,17 +313,17 @@ func (api *Api) Track(albumId string, file multipart.File, number int, publisher
 
 func (api *Api) Sign(musicId string) (*SignMessage, error) {
 	// Validate linked music
-	music, err := ld.ValidLinkedMusicId(musicId)
+	music, err := ld.ValidateLdMusicId(musicId)
 	if err != nil {
 		return nil, err
 	}
 	// Check that user agentId == music publisher_id
-	if api.agentId != core.GetMusicPublisher(music) {
+	if api.agentId != spec.GetMusicPublisher(music) {
 		return nil, ErrInvalidId
 	}
 	json := MustMarshalJSON(music)
 	sig := api.priv.Sign(json)
-	signature := core.NewSignature(api.agentId, musicId, sig)
+	signature := spec.NewSignature(musicId, api.agentId, sig)
 	// Send tx with signature to IPDB
 	tx := bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
@@ -335,7 +336,7 @@ func (api *Api) Sign(musicId string) (*SignMessage, error) {
 }
 
 func (api *Api) Verify(signatureId string) *VerifyMessage {
-	signature, err := ld.ValidLinkedSignatureId(signatureId)
+	signature, err := ld.ValidateLdSignatureId(signatureId)
 	if err != nil {
 		api.logger.Info("FAILURE could not verify signature")
 		return NewVerifyMessage(err.Error(), nil, false)
@@ -344,7 +345,7 @@ func (api *Api) Verify(signatureId string) *VerifyMessage {
 	return NewVerifyMessage("", signature, true)
 }
 
-func AgentFromValues(values url.Values) (core.Data, error) {
+func AgentFromValues(values url.Values) (Data, error) {
 	email := values.Get("email")
 	name := values.Get("name")
 	pub := new(ed25519.PublicKey)
@@ -353,14 +354,14 @@ func AgentFromValues(values url.Values) (core.Data, error) {
 		return nil, err
 	}
 	switch values.Get("type") {
-	case core.ARTIST:
-		return core.NewArtist(email, name, pub), nil
-	case core.LABEL:
-		return core.NewLabel(email, name, pub), nil
-	case core.ORGANIZATION:
-		return core.NewOrganization(email, name, pub), nil
-	case core.PUBLISHER:
-		return core.NewPublisher(email, name, pub), nil
+	case spec.ARTIST:
+		return spec.NewArtist(email, name, pub), nil
+	case spec.LABEL:
+		return spec.NewLabel(email, name, pub), nil
+	case spec.ORGANIZATION:
+		return spec.NewOrganization(email, name, pub), nil
+	case spec.PUBLISHER:
+		return spec.NewPublisher(email, name, pub), nil
 		// TODO: add more partner types?
 	}
 	return nil, ErrInvalidType

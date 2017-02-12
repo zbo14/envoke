@@ -1,0 +1,84 @@
+package spec
+
+import (
+	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
+)
+
+const (
+	RIGHT      = "right"
+	RIGHT_SIZE = 8
+)
+
+// What should context, usage be?..
+
+func NewRight(context []string, issuerId, musicId, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo int64) Data {
+	return Data{
+		"context":      context,
+		"entity":       NewEntity(RIGHT),
+		"music_id":     musicId,
+		"recipient_id": recipientId,
+		"signature":    NewSignature(issuerId, musicId, sig),
+		"usage":        usage,
+		"valid_from":   validFrom,
+		"valid_to":     validTo,
+	}
+}
+
+func GetRightContext(right Data) []string {
+	return AssertStrSlice(right["context"])
+}
+
+func GetRightMusic(right Data) string {
+	return AssertStr(right["music_id"])
+}
+
+func GetRightRecipient(right Data) string {
+	return AssertStr(right["recipient_id"])
+}
+
+func GetRightSignature(right Data) Data {
+	return AssertData(right["signature"])
+}
+
+func GetRightUsage(right Data) []string {
+	return AssertStrSlice(right["usage"])
+}
+
+func GetRightValidFrom(right Data) int64 {
+	return AssertInt64(right["valid_from"])
+}
+
+func GetRightValidTo(right Data) int64 {
+	return AssertInt64(right["valid_to"])
+}
+
+func ValidRight(right Data) bool {
+	entity := GetEntity(right)
+	if !ValidEntity(entity) {
+		return false
+	}
+	if !HasType(right, RIGHT) {
+		return false
+	}
+	// TODO: validate context
+	musicId := GetRightMusic(right)
+	if !MatchString(ID_REGEX, musicId) {
+		return false
+	}
+	receipientId := GetRightRecipient(right)
+	if !MatchString(ID_REGEX, receipientId) {
+		return false
+	}
+	signature := GetRightSignature(right)
+	if !ValidSignature(signature) {
+		return false
+	}
+	// TODO: validate usage
+	validFrom := GetRightValidFrom(right)
+	validTo := GetRightValidTo(right)
+	if validFrom >= validTo {
+		return false
+	}
+	return len(right) == RIGHT_SIZE
+}

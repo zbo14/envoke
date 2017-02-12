@@ -3,131 +3,201 @@ package linked_data
 import (
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/spec/core"
+	"github.com/zbo14/envoke/spec"
 )
 
-func ValidLinkedMusicId(musicId string) (core.Data, error) {
+func ValidateLdModelId(modelId string) (Data, error) {
+	tx, err := bigchain.GetTx(modelId)
+	if err != nil {
+		return nil, err
+	}
+	model := bigchain.GetTxData(tx)
+	if err = ValidateLdModel(model); err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ValidateLdMusicId(musicId string) (Data, error) {
 	tx, err := bigchain.GetTx(musicId)
 	if err != nil {
 		return nil, err
 	}
 	music := bigchain.GetTxData(tx)
-	if err = ValidLinkedMusic(music); err != nil {
+	if err = ValidateLdMusic(music); err != nil {
 		return nil, err
 	}
 	return music, nil
 }
 
-func ValidLinkedSignatureId(signatureId string) (core.Data, error) {
+func ValidateLdSignatureId(signatureId string) (Data, error) {
 	tx, err := bigchain.GetTx(signatureId)
 	if err != nil {
 		return nil, err
 	}
 	signature := bigchain.GetTxData(tx)
-	if err = ValidLinkedSignature(signature); err != nil {
+	if err = ValidateLdSignature(signature); err != nil {
 		return nil, err
 	}
 	return signature, nil
 }
 
-func ValidLinkedMusic(music core.Data) error {
-	if _type := core.GetType(music); _type == core.ALBUM {
-		return ValidLinkedAlbum(music)
-	} else if _type == core.TRACK {
-		return ValidLinkedTrack(music)
+func ValidateLdModel(model Data) error {
+	_type := spec.GetType(model)
+	switch _type {
+	case spec.ALBUM:
+		return ValidateLdAlbum(model)
+	case spec.TRACK:
+		return ValidateLdTrack(model)
+	case spec.SIGNATURE:
+		return ValidateLdSignature(model)
+	case spec.RIGHT:
+		return ValidateLdRight(model)
 	}
 	return ErrInvalidType
 }
 
-func ValidLinkedAlbum(album core.Data) error {
-	if !core.ValidAlbum(album) {
-		return ErrorAppend(ErrInvalidModel, core.ALBUM)
+func ValidateLdMusic(music Data) error {
+	if _type := spec.GetType(music); _type == spec.ALBUM {
+		return ValidateLdAlbum(music)
+	} else if _type == spec.TRACK {
+		return ValidateLdTrack(music)
 	}
-	artistId := core.GetMusicArtist(album)
+	return ErrInvalidType
+}
+
+func ValidateLdAlbum(album Data) error {
+	if !spec.ValidAlbum(album) {
+		return ErrorAppend(ErrInvalidModel, spec.ALBUM)
+	}
+	artistId := spec.GetMusicArtist(album)
 	tx, err := bigchain.GetTx(artistId)
 	if err != nil {
 		return err
 	}
 	artist := bigchain.GetTxData(tx)
-	if !core.ValidArtist(artist) {
-		return ErrorAppend(ErrInvalidModel, core.ARTIST)
+	if !spec.ValidArtist(artist) {
+		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
-	publisherId := core.GetMusicPublisher(album)
+	publisherId := spec.GetMusicPublisher(album)
 	tx, err = bigchain.GetTx(publisherId)
 	if err != nil {
 		return err
 	}
 	publisher := bigchain.GetTxData(tx)
-	if !core.ValidPublisher(publisher) {
-		return ErrorAppend(ErrInvalidModel, core.PUBLISHER)
+	if !spec.ValidPublisher(publisher) {
+		return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
 	}
 	return nil
 }
 
-func ValidLinkedTrack(track core.Data) error {
-	if !core.ValidTrack(track) {
-		return ErrorAppend(ErrInvalidModel, core.TRACK)
+func ValidateLdTrack(track Data) error {
+	if !spec.ValidTrack(track) {
+		return ErrorAppend(ErrInvalidModel, spec.TRACK)
 	}
-	artistId := core.GetMusicArtist(track)
+	artistId := spec.GetMusicArtist(track)
 	tx, err := bigchain.GetTx(artistId)
 	if err != nil {
 		return err
 	}
 	artist := bigchain.GetTxData(tx)
-	if !core.ValidArtist(artist) {
-		return ErrorAppend(ErrInvalidModel, core.ARTIST)
+	if !spec.ValidArtist(artist) {
+		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
-	publisherId := core.GetMusicPublisher(track)
+	publisherId := spec.GetMusicPublisher(track)
 	if publisherId != "" {
 		tx, err = bigchain.GetTx(publisherId)
 		if err != nil {
 			return err
 		}
 		publisher := bigchain.GetTxData(tx)
-		if !core.ValidPublisher(publisher) {
-			return ErrorAppend(ErrInvalidModel, core.PUBLISHER)
+		if !spec.ValidPublisher(publisher) {
+			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
 		}
 		return nil
 	}
-	albumId := core.GetTrackAlbum(track)
+	albumId := spec.GetTrackAlbum(track)
 	tx, err = bigchain.GetTx(albumId)
 	if err != nil {
 		return err
 	}
 	album := bigchain.GetTxData(tx)
-	return ValidLinkedAlbum(album)
+	return ValidateLdAlbum(album)
 }
 
-func ValidLinkedSignature(signature core.Data) error {
-	if !core.ValidSignature(signature) {
-		return ErrorAppend(ErrInvalidModel, core.SIGNATURE)
+func ValidateLdSignature(signature Data) error {
+	if !spec.ValidSignature(signature) {
+		return ErrorAppend(ErrInvalidModel, spec.SIGNATURE)
 	}
-	musicId := core.GetSignatureMusic(signature)
+	modelId := spec.GetSignatureModel(signature)
+	tx, err := bigchain.GetTx(modelId)
+	if err != nil {
+		return err
+	}
+	model := bigchain.GetTxData(tx)
+	if err := ValidateLdModel(model); err != nil {
+		return err
+	}
+	signerId := spec.GetSignatureSigner(signature)
+	tx, err = bigchain.GetTx(signerId)
+	if err != nil {
+		return err
+	}
+	signer := bigchain.GetTxData(tx)
+	if !spec.ValidAgent(signer) {
+		return err
+	}
+	pub := spec.GetAgentPublicKey(signer)
+	sig := spec.GetSignatureValue(signature)
+	if !pub.Verify(MustMarshalJSON(model), sig) {
+		return ErrInvalidSignature
+	}
+	return nil
+}
+
+func ValidateLdRight(right Data) error {
+	if !spec.ValidRight(right) {
+		return ErrorAppend(ErrInvalidModel, spec.RIGHT)
+	}
+	musicId := spec.GetRightMusic(right)
 	tx, err := bigchain.GetTx(musicId)
 	if err != nil {
 		return err
 	}
 	music := bigchain.GetTxData(tx)
-	if err := ValidLinkedMusic(music); err != nil {
+	if err = ValidateLdMusic(music); err != nil {
 		return err
 	}
-	// Should have traversed graph to reach music publisher/signature agent
-	// Check if music publisher_id == signature agent_id
-	// signature agents are just publishers for now
-	publisherId := core.GetMusicPublisher(music)
-	if publisherId != core.GetSignatureAgent(signature) {
-		return ErrInvalidId
-	}
-	tx, err = bigchain.GetTx(publisherId)
+	artistId := spec.GetMusicArtist(music)
+	tx, err = bigchain.GetTx(artistId)
 	if err != nil {
 		return err
 	}
-	publisher := bigchain.GetTxData(tx)
-	pub := core.GetAgentPublicKey(publisher)
-	sig := core.GetSignatureValue(signature)
-	p := MustMarshalJSON(music)
-	if !pub.Verify(p, sig) {
+	artist := bigchain.GetTxData(tx)
+	if !spec.ValidArtist(artist) {
+		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
+	}
+	pub := spec.GetAgentPublicKey(artist)
+	recipientId := spec.GetRightRecipient(right)
+	tx, err = bigchain.GetTx(recipientId)
+	if err != nil {
+		return err
+	}
+	recipient := bigchain.GetTxData(tx)
+	if !spec.ValidAgent(recipient) {
+		return ErrorAppend(ErrInvalidModel, spec.GetType(recipient))
+	}
+	signature := spec.GetRightSignature(right)
+	if err = ValidateLdSignature(signature); err != nil {
+		return err
+	}
+	sig := spec.GetSignatureValue(signature)
+	if !pub.Verify(MustMarshalJSON(music), sig) {
 		return ErrInvalidSignature
 	}
 	return nil
 }
+
+// Should have traversed graph to reach music publisher/signer
+// Check if publisher_id equals signer_id
+// publisherId := spec.GetMusicPublisher(music)

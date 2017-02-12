@@ -4,7 +4,6 @@ import (
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/spec"
-	"github.com/zbo14/envoke/spec/core"
 	"testing"
 )
 
@@ -15,7 +14,7 @@ func TestBigchain(t *testing.T) {
 	seed := BytesFromB58(seedstr)
 	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
 	// Data model
-	artist := core.NewArtist("artist@email.com", "artist_name", pub)
+	artist := spec.NewArtist("artist@email.com", "artist_name", pub)
 	metadata := spec.Data{"dummy": "dummy"}
 	// Generate tx
 	tx := GenerateTx(artist, metadata, CREATE, pub)
@@ -40,7 +39,7 @@ func TestBigchain(t *testing.T) {
 	}
 	data := GetTxData(tx)
 	// Println(data)
-	artist = new(core.Agent)
+	artist = new(spec.Agent)
 	if err := FillStruct(artist, data); err != nil {
 		t.Fatal(err)
 	}

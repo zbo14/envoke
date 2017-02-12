@@ -1,4 +1,4 @@
-package core
+package spec
 
 import (
 	. "github.com/zbo14/envoke/common"
@@ -25,43 +25,10 @@ const (
 	SIGNATURE_SIZE    = 4
 
 	EMAIL_REGEX     = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
-	ID_REGEX        = `[A-Fa-f0-9]{64}`
+	ID_REGEX        = `^[A-Fa-f0-9]{64}$`
 	PUBKEY_REGEX    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$`
-	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87}$`
+	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87,88}$`
 )
-
-type Data map[string]interface{}
-
-func AssertData(v interface{}) Data {
-	if data, ok := v.(Data); ok {
-		return data
-	}
-	if m, ok := v.(map[string]interface{}); ok {
-		return Data(m)
-	}
-	return nil
-}
-
-func AssertInt(v interface{}) int {
-	if n, ok := v.(int); ok {
-		return n
-	}
-	return 0
-}
-
-func AssertInt64(v interface{}) int64 {
-	if n, ok := v.(int64); ok {
-		return n
-	}
-	return 0
-}
-
-func AssertStr(v interface{}) string {
-	if str, ok := v.(string); ok {
-		return str
-	}
-	return ""
-}
 
 // Entity
 
@@ -193,7 +160,6 @@ func ValidPublisher(agent Data) bool {
 
 func ValidAgent(agent Data) bool {
 	entity := GetEntity(agent)
-	Println(agent)
 	if !ValidEntity(entity) {
 		return false
 	}
@@ -316,7 +282,7 @@ func ValidTrack(track Data) bool {
 	if !ValidEntity(entity) {
 		return false
 	}
-	if GetEntityType(entity) != TRACK {
+	if !HasType(track, TRACK) {
 		return false
 	}
 	artistId := GetMusicArtist(track)
@@ -324,7 +290,7 @@ func ValidTrack(track Data) bool {
 		return false
 	}
 	title := GetMusicTitle(track)
-	if !MatchString(ID_REGEX, title) {
+	if title == "" {
 		return false
 	}
 	publisherId := GetMusicPublisher(track)
@@ -344,21 +310,21 @@ func ValidTrack(track Data) bool {
 
 // Signature
 
-func NewSignature(agentId string, musicId string, sig crypto.Signature) Data {
+func NewSignature(modelId, signerId string, sig crypto.Signature) Data {
 	return Data{
-		"agent_id": agentId,
-		"entity":   NewEntity(SIGNATURE),
-		"music_id": musicId,
-		"value":    sig.String(),
+		"entity":    NewEntity(SIGNATURE),
+		"model_id":  modelId,
+		"signer_id": signerId,
+		"value":     sig.String(),
 	}
 }
 
-func GetSignatureAgent(signature Data) string {
-	return AssertStr(signature["agent_id"])
+func GetSignatureModel(signature Data) string {
+	return AssertStr(signature["model_id"])
 }
 
-func GetSignatureMusic(signature Data) string {
-	return AssertStr(signature["music_id"])
+func GetSignatureSigner(signature Data) string {
+	return AssertStr(signature["signer_id"])
 }
 
 func GetSignatureValue(signature Data) crypto.Signature {
@@ -384,231 +350,18 @@ func ValidSignature(signature Data) bool {
 	if GetEntityType(entity) != SIGNATURE {
 		return false
 	}
-	agentId := GetSignatureAgent(signature)
-	if !MatchString(ID_REGEX, agentId) {
+	signerId := GetSignatureSigner(signature)
+	if !MatchString(ID_REGEX, signerId) {
+		return false
+	}
+	modelId := GetSignatureModel(signature)
+	if !MatchString(ID_REGEX, modelId) {
 		return false
 	}
 	valueStr := GetSignatureValueStr(signature)
+	Println(len(valueStr))
 	if !MatchString(SIGNATURE_REGEX, valueStr) {
 		return false
 	}
 	return len(signature) == SIGNATURE_SIZE
 }
-
-/*
-type Signature struct {
-	*Entity
-	SignerId string
-	Value    string
-}
-
-func NewSignature(sig crypto.Signature, signerId string) *Signature {
-	return &Signature{
-		Entity:   NewEntity(SIGNATURE),
-		SignerId: signerId,
-		Value:    sig.String(),
-	}
-}
-
-func (s *Signature) Valid() bool {
-	if !s.Entity.Valid() {
-		return false
-	}
-	if s.Type != SIGNATURE {
-		return false
-	}
-	if !MatchString(ID_REGEX, s.SignerId) {
-		return false
-	}
-	if !MatchString(SIGNATURE_REGEX, s.Value) {
-		return false
-	}
-	return true
-}
-*/
-
-/*
-type Entity struct {
-	Time int64  `json:"time,string"`
-	Type string `json:"type"`
-}
-
-func NewEntity(_type string) *Entity {
-	return &Entity{
-		Time: Timestamp(),
-		Type: _type,
-	}
-}
-
-func (e *Entity) Valid() bool {
-	if e.Time >= Timestamp() {
-		return false
-	}
-	switch e.Type {
-	case
-		ARTIST, LABEL, ORGANIZATION, PUBLISHER,
-		ALBUM, TRACK, SIGNATURE:
-		return true
-	default:
-		return false
-	}
-}
-
-type Agent struct {
-	Email string `json:"email"`
-	*Entity
-	Name   string `json:"name"`
-	PubKey string `json:"public_key"`
-}
-
-func NewAgent(email, name string, pub crypto.PublicKey, _type string) Data {
-	return &Agent{
-		Email:  email,
-		Entity: NewEntity(_type),
-		Name:   name,
-		PubKey: pub.String(),
-	}
-}
-
-func NewArtist(email, name string, pub crypto.PublicKey) Data {
-	return NewAgent(email, name, pub, ARTIST)
-}
-
-func NewLabel(email, name string, pub crypto.PublicKey) Data {
-	return NewAgent(email, name, pub, LABEL)
-}
-
-func NewOrganization(email, name string, pub crypto.PublicKey) Data {
-	return NewAgent(email, name, pub, ORGANIZATION)
-}
-
-func NewPublisher(email, name string, pub crypto.PublicKey) Data {
-	return NewAgent(email, name, pub, PUBLISHER)
-}
-
-func (a Data) IsArtist() bool {
-	return a.Type == ARTIST
-}
-
-func (a Data) IsPartner() bool {
-	switch a.Type {
-	case LABEL, ORGANIZATION, PUBLISHER:
-		return true
-	default:
-		return false
-	}
-}
-
-func (a Data) Valid() bool {
-	if !a.Entity.Valid() {
-		return false
-	}
-	switch a.Type {
-	case ARTIST, LABEL, ORGANIZATION, PUBLISHER:
-		// Ok..
-	default:
-		return false
-	}
-	if !MatchString(EMAIL_REGEX, a.Email) {
-		return false
-	}
-	if a.Name == "" {
-		return false
-	}
-	if !MatchString(PUBKEY_REGEX, a.PubKey) {
-		return false
-	}
-	return true
-}
-
-func GetMusicPublisher(music interface{}) (string, error) {
-	switch music.(type) {
-	case *Album:
-		return music.(*Album).PublisherId, nil
-	case *Track:
-		return music.(*Track).PublisherId, nil
-	default:
-		return "", ErrInvalidType
-	}
-}
-
-type Album struct {
-	ArtistId string `json:"artist_id"`
-	*Entity
-	PublisherId string `json:"publisher_id"`
-	Title       string `json:"title"`
-}
-
-func NewAlbum(artistId, publisherId, title string) *Album {
-	return &Album{
-		ArtistId:    artistId,
-		Entity:      NewEntity(ALBUM),
-		PublisherId: publisherId,
-		Title:       title,
-	}
-}
-
-func (a *Album) Valid() bool {
-	if !a.Entity.Valid() {
-		return false
-	}
-	if a.Type != ALBUM {
-		return false
-	}
-	if !MatchString(ID_REGEX, a.ArtistId) {
-		return false
-	}
-	if !MatchString(ID_REGEX, a.PublisherId) {
-		return false
-	}
-	if a.Title == "" {
-		return false
-	}
-	return true
-}
-
-type Track struct {
-	AlbumId  string `json:"album_id,omitempty"`
-	ArtistId string `json:"artist_id"`
-	*Entity
-	Number      int    `json:"track_number,string,omitempty"`
-	PublisherId string `json:"publisher_id,omitempty"`
-	Title       string `json:"title"`
-}
-
-func NewTrack(albumId, artistId string, number int, publisherId, title string) *Track {
-	return &Track{
-		AlbumId:     albumId,
-		ArtistId:    artistId,
-		Entity:      NewEntity(TRACK),
-		Number:      number,
-		PublisherId: publisherId,
-		Title:       title,
-	}
-}
-
-func (t *Track) Valid() bool {
-	if !t.Entity.Valid() {
-		return false
-	}
-	if t.Type != TRACK {
-		return false
-	}
-	if !MatchString(ID_REGEX, t.ArtistId) {
-		return false
-	}
-	if t.Title == "" {
-		return false
-	}
-	if MatchString(ID_REGEX, t.PublisherId) {
-		return true
-	}
-	if !MatchString(ID_REGEX, t.AlbumId) {
-		return false
-	}
-	if t.Number <= 0 {
-		return false
-	}
-	return true
-}
-*/

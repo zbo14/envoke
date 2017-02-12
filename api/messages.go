@@ -2,7 +2,6 @@ package api
 
 import (
 	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/spec/core"
 )
 
 type RegisterMessage struct {
@@ -57,11 +56,11 @@ func NewSignMessage(signatureId string) *SignMessage {
 
 type VerifyMessage struct {
 	Log       string `json:"log"`
-	Signature core.Data
+	Signature Data
 	Valid     bool `json:"valid"`
 }
 
-func NewVerifyMessage(log string, signature core.Data, valid bool) *VerifyMessage {
+func NewVerifyMessage(log string, signature Data, valid bool) *VerifyMessage {
 	return &VerifyMessage{
 		Log:       log,
 		Signature: signature,

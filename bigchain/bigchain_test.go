@@ -16,11 +16,11 @@ func TestBigchain(t *testing.T) {
 	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
 	// Data model
 	artist := core.NewArtist("artist@email.com", "artist_name", pub)
-	dummy := spec.Data{"dummy": "dummy"}
+	metadata := spec.Data{"dummy": "dummy"}
 	// Generate tx
-	tx := GenerateTx(artist, dummy, CREATE, pub)
+	tx := GenerateTx(artist, metadata, CREATE, pub)
 	// Print prepared tx
-	// Println(string(MustMarshalIndentJSON(tx)))
+	// PrintJSON(tx)
 	// Fulfill the tx
 	FulfillTx(tx, priv)
 	// Check if it's fulfilled
@@ -28,7 +28,7 @@ func TestBigchain(t *testing.T) {
 		t.Error("tx is not fulfilled")
 	}
 	// Print fulfilled tx
-	// Println(string(MustMarshalIndentJSON(tx)))
+	// PrintJSON(tx)
 	// Send POST request with tx
 	txId, err := PostTx(tx)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := GetTxData(tx)
-	Println(data)
+	// Println(data)
 	artist = new(core.Agent)
 	if err := FillStruct(artist, data); err != nil {
 		t.Fatal(err)

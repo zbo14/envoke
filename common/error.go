@@ -9,6 +9,7 @@ var (
 	ErrInvalidId          = Error("Invalid id")
 	ErrInvalidFulfillment = Error("Invalid fulfillment")
 	ErrInvalidKey         = Error("Invalid key")
+	ErrInvalidLogin       = Error("Invalid login")
 	ErrInvalidModel       = Error("Invalid model")
 	ErrInvalidRegex       = Error("Invalid regex")
 	ErrInvalidRequest     = Error("Invalid request")

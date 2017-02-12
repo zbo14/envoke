@@ -36,6 +36,9 @@ func AssertData(v interface{}) Data {
 	if data, ok := v.(Data); ok {
 		return data
 	}
+	if m, ok := v.(map[string]interface{}); ok {
+		return Data(m)
+	}
 	return nil
 }
 
@@ -190,6 +193,7 @@ func ValidPublisher(agent Data) bool {
 
 func ValidAgent(agent Data) bool {
 	entity := GetEntity(agent)
+	Println(agent)
 	if !ValidEntity(entity) {
 		return false
 	}

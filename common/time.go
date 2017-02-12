@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+func SleepSeconds(d time.Duration) {
+	time.Sleep(d * time.Second)
+}
+
+func SleepMilli(d time.Duration) {
+	time.Sleep(d * time.Millisecond)
+}
+
 func Time() time.Time {
 	return time.Now()
 }

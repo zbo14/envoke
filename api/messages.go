@@ -1,45 +1,70 @@
 package api
 
 import (
+	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/spec/core"
 )
 
-type ActionInfo struct {
-	Id   string `json:"id"`
-	Type string `json:"type"`
-}
-
-func NewActionInfo(id, _type string) *ActionInfo {
-	return &ActionInfo{
-		Id:   id,
-		Type: _type,
-	}
-}
-
-type AgentInfo struct {
-	Id      string `json:"agent_id"`
+type RegisterMessage struct {
+	AgentId string `json:"agent_id"`
 	PrivKey string `json:"private_key"`
 	PubKey  string `json:"public_key"`
 }
 
-func NewAgentInfo(id, priv, pub string) *AgentInfo {
-	return &AgentInfo{
-		Id:      id,
+func NewRegisterMessage(agentId, priv, pub string) *RegisterMessage {
+	return &RegisterMessage{
+		AgentId: agentId,
 		PrivKey: priv,
 		PubKey:  pub,
 	}
 }
 
-type QueryResult struct {
-	Data core.Data `json:"data"`
-	Log  string    `json:"log"`
-	Ok   bool      `json:"ok"`
+func NewLoginMessage(agentName string) string {
+	return Sprintf("Welcome %s!", agentName)
 }
 
-func NewQueryResult(data core.Data, log string, ok bool) *QueryResult {
-	return &QueryResult{
-		Data: data,
-		Log:  log,
-		Ok:   ok,
+type AlbumMessage struct {
+	AlbumId  string   `json:"album_id"`
+	TrackIds []string `json:"track_ids"`
+}
+
+func NewAlbumMessage(albumId string, trackIds []string) *AlbumMessage {
+	return &AlbumMessage{
+		AlbumId:  albumId,
+		TrackIds: trackIds,
+	}
+}
+
+type TrackMessage struct {
+	TrackId string `json:"track_id"`
+}
+
+func NewTrackMessage(trackId string) *TrackMessage {
+	return &TrackMessage{
+		TrackId: trackId,
+	}
+}
+
+type SignMessage struct {
+	SignatureId string `json:"signature_id"`
+}
+
+func NewSignMessage(signatureId string) *SignMessage {
+	return &SignMessage{
+		SignatureId: signatureId,
+	}
+}
+
+type VerifyMessage struct {
+	Log       string `json:"log"`
+	Signature core.Data
+	Valid     bool `json:"valid"`
+}
+
+func NewVerifyMessage(log string, signature core.Data, valid bool) *VerifyMessage {
+	return &VerifyMessage{
+		Log:       log,
+		Signature: signature,
+		Valid:     valid,
 	}
 }

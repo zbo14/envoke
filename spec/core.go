@@ -20,14 +20,16 @@ const (
 	ENTITY_SIZE       = 2
 	AGENT_SIZE        = 4
 	ALBUM_SIZE        = 4
-	TRACK_ALBUM_SIZE  = 5
-	TRACK_SINGLE_SIZE = 4
+	TRACK_ALBUM_SIZE  = 6
+	TRACK_SINGLE_SIZE = 5
 	SIGNATURE_SIZE    = 4
 
-	EMAIL_REGEX     = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
-	ID_REGEX        = `^[A-Fa-f0-9]{64}$`             // hex
-	PUBKEY_REGEX    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
-	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
+	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
+	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
+	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
+	ID_REGEX              = `^[A-Fa-f0-9]{64}$`                                                // hex
+	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$`                                    // base58
+	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$`                                    // base58
 )
 
 // Entity
@@ -40,18 +42,18 @@ func NewEntity(_type string) Data {
 }
 
 func GetEntityTime(entity Data) int64 {
-	return AssertInt64(entity["time"])
+	return entity.GetInt64("type")
 }
 
 func GetEntityType(entity Data) string {
-	return AssertStr(entity["type"])
+	return entity.GetStr("type")
 }
 
 func GetEntity(thing Data) Data {
 	if ValidEntity(thing) {
 		return thing
 	}
-	return AssertData(thing["entity"])
+	return thing.GetData("entity")
 }
 
 func GetType(thing Data) string {
@@ -72,7 +74,8 @@ func ValidEntity(entity Data) bool {
 	switch _type {
 	case
 		ARTIST, LABEL, ORGANIZATION, PUBLISHER,
-		ALBUM, TRACK, SIGNATURE,
+		ALBUM, TRACK,
+		SIGNATURE,
 		RIGHT:
 		// Ok..
 	default:
@@ -93,11 +96,11 @@ func NewAgent(email, name string, pub crypto.PublicKey, _type string) Data {
 }
 
 func GetAgentEmail(agent Data) string {
-	return AssertStr(agent["email"])
+	return agent.GetStr("email")
 }
 
 func GetAgentName(agent Data) string {
-	return AssertStr(agent["name"])
+	return agent.GetStr("name")
 }
 
 func GetAgentPublicKey(agent Data) crypto.PublicKey {
@@ -112,7 +115,7 @@ func GetAgentPublicKey(agent Data) crypto.PublicKey {
 }
 
 func GetAgentPublicKeyStr(agent Data) string {
-	return AssertStr(agent["public_key"])
+	return agent.GetStr("public_key")
 }
 
 func NewArtist(email, name string, pub crypto.PublicKey) Data {
@@ -196,14 +199,14 @@ func ValidAgentWithType(agent Data, _type string) bool {
 // Music
 
 func ValidMusic(music Data) bool {
-	switch GetType(music) {
-	case ALBUM:
+	_type := GetType(music)
+	if _type == ALBUM {
 		return ValidAlbum(music)
-	case TRACK:
-		return ValidTrack(music)
-	default:
-		return false
 	}
+	if _type == TRACK {
+		return ValidTrack(music)
+	}
+	return false
 }
 
 func NewAlbum(artistId, publisherId, title string) Data {
@@ -216,15 +219,15 @@ func NewAlbum(artistId, publisherId, title string) Data {
 }
 
 func GetMusicArtist(music Data) string {
-	return AssertStr(music["artist_id"])
+	return music.GetStr("artist_id")
 }
 
 func GetMusicPublisher(music Data) string {
-	return AssertStr(music["publisher_id"])
+	return music.GetStr("publisher_id")
 }
 
 func GetMusicTitle(music Data) string {
-	return AssertStr(music["title"])
+	return music.GetStr("title")
 }
 
 func ValidAlbum(album Data) bool {
@@ -250,16 +253,17 @@ func ValidAlbum(album Data) bool {
 	return len(album) == ALBUM_SIZE
 }
 
-func NewTrack(albumId, artistId string, number int, publisherId, title string) Data {
+func NewTrack(albumId, artistId, fingerprint string, number int, publisherId, title string) Data {
 	if publisherId == "" {
 		if albumId == "" || number <= 0 {
-			panic("")
+			panic("Must provide publisher for single track")
 		}
 	}
 	data := Data{
-		"artist_id": artistId,
-		"entity":    NewEntity(TRACK),
-		"title":     title,
+		"artist_id":   artistId,
+		"entity":      NewEntity(TRACK),
+		"fingerprint": fingerprint,
+		"title":       title,
 	}
 	if publisherId != "" {
 		data["publisher_id"] = publisherId
@@ -271,11 +275,15 @@ func NewTrack(albumId, artistId string, number int, publisherId, title string) D
 }
 
 func GetTrackAlbum(track Data) string {
-	return AssertStr(track["album_id"])
+	return track.GetStr("album_id")
+}
+
+func GetTrackFingerprint(track Data) string {
+	return track.GetStr("fingerprint")
 }
 
 func GetTrackNumber(track Data) int {
-	return AssertInt(track["track_number"])
+	return track.GetInt("track_number")
 }
 
 func ValidTrack(track Data) bool {
@@ -288,6 +296,11 @@ func ValidTrack(track Data) bool {
 	}
 	artistId := GetMusicArtist(track)
 	if !MatchString(ID_REGEX, artistId) {
+		return false
+	}
+	// TODO: better fingerprint validation?
+	fingerprint := GetTrackFingerprint(track)
+	if !MatchString(FINGERPRINT_URL_REGEX, fingerprint) {
 		return false
 	}
 	title := GetMusicTitle(track)
@@ -321,11 +334,11 @@ func NewSignature(modelId, signerId string, sig crypto.Signature) Data {
 }
 
 func GetSignatureModel(signature Data) string {
-	return AssertStr(signature["model_id"])
+	return signature.GetStr("model_id")
 }
 
 func GetSignatureSigner(signature Data) string {
-	return AssertStr(signature["signer_id"])
+	return signature.GetStr("signer_id")
 }
 
 func GetSignatureValue(signature Data) crypto.Signature {
@@ -340,7 +353,7 @@ func GetSignatureValue(signature Data) crypto.Signature {
 }
 
 func GetSignatureValueStr(signature Data) string {
-	return AssertStr(signature["value"])
+	return signature.GetStr("value")
 }
 
 func ValidSignature(signature Data) bool {

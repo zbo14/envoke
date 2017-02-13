@@ -119,7 +119,7 @@ func ValidateTrack(track Data) error {
 		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
 	publisherId := spec.GetMusicPublisher(track)
-	if publisherId != "" {
+	if MatchString(spec.ID_REGEX, publisherId) {
 		tx, err = bigchain.GetTx(publisherId)
 		if err != nil {
 			return err

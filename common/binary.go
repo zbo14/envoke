@@ -1,9 +1,56 @@
 package common
 
 import (
+	"bytes"
 	"encoding/binary"
 	"github.com/whyrusleeping/cbor/go"
 )
+
+// Int32
+
+func Int32Bytes(x int32) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, &x)
+	p := buf.Bytes()
+	return p[len(p)-4:]
+}
+
+func Int32(p []byte) (x int32, err error) {
+	if len(p) < 4 {
+		return 0, ErrInvalidSize
+	}
+	buf := bytes.NewBuffer(p)
+	if err = binary.Read(buf, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return x, nil
+}
+
+func Int32SliceBytes(xs []int32) (p []byte) {
+	buf := new(bytes.Buffer)
+	for _, x := range xs {
+		binary.Write(buf, binary.BigEndian, &x)
+		p_ := buf.Bytes()
+		p = append(p, p_[len(p_)-4:]...)
+	}
+	return p
+}
+
+func Int32Slice(p []byte) ([]int32, error) {
+	if len(p) < 4 || len(p)%4 != 0 {
+		return nil, ErrInvalidSize
+	}
+	buf := bytes.NewBuffer(p)
+	xs := make([]int32, len(p)/4)
+	for i, _ := range xs {
+		if err := binary.Read(buf, binary.BigEndian, &xs[i]); err != nil {
+			return nil, err
+		}
+	}
+	return xs, nil
+}
+
+// Uint16
 
 func Uint16Bytes(x int) []byte {
 	p := make([]byte, 2)
@@ -11,17 +58,105 @@ func Uint16Bytes(x int) []byte {
 	return p
 }
 
+func Uint16(p []byte) (int, error) {
+	if len(p) < 2 {
+		return 0, ErrInvalidSize
+	}
+	x := binary.BigEndian.Uint16(p)
+	return int(x), nil
+}
+
+func MustUint16(p []byte) int {
+	return int(binary.BigEndian.Uint16(p))
+
+}
+
+func ReadUint16(r Reader) (int, error) {
+	p, err := ReadN(r, 2)
+	if err != nil {
+		return 0, err
+	}
+	x := binary.BigEndian.Uint16(p)
+	return int(x), nil
+}
+
+func MustReadUint16(r Reader) int {
+	p := MustReadN(r, 2)
+	x := binary.BigEndian.Uint16(p)
+	return int(x)
+}
+
+// Uint32
+
 func Uint32Bytes(x int) []byte {
 	p := make([]byte, 4)
 	binary.BigEndian.PutUint32(p, uint32(x))
 	return p
 }
 
+func Uint32(p []byte) (int, error) {
+	if len(p) < 4 {
+		return 0, ErrInvalidSize
+	}
+	x := binary.BigEndian.Uint32(p)
+	return int(x), nil
+}
+
+func MustUint32(p []byte) int {
+	return int(binary.BigEndian.Uint32(p))
+}
+
+func ReadUint32(r Reader) (int, error) {
+	p, err := ReadN(r, 4)
+	if err != nil {
+		return 0, err
+	}
+	x := binary.BigEndian.Uint32(p)
+	return int(x), nil
+}
+
+func MustReadUint32(r Reader) int {
+	p := MustReadN(r, 4)
+	x := binary.BigEndian.Uint32(p)
+	return int(x)
+}
+
+// Uint64
+
 func Uint64Bytes(x int) []byte {
 	p := make([]byte, 8)
 	binary.BigEndian.PutUint64(p, uint64(x))
 	return p
 }
+
+func Uint64(p []byte) (int, error) {
+	if len(p) < 8 {
+		return 0, ErrInvalidSize
+	}
+	x := binary.BigEndian.Uint64(p)
+	return int(x), nil
+}
+
+func MustUint64(p []byte) int {
+	return int(binary.BigEndian.Uint64(p))
+}
+
+func ReadUint64(r Reader) (int, error) {
+	p, err := ReadN(r, 8)
+	if err != nil {
+		return 0, err
+	}
+	x := binary.BigEndian.Uint64(p)
+	return int(x), nil
+}
+
+func MustReadUint64(r Reader) int {
+	p := MustReadN(r, 8)
+	x := binary.BigEndian.Uint64(p)
+	return int(x)
+}
+
+// Uvarint
 
 func UvarintBytes(x int) []byte {
 	p := make([]byte, 12)
@@ -34,73 +169,9 @@ func UvarintSize(x int) int {
 	return binary.PutUvarint(p, uint64(x))
 }
 
-func Uint16(p []byte) (int, error) {
-	if len(p) < 2 {
-		return 0, Error("Not enough bytes")
-	}
-	x := binary.BigEndian.Uint16(p)
-	return int(x), nil
-}
-
-func Uint32(p []byte) (int, error) {
-	if len(p) < 4 {
-		return 0, Error("Not enough bytes")
-	}
-	x := binary.BigEndian.Uint32(p)
-	return int(x), nil
-}
-
-func Uint64(p []byte) (int, error) {
-	if len(p) < 8 {
-		return 0, Error("Not enough bytes")
-	}
-	x := binary.BigEndian.Uint64(p)
-	return int(x), nil
-}
-
-func MustUint16(p []byte) int {
-	return int(binary.BigEndian.Uint16(p))
-
-}
-
-func MustUint32(p []byte) int {
-	return int(binary.BigEndian.Uint32(p))
-}
-
-func MustUint64(p []byte) int {
-	return int(binary.BigEndian.Uint64(p))
-}
-
 func MustUvarint(p []byte) int {
 	x, _ := binary.Uvarint(p)
 	return int(x)
-}
-
-func ReadUint16(r Reader) (int, error) {
-	p, err := ReadN(r, 2)
-	if err != nil {
-		return 0, err
-	}
-	x := binary.BigEndian.Uint16(p)
-	return int(x), nil
-}
-
-func ReadUint32(r Reader) (int, error) {
-	p, err := ReadN(r, 4)
-	if err != nil {
-		return 0, err
-	}
-	x := binary.BigEndian.Uint32(p)
-	return int(x), nil
-}
-
-func ReadUint64(r Reader) (int, error) {
-	p, err := ReadN(r, 8)
-	if err != nil {
-		return 0, err
-	}
-	x := binary.BigEndian.Uint64(p)
-	return int(x), nil
 }
 
 func ReadUvarint(r ByteReader) (int, error) {
@@ -111,29 +182,13 @@ func ReadUvarint(r ByteReader) (int, error) {
 	return int(x), nil
 }
 
-func MustReadUint16(r Reader) int {
-	p := MustReadN(r, 2)
-	x := binary.BigEndian.Uint16(p)
-	return int(x)
-}
-
-func MustReadUint32(r Reader) int {
-	p := MustReadN(r, 4)
-	x := binary.BigEndian.Uint32(p)
-	return int(x)
-}
-
-func MustReadUint64(r Reader) int {
-	p := MustReadN(r, 8)
-	x := binary.BigEndian.Uint64(p)
-	return int(x)
-}
-
 func MustReadUvarint(r ByteReader) int {
 	x, err := ReadUvarint(r)
 	Check(err)
 	return int(x)
 }
+
+// VarBytes
 
 func VarBytes(p []byte) []byte {
 	size := UvarintBytes(len(p))
@@ -165,6 +220,9 @@ func MustWriteVarBytes(p []byte, w Writer) {
 }
 
 /*
+
+// Octet
+
 func FromVarOctet(octet []byte) (p []byte) {
 	if j := int(octet[0]); j < 128 {
 		p = octet[1:]

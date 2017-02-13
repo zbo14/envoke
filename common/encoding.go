@@ -17,8 +17,24 @@ func Base64UrlDecode(b64 string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(b64)
 }
 
-func B64Std(p []byte) string {
+func MustBase64UrlDecode(b64 string) []byte {
+	p, err := Base64UrlDecode(b64)
+	Check(err)
+	return p
+}
+
+func Base64StdEncode(p []byte) string {
 	return base64.StdEncoding.EncodeToString(p)
+}
+
+func Base64StdDecode(b64 string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(b64)
+}
+
+func MustBase64StdDecode(b64 string) []byte {
+	p, err := Base64StdDecode(b64)
+	Check(err)
+	return p
 }
 
 // B58

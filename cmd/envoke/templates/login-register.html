@@ -3,34 +3,31 @@
 {{end}}
 
 {{define "body"}}
-<div class="row">
-  <div class="col-md-6">
-    <form id="login-form">
-      <h2>Login</h2>
-      <select form="login-form" name="type" id="login-type" required>
-        <option value="artist">artist</option>
-        <option value="label">record label</option>
-        <option value="publisher">publisher</option>
-      </select><br>
-      <input type="text" name="agent_id" placeholder="agent ID" required /><br>
-      <input type="password" name="private_key" placeholder="private key" required /><br>
-      <input type="submit" value="login" />
-    </form>
-  </div>
-  <div class="col-md-6">
-    <form id="register-form">
-      <h2>Registration</h2>
-      <select form="register-form" name="type" id="register-type" required>
-        <option value="artist">artist</option>
-        <option value="label">record label</option>
-        <option value="publisher">publisher</option>
-      </select><br>
-      <input type="text" name="name" placeholder="name" required /><br>
-      <input type="text" name="email" placeholder="email" required /><br> 
-      <input type="password" name="password" placeholder="password" required /><br>
-      <input type="submit" value="register"/>
-    </form>
-  </div>
+<div>
+  <form id="login-form">
+    <h2>Login</h2>
+    <select form="login-form" name="type" id="login-type" required>
+      <option value="artist">artist</option>
+      <option value="label">record label</option>
+      <option value="publisher">publisher</option>
+    </select><br>
+    <input type="text" name="agent_id" placeholder="agent ID" required /><br>
+    <input type="password" name="private_key" placeholder="private key" required /><br>
+    <input type="submit" value="login" />
+  </form><br>
+  <form id="register-form">
+    <h2>Registration</h2>
+    <select form="register-form" name="type" id="register-type" required>
+      <option value="artist">artist</option>
+      <option value="label">record label</option>
+      <option value="publisher">publisher</option>
+    </select><br>
+    <input type="text" name="name" placeholder="name" required /><br>
+    <input type="text" name="email" placeholder="email" required /><br> 
+    <input type="password" name="password" placeholder="password" required /><br>
+    <input type="submit" value="register"/>
+  </form><br>
+  <pre id="message"></pre>
 </div>
 <script type="text/javascript">
 
@@ -51,7 +48,7 @@ function httpPostAsync(addr, data, callback) {
 
 // Callbacks
 var loginCallback = function(responseText) {
-  console.log(responseText); //for now
+  // console.log(responseText);
   var type = $("#login-type").val()
   if (type == "artist") {
     location.replace("http://localhost:8888/artist");
@@ -62,7 +59,8 @@ var loginCallback = function(responseText) {
 
 var registerCallback = function(responseText) {
   var json = JSON.parse(responseText);
-  console.log(json); //for now
+  var str = JSON.stringify(json,null,2);
+  $("#message").text(str);
 };
 
 window.onload = function(){

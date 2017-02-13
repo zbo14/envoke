@@ -33,31 +33,31 @@ func IsRight(right Data) bool {
 }
 
 func GetRightContext(right Data) []string {
-	return AssertStrSlice(right["context"])
+	return right.GetStrSlice("context")
 }
 
 func GetRightMusic(right Data) string {
-	return AssertStr(right["music_id"])
+	return right.GetStr("music_id")
 }
 
 func GetRightRecipient(right Data) string {
-	return AssertStr(right["recipient_id"])
+	return right.GetStr("recipient_id")
 }
 
 func GetRightSignature(right Data) Data {
-	return AssertData(right["signature"])
+	return right.GetData("signature")
 }
 
 func GetRightUsage(right Data) []string {
-	return AssertStrSlice(right["usage"])
+	return right.GetStrSlice("usage")
 }
 
 func GetRightValidFrom(right Data) time.Time {
-	return AssertTime(right["valid_from"])
+	return right.GetTime("valid_from")
 }
 
 func GetRightValidTo(right Data) time.Time {
-	return AssertTime(right["valid_to"])
+	return right.GetTime("valid_to")
 }
 
 func ValidRight(right Data) bool {

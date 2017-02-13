@@ -8,6 +8,7 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
+	"github.com/zbo14/envoke/chroma"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
@@ -322,15 +323,21 @@ func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader)
 }
 
 func (api *Api) Track(albumId string, file multipart.File, number int, publisherId string) (*TrackMessage, error) {
+	s, r := MustTeeSeeker(file)
 	// Extract metadata
-	meta, err := tag.ReadFrom(file)
+	meta, err := tag.ReadFrom(s)
 	if err != nil {
 		return nil, err
 	}
 	metadata := meta.Raw()
 	trackTitle := meta.Title()
+	// Get acoustic fingerprint
+	fingerprint, err := chroma.NewFingerprint(r)
+	if err != nil {
+		return nil, err
+	}
 	// Create new track
-	track := spec.NewTrack(albumId, api.agentId, number, publisherId, trackTitle)
+	track := spec.NewTrack(albumId, api.agentId, fingerprint, number, publisherId, trackTitle)
 	// Generate and send tx with track
 	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
@@ -373,6 +380,7 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	api.logger.Info("SUCCESS sent tx with right")
 	return NewRightMessage(rightId), nil
 }
 

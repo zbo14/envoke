@@ -19,6 +19,20 @@ func AssertInt(v interface{}) int {
 	return 0
 }
 
+func AssertInt32(v interface{}) int32 {
+	if n, ok := v.(int32); ok {
+		return n
+	}
+	return 0
+}
+
+func AssertInt32Slice(v interface{}) []int32 {
+	if n, ok := v.([]int32); ok {
+		return n
+	}
+	return nil
+}
+
 func AssertInt64(v interface{}) int64 {
 	if n, ok := v.(int64); ok {
 		return n

@@ -23,6 +23,8 @@ func TestApi(t *testing.T) {
 	}
 	publisherId := registerPublisher.AgentId
 	PrintJSON(registerPublisher)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Register Artist
 	values.Set("email", "artist@gmail.com")
 	values.Set("name", "artist_name")
@@ -33,6 +35,8 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	PrintJSON(registerArtist)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Login Artist
 	artistId := registerArtist.AgentId
 	privstr := registerArtist.PrivKey
@@ -41,6 +45,8 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	PrintJSON(loginArtist)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Track
 	file, err := OpenFile(path)
 	if err != nil {
@@ -52,6 +58,8 @@ func TestApi(t *testing.T) {
 	}
 	trackId := trackMessage.TrackId
 	PrintJSON(trackMessage)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Right
 	values.Set("context", "commercialuse")
 	values.Set("issuer_id", artistId)
@@ -66,6 +74,8 @@ func TestApi(t *testing.T) {
 	}
 	rightId := rightMessage.RightId
 	PrintJSON(rightMessage)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Login Publisher
 	privstr = registerPublisher.PrivKey
 	loginPublisher, err := api.Login(publisherId, privstr, spec.PUBLISHER)
@@ -73,6 +83,8 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	Println(loginPublisher)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Sign
 	signMessage, err := api.Sign(rightId)
 	if err != nil {
@@ -80,6 +92,8 @@ func TestApi(t *testing.T) {
 	}
 	signatureId := signMessage.SignatureId
 	PrintJSON(signMessage)
+	SleepSeconds(3)
+	PrintNewlines(3)
 	// Verify
 	verifyMessage, err := api.Verify(signatureId)
 	if err != nil {

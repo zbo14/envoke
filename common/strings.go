@@ -17,6 +17,10 @@ func SplitN(s, sep string, n int) []string {
 	return strings.SplitN(s, sep, n)
 }
 
+func Repeat(s string, n int) string {
+	return strings.Repeat(s, n)
+}
+
 func ParseUint16(s string, base int) (int, error) {
 	x, err := strconv.ParseUint(s, base, 16)
 	if err != nil {

@@ -1,13 +1,23 @@
 package common
 
+import (
+	"time"
+)
+
 type Data map[string]interface{}
 
 func (d Data) Get(key string) interface{}        { return d[key] }
 func (d Data) Set(key string, value interface{}) { d[key] = value }
 func (d Data) Clear(key string)                  { d[key] = nil }
 
-func (d Data) GetStr(key string) string { return AssertStr(d.Get(key)) }
-func (d Data) GetData(key string) Data  { return AssertData(d.Get(key)) }
+func (d Data) GetData(key string) Data          { return AssertData(d.Get(key)) }
+func (d Data) GetInt(key string) int            { return AssertInt(d.Get(key)) }
+func (d Data) GetInt32(key string) int32        { return AssertInt32(d.Get(key)) }
+func (d Data) GetInt32Slice(key string) []int32 { return AssertInt32Slice(d.Get(key)) }
+func (d Data) GetInt64(key string) int64        { return AssertInt64(d.Get(key)) }
+func (d Data) GetStr(key string) string         { return AssertStr(d.Get(key)) }
+func (d Data) GetStrSlice(key string) []string  { return AssertStrSlice(d.Get(key)) }
+func (d Data) GetTime(key string) time.Time     { return AssertTime(d.Get(key)) }
 
 func (d Data) GetInnerValue(keys ...string) (v interface{}) {
 	inner := d

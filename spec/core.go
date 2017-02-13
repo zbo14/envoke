@@ -25,9 +25,9 @@ const (
 	SIGNATURE_SIZE    = 4
 
 	EMAIL_REGEX     = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
-	ID_REGEX        = `^[A-Fa-f0-9]{64}$`
-	PUBKEY_REGEX    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$`
-	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87,88}$`
+	ID_REGEX        = `^[A-Fa-f0-9]{64}$`             // hex
+	PUBKEY_REGEX    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
+	SIGNATURE_REGEX = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
 )
 
 // Entity
@@ -65,14 +65,15 @@ func HasType(thing Data, _type string) bool {
 
 func ValidEntity(entity Data) bool {
 	time := GetEntityTime(entity)
-	if time >= Timestamp() {
+	if time > Timestamp() {
 		return false
 	}
 	_type := GetEntityType(entity)
 	switch _type {
 	case
 		ARTIST, LABEL, ORGANIZATION, PUBLISHER,
-		ALBUM, TRACK, SIGNATURE:
+		ALBUM, TRACK, SIGNATURE,
+		RIGHT:
 		// Ok..
 	default:
 		return false
@@ -359,7 +360,6 @@ func ValidSignature(signature Data) bool {
 		return false
 	}
 	valueStr := GetSignatureValueStr(signature)
-	Println(len(valueStr))
 	if !MatchString(SIGNATURE_REGEX, valueStr) {
 		return false
 	}

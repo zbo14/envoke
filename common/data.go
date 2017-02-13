@@ -32,5 +32,10 @@ func (d Data) SetInnerValue(v interface{}, keys ...string) {
 	}
 }
 
-func (d Data) GetInnerStr(keys ...string) string { return AssertStr(d.GetInnerValue(keys...)) }
-func (d Data) GetInnerData(keys ...string) Data  { return AssertData(d.GetInnerValue(keys...)) }
+func (d Data) GetInnerStr(keys ...string) string {
+	return AssertStr(d.GetInnerValue(keys...))
+}
+
+func (d Data) GetInnerData(keys ...string) Data {
+	return AssertData(d.GetInnerValue(keys...))
+}

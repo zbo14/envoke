@@ -44,6 +44,16 @@ func NewTrackMessage(trackId string) *TrackMessage {
 	}
 }
 
+type RightMessage struct {
+	RightId string `json:"right_id"`
+}
+
+func NewRightMessage(rightId string) *RightMessage {
+	return &RightMessage{
+		RightId: rightId,
+	}
+}
+
 type SignMessage struct {
 	SignatureId string `json:"signature_id"`
 }

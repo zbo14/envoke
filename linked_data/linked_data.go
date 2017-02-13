@@ -6,67 +6,81 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
-func ValidateLdModelId(modelId string) (Data, error) {
+func ValidateModelId(modelId string) (Data, error) {
 	tx, err := bigchain.GetTx(modelId)
 	if err != nil {
 		return nil, err
 	}
 	model := bigchain.GetTxData(tx)
-	if err = ValidateLdModel(model); err != nil {
+	if err = ValidateModel(model); err != nil {
 		return nil, err
 	}
 	return model, nil
 }
 
-func ValidateLdMusicId(musicId string) (Data, error) {
+func ValidateMusicId(musicId string) (Data, error) {
 	tx, err := bigchain.GetTx(musicId)
 	if err != nil {
 		return nil, err
 	}
 	music := bigchain.GetTxData(tx)
-	if err = ValidateLdMusic(music); err != nil {
+	if err = ValidateMusic(music); err != nil {
 		return nil, err
 	}
 	return music, nil
 }
 
-func ValidateLdSignatureId(signatureId string) (Data, error) {
+func ValidateRightId(rightId string) (Data, error) {
+	tx, err := bigchain.GetTx(rightId)
+	if err != nil {
+		return nil, err
+	}
+	right := bigchain.GetTxData(tx)
+	if err := ValidateRight(right); err != nil {
+		return nil, err
+	}
+	return right, nil
+}
+
+func ValidateSignatureId(signatureId string) (Data, error) {
 	tx, err := bigchain.GetTx(signatureId)
 	if err != nil {
 		return nil, err
 	}
 	signature := bigchain.GetTxData(tx)
-	if err = ValidateLdSignature(signature); err != nil {
+	if err = ValidateSignature(signature); err != nil {
 		return nil, err
 	}
 	return signature, nil
 }
 
-func ValidateLdModel(model Data) error {
+func ValidateModel(model Data) error {
 	_type := spec.GetType(model)
 	switch _type {
 	case spec.ALBUM:
-		return ValidateLdAlbum(model)
+		return ValidateAlbum(model)
 	case spec.TRACK:
-		return ValidateLdTrack(model)
+		return ValidateTrack(model)
 	case spec.SIGNATURE:
-		return ValidateLdSignature(model)
+		return ValidateSignature(model)
 	case spec.RIGHT:
-		return ValidateLdRight(model)
+		return ValidateRight(model)
 	}
-	return ErrInvalidType
+	return ErrorAppend(ErrInvalidType, _type)
 }
 
-func ValidateLdMusic(music Data) error {
-	if _type := spec.GetType(music); _type == spec.ALBUM {
-		return ValidateLdAlbum(music)
-	} else if _type == spec.TRACK {
-		return ValidateLdTrack(music)
+func ValidateMusic(music Data) error {
+	_type := spec.GetType(music)
+	if _type == spec.ALBUM {
+		return ValidateAlbum(music)
 	}
-	return ErrInvalidType
+	if _type == spec.TRACK {
+		return ValidateTrack(music)
+	}
+	return ErrorAppend(ErrInvalidType, _type)
 }
 
-func ValidateLdAlbum(album Data) error {
+func ValidateAlbum(album Data) error {
 	if !spec.ValidAlbum(album) {
 		return ErrorAppend(ErrInvalidModel, spec.ALBUM)
 	}
@@ -91,7 +105,7 @@ func ValidateLdAlbum(album Data) error {
 	return nil
 }
 
-func ValidateLdTrack(track Data) error {
+func ValidateTrack(track Data) error {
 	if !spec.ValidTrack(track) {
 		return ErrorAppend(ErrInvalidModel, spec.TRACK)
 	}
@@ -122,10 +136,10 @@ func ValidateLdTrack(track Data) error {
 		return err
 	}
 	album := bigchain.GetTxData(tx)
-	return ValidateLdAlbum(album)
+	return ValidateAlbum(album)
 }
 
-func ValidateLdSignature(signature Data) error {
+func ValidateSignature(signature Data) error {
 	if !spec.ValidSignature(signature) {
 		return ErrorAppend(ErrInvalidModel, spec.SIGNATURE)
 	}
@@ -135,7 +149,7 @@ func ValidateLdSignature(signature Data) error {
 		return err
 	}
 	model := bigchain.GetTxData(tx)
-	if err := ValidateLdModel(model); err != nil {
+	if err := ValidateModel(model); err != nil {
 		return err
 	}
 	signerId := spec.GetSignatureSigner(signature)
@@ -155,7 +169,7 @@ func ValidateLdSignature(signature Data) error {
 	return nil
 }
 
-func ValidateLdRight(right Data) error {
+func ValidateRight(right Data) error {
 	if !spec.ValidRight(right) {
 		return ErrorAppend(ErrInvalidModel, spec.RIGHT)
 	}
@@ -165,7 +179,7 @@ func ValidateLdRight(right Data) error {
 		return err
 	}
 	music := bigchain.GetTxData(tx)
-	if err = ValidateLdMusic(music); err != nil {
+	if err = ValidateMusic(music); err != nil {
 		return err
 	}
 	artistId := spec.GetMusicArtist(music)
@@ -188,7 +202,7 @@ func ValidateLdRight(right Data) error {
 		return ErrorAppend(ErrInvalidModel, spec.GetType(recipient))
 	}
 	signature := spec.GetRightSignature(right)
-	if err = ValidateLdSignature(signature); err != nil {
+	if err = ValidateSignature(signature); err != nil {
 		return err
 	}
 	sig := spec.GetSignatureValue(signature)
@@ -197,7 +211,3 @@ func ValidateLdRight(right Data) error {
 	}
 	return nil
 }
-
-// Should have traversed graph to reach music publisher/signer
-// Check if publisher_id equals signer_id
-// publisherId := spec.GetMusicPublisher(music)

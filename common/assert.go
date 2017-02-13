@@ -1,5 +1,7 @@
 package common
 
+import "time"
+
 func AssertData(v interface{}) Data {
 	if d, ok := v.(Data); ok {
 		return d
@@ -36,4 +38,11 @@ func AssertStrSlice(v interface{}) []string {
 		return slice
 	}
 	return nil
+}
+
+func AssertTime(v interface{}) time.Time {
+	if time, ok := v.(time.Time); ok {
+		return time
+	}
+	return time.Time{}
 }

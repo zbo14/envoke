@@ -3,30 +3,34 @@
 {{end}}
 
 {{define "body"}}
-<div>
-  <form id="login-form">
-    <h2>Login</h2>
-    <select form="login-form" name="type" id="login-type" required>
-      <option value="artist">artist</option>
-      <option value="label">record label</option>
-      <option value="publisher">publisher</option>
-    </select><br>
-    <input type="text" name="agent_id" placeholder="agent ID" required /><br>
-    <input type="password" name="private_key" placeholder="private key" required /><br>
-    <input type="submit" value="login" />
-  </form>
-  <form id="register-form">
-    <h2>Registration</h2>
-    <select form="register-form" name="type" id="register-type" required>
-      <option value="artist">artist</option>
-      <option value="label">record label</option>
-      <option value="publisher">publisher</option>
-    </select><br>
-    <input type="text" name="name" placeholder="name" required /><br>
-    <input type="text" name="email" placeholder="email" required /><br> 
-    <input type="password" name="password" placeholder="password" required /><br>
-    <input type="submit" value="register"/>
-  </form>
+<div class="row">
+  <div class="col-md-6">
+    <form id="login-form">
+      <h2>Login</h2>
+      <select form="login-form" name="type" id="login-type" required>
+        <option value="artist">artist</option>
+        <option value="label">record label</option>
+        <option value="publisher">publisher</option>
+      </select><br>
+      <input type="text" name="agent_id" placeholder="agent ID" required /><br>
+      <input type="password" name="private_key" placeholder="private key" required /><br>
+      <input type="submit" value="login" />
+    </form>
+  </div>
+  <div class="col-md-6">
+    <form id="register-form">
+      <h2>Registration</h2>
+      <select form="register-form" name="type" id="register-type" required>
+        <option value="artist">artist</option>
+        <option value="label">record label</option>
+        <option value="publisher">publisher</option>
+      </select><br>
+      <input type="text" name="name" placeholder="name" required /><br>
+      <input type="text" name="email" placeholder="email" required /><br> 
+      <input type="password" name="password" placeholder="password" required /><br>
+      <input type="submit" value="register"/>
+    </form>
+  </div>
 </div>
 <script type="text/javascript">
 

@@ -3,6 +3,7 @@ package spec
 import (
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
+	"time"
 )
 
 const (
@@ -10,19 +11,25 @@ const (
 	RIGHT_SIZE = 8
 )
 
+// Right
+
 // What should context, usage be?..
 
-func NewRight(context []string, issuerId, musicId, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo int64) Data {
+func NewRight(context []string, issuerId, musicId, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo time.Time) Data {
 	return Data{
 		"context":      context,
 		"entity":       NewEntity(RIGHT),
 		"music_id":     musicId,
 		"recipient_id": recipientId,
-		"signature":    NewSignature(issuerId, musicId, sig),
+		"signature":    NewSignature(musicId, issuerId, sig),
 		"usage":        usage,
 		"valid_from":   validFrom,
 		"valid_to":     validTo,
 	}
+}
+
+func IsRight(right Data) bool {
+	return HasType(right, RIGHT)
 }
 
 func GetRightContext(right Data) []string {
@@ -45,12 +52,12 @@ func GetRightUsage(right Data) []string {
 	return AssertStrSlice(right["usage"])
 }
 
-func GetRightValidFrom(right Data) int64 {
-	return AssertInt64(right["valid_from"])
+func GetRightValidFrom(right Data) time.Time {
+	return AssertTime(right["valid_from"])
 }
 
-func GetRightValidTo(right Data) int64 {
-	return AssertInt64(right["valid_to"])
+func GetRightValidTo(right Data) time.Time {
+	return AssertTime(right["valid_to"])
 }
 
 func ValidRight(right Data) bool {
@@ -77,7 +84,7 @@ func ValidRight(right Data) bool {
 	// TODO: validate usage
 	validFrom := GetRightValidFrom(right)
 	validTo := GetRightValidTo(right)
-	if validFrom >= validTo {
+	if validFrom.After(validTo) {
 		return false
 	}
 	return len(right) == RIGHT_SIZE

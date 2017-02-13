@@ -3,6 +3,7 @@ package common
 import "github.com/pkg/errors"
 
 var (
+	ErrCriteriaNotMet     = Error("Criteria not met")
 	ErrExpectedPost       = Error("Expected POST request")
 	ErrExpectedGet        = Error("Expected GET request")
 	ErrInvalidCondition   = Error("Invalid condition")

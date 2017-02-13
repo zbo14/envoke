@@ -34,6 +34,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/album", api.AlbumHandler)
 	mux.HandleFunc("/track", api.TrackHandler)
+	mux.HandleFunc("/right", api.RightHandler)
 	mux.HandleFunc("/sign", api.SignHandler)
 	mux.HandleFunc("/verify", api.VerifyHandler)
 }
@@ -112,6 +113,33 @@ func (api *Api) AlbumHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, albumMessage)
 }
 
+func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
+	// Should be POST request
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	// Check that we're logged in
+	if !api.LoggedIn() {
+		http.Error(w, ErrInvalidLogin.Error(), http.StatusUnauthorized)
+		return
+	}
+	// Get request values
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	values.Set("issuer_id", api.agentId)
+	// Music Rights
+	rightMessage, err := api.Right(values)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, rightMessage)
+}
+
 func (api *Api) TrackHandler(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
@@ -161,14 +189,13 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 		return
 	}
-	musicId := values.Get("music_id")
-	// Linked-data signature
-	txInfo, err := api.Sign(musicId)
+	rightId := values.Get("right_id") //signing rights for now
+	signMessage, err := api.Sign(rightId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, txInfo)
+	WriteJSON(w, signMessage)
 }
 
 func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
@@ -185,7 +212,11 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	signatureId := values.Get("signature_id")
 	// Verify linked-data signature
-	verifyMessage := api.Verify(signatureId)
+	verifyMessage, err := api.Verify(signatureId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	WriteJSON(w, verifyMessage)
 }
 
@@ -259,7 +290,7 @@ func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	_type := spec.GetEntityType(agent)
+	_type := spec.GetType(agent)
 	api.logger.Info("SUCCESS registered new " + _type)
 	return NewRegisterMessage(agentId, priv.String(), pub.String()), nil
 }
@@ -311,19 +342,56 @@ func (api *Api) Track(albumId string, file multipart.File, number int, publisher
 	return NewTrackMessage(trackId), nil
 }
 
-func (api *Api) Sign(musicId string) (*SignMessage, error) {
-	// Validate linked music
-	music, err := ld.ValidateLdMusicId(musicId)
+func (api *Api) Right(values url.Values) (*RightMessage, error) {
+	musicId := values.Get("music_id")
+	tx, err := bigchain.GetTx(musicId)
 	if err != nil {
 		return nil, err
 	}
-	// Check that user agentId == music publisher_id
-	if api.agentId != spec.GetMusicPublisher(music) {
+	music := bigchain.GetTxData(tx)
+	sig := api.priv.Sign(MustMarshalJSON(music))
+	context := Split(values.Get("context"), ",")
+	issuerId := values.Get("issuer_id")
+	recipientId := values.Get("recipient_id")
+	usage := Split(values.Get("usage"), ",")
+	validFrom, err := ParseDateStr(values.Get("valid_from"))
+	if err != nil {
+		return nil, err
+	}
+	validTo, err := ParseDateStr(values.Get("valid_to"))
+	if err != nil {
+		return nil, err
+	}
+	right := spec.NewRight(context, issuerId, musicId, recipientId, sig, usage, validFrom, validTo)
+	// Check that we created a valid linked-data right
+	if err = ld.ValidateRight(right); err != nil {
+		return nil, err
+	}
+	tx = bigchain.GenerateTx(right, nil, bigchain.CREATE, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	rightId, err := bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	return NewRightMessage(rightId), nil
+}
+
+func (api *Api) Sign(modelId string) (*SignMessage, error) {
+	// Check that model id matches regex
+	if !MatchString(spec.ID_REGEX, modelId) {
 		return nil, ErrInvalidId
 	}
-	json := MustMarshalJSON(music)
-	sig := api.priv.Sign(json)
-	signature := spec.NewSignature(musicId, api.agentId, sig)
+	// Validate linked-data model
+	model, err := ld.ValidateModelId(modelId)
+	if err != nil {
+		return nil, err
+	}
+	// Check that agent, model meet criteria
+	if !MeetsCriteria(api.agentId, model) {
+		return nil, ErrCriteriaNotMet
+	}
+	sig := api.priv.Sign(MustMarshalJSON(model))
+	signature := spec.NewSignature(modelId, api.agentId, sig)
 	// Send tx with signature to IPDB
 	tx := bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
@@ -335,14 +403,27 @@ func (api *Api) Sign(musicId string) (*SignMessage, error) {
 	return NewSignMessage(signatureId), nil
 }
 
-func (api *Api) Verify(signatureId string) *VerifyMessage {
-	signature, err := ld.ValidateLdSignatureId(signatureId)
+func (api *Api) Verify(signatureId string) (*VerifyMessage, error) {
+	// Validate linked-data signature
+	signature, err := ld.ValidateSignatureId(signatureId)
 	if err != nil {
 		api.logger.Info("FAILURE could not verify signature")
-		return NewVerifyMessage(err.Error(), nil, false)
+		return NewVerifyMessage(err.Error(), nil, false), nil
+	}
+	agentId := spec.GetSignatureSigner(signature)
+	modelId := spec.GetSignatureModel(signature)
+	tx, err := bigchain.GetTx(modelId)
+	if err != nil {
+		return nil, err
+	}
+	model := bigchain.GetTxData(tx)
+	// Check that agent, model meet criteria
+	if !MeetsCriteria(agentId, model) {
+		api.logger.Info("FAILURE could not verify signature")
+		return NewVerifyMessage(ErrCriteriaNotMet.Error(), nil, false), nil
 	}
 	api.logger.Info("SUCCESS verified signature")
-	return NewVerifyMessage("", signature, true)
+	return NewVerifyMessage("", signature, true), nil
 }
 
 func AgentFromValues(values url.Values) (Data, error) {
@@ -365,4 +446,12 @@ func AgentFromValues(values url.Values) (Data, error) {
 		// TODO: add more partner types?
 	}
 	return nil, ErrInvalidType
+}
+
+func MeetsCriteria(agentId string, model Data) bool {
+	if spec.IsRight(model) {
+		recipientId := spec.GetRightRecipient(model)
+		return agentId == recipientId
+	}
+	return false
 }

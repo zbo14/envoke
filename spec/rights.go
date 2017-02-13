@@ -16,7 +16,7 @@ const (
 // What should context, usage be?..
 
 func NewRight(context []string, issuerId, musicId, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo time.Time) Data {
-	return Data{
+	right := Data{
 		"context":      context,
 		"entity":       NewEntity(RIGHT),
 		"music_id":     musicId,
@@ -26,6 +26,10 @@ func NewRight(context []string, issuerId, musicId, recipientId string, sig crypt
 		"valid_from":   validFrom,
 		"valid_to":     validTo,
 	}
+	if !ValidRight(right) {
+		panic("Invalid right")
+	}
+	return right
 }
 
 func IsRight(right Data) bool {

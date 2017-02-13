@@ -297,8 +297,13 @@ func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
 }
 
 func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader) (*AlbumMessage, error) {
-	// Generate and send tx with album
+	// New album
 	album := spec.NewAlbum(api.agentId, publisherId, title)
+	// Check that we generated a valid linked-data album
+	if err := ld.ValidateAlbum(album); err != nil {
+		return nil, err
+	}
+	// Send tx with album
 	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	albumId, err := bigchain.PostTx(tx)
@@ -336,9 +341,13 @@ func (api *Api) Track(albumId string, file multipart.File, number int, publisher
 	if err != nil {
 		return nil, err
 	}
-	// Create new track
+	// New track
 	track := spec.NewTrack(albumId, api.agentId, fingerprint, number, publisherId, trackTitle)
-	// Generate and send tx with track
+	// Check that we generated a valid linked-data track
+	if err := ld.ValidateTrack(track); err != nil {
+		return nil, err
+	}
+	// Send tx with track
 	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	trackId, err := bigchain.PostTx(tx)
@@ -369,8 +378,9 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	// New right
 	right := spec.NewRight(context, issuerId, musicId, recipientId, sig, usage, validFrom, validTo)
-	// Check that we created a valid linked-data right
+	// Check that we generated a valid linked-data right
 	if err = ld.ValidateRight(right); err != nil {
 		return nil, err
 	}
@@ -400,6 +410,10 @@ func (api *Api) Sign(modelId string) (*SignMessage, error) {
 	}
 	sig := api.priv.Sign(MustMarshalJSON(model))
 	signature := spec.NewSignature(modelId, api.agentId, sig)
+	// Check that we generated a valid linked-data signature
+	if err := ld.ValidateSignature(signature); err != nil {
+		return nil, err
+	}
 	// Send tx with signature to IPDB
 	tx := bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)

@@ -35,10 +35,14 @@ const (
 // Entity
 
 func NewEntity(_type string) Data {
-	return Data{
+	entity := Data{
 		"time": Timestamp(),
 		"type": _type,
 	}
+	if !ValidEntity(entity) {
+		panic("Invalid entity")
+	}
+	return entity
 }
 
 func GetEntityTime(entity Data) int64 {
@@ -87,12 +91,16 @@ func ValidEntity(entity Data) bool {
 // Agent
 
 func NewAgent(email, name string, pub crypto.PublicKey, _type string) Data {
-	return Data{
+	agent := Data{
 		"email":      email,
 		"entity":     NewEntity(_type),
 		"name":       name,
 		"public_key": pub.String(),
 	}
+	if !ValidAgent(agent) {
+		panic("Invalid agent")
+	}
+	return agent
 }
 
 func GetAgentEmail(agent Data) string {
@@ -210,12 +218,16 @@ func ValidMusic(music Data) bool {
 }
 
 func NewAlbum(artistId, publisherId, title string) Data {
-	return Data{
+	album := Data{
 		"artist_id":    artistId,
 		"entity":       NewEntity(ALBUM),
 		"publisher_id": publisherId,
 		"title":        title,
 	}
+	if !ValidAlbum(album) {
+		panic("Invalid album")
+	}
+	return album
 }
 
 func GetMusicArtist(music Data) string {
@@ -254,24 +266,22 @@ func ValidAlbum(album Data) bool {
 }
 
 func NewTrack(albumId, artistId, fingerprint string, number int, publisherId, title string) Data {
-	if publisherId == "" {
-		if albumId == "" || number <= 0 {
-			panic("Must provide publisher for single track")
-		}
-	}
-	data := Data{
+	track := Data{
 		"artist_id":   artistId,
 		"entity":      NewEntity(TRACK),
 		"fingerprint": fingerprint,
 		"title":       title,
 	}
-	if publisherId != "" {
-		data["publisher_id"] = publisherId
-	} else if albumId != "" && number > 0 {
-		data["album_id"] = albumId
-		data["track_number"] = number
+	if publisherId == "" {
+		track["album_id"] = albumId
+		track["track_number"] = number
+	} else {
+		track["publisher_id"] = publisherId
 	}
-	return data
+	if !ValidTrack(track) {
+		panic("Invalid track")
+	}
+	return track
 }
 
 func GetTrackAlbum(track Data) string {
@@ -313,10 +323,12 @@ func ValidTrack(track Data) bool {
 	}
 	albumId := GetTrackAlbum(track)
 	if !MatchString(ID_REGEX, albumId) {
+		Println(6)
 		return false
 	}
 	trackNumber := GetTrackNumber(track)
 	if trackNumber <= 0 {
+		Println(7)
 		return false
 	}
 	return len(track) == TRACK_ALBUM_SIZE
@@ -325,12 +337,16 @@ func ValidTrack(track Data) bool {
 // Signature
 
 func NewSignature(modelId, signerId string, sig crypto.Signature) Data {
-	return Data{
+	signature := Data{
 		"entity":    NewEntity(SIGNATURE),
 		"model_id":  modelId,
 		"signer_id": signerId,
 		"value":     sig.String(),
 	}
+	if !ValidSignature(signature) {
+		panic("Invalid signature")
+	}
+	return signature
 }
 
 func GetSignatureModel(signature Data) string {

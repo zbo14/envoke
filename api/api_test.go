@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var path = ""
+var path = "/Users/zach/Desktop/album/Allegro from Duet in C Major.mp3"
 
 func TestApi(t *testing.T) {
 	api := NewApi()

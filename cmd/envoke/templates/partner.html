@@ -5,11 +5,12 @@
 {{define "body"}}
 <div id="sign">
     <form id="sign-form" name="sign-form">
-        <h2>Sign Release</h2>
-        <input type="text" name="music_id" placeholder="music ID" required /><br>
+        <h2>Sign Right</h2>
+        <input type="text" name="right_id" placeholder="right ID" required /><br>
         <input type="submit" value="sign" />
     </form>
 </div>
+<pre id="message"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -29,7 +30,8 @@ function httpPostAsync(addr, data, callback) {
 
 var signCallback = function(responseText) {
   var json = JSON.parse(responseText);
-  console.log(json); //for now
+  var str = JSON.stringify(json,null,2);
+  $("#message").text(str);
 };
 
 window.onload = function() {

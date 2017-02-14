@@ -8,28 +8,26 @@ import (
 
 const (
 	RIGHT      = "right"
-	RIGHT_SIZE = 8
+	RIGHT_SIZE = 10
 )
 
 // Right
 
 // What should context, usage be?..
 
-func NewRight(context []string, issuerId, musicId, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo time.Time) Data {
-	right := Data{
-		"context":      context,
-		"entity":       NewEntity(RIGHT),
-		"music_id":     musicId,
-		"recipient_id": recipientId,
-		"signature":    NewSignature(musicId, issuerId, sig),
-		"usage":        usage,
-		"valid_from":   validFrom,
-		"valid_to":     validTo,
+func NewRight(context []string, issuerId, issuerType, musicId, percentageShares, recipientId string, sig crypto.Signature, usage []string, validFrom, validTo time.Time) Data {
+	return Data{
+		"context":           context,
+		"instance":          NewInstance(RIGHT),
+		"issuer_id":         issuerId,
+		"issuer_type":       issuerType,
+		"percentage_shares": percentageShares,
+		"recipient_id":      recipientId,
+		"signature":         NewSignature(musicId, issuerId, sig),
+		"usage":             usage,
+		"valid_from":        validFrom,
+		"valid_to":          validTo,
 	}
-	if !ValidRight(right) {
-		panic("Invalid right")
-	}
-	return right
 }
 
 func IsRight(right Data) bool {
@@ -40,12 +38,24 @@ func GetRightContext(right Data) []string {
 	return right.GetStrSlice("context")
 }
 
+func GetRightIssuer(right Data) (string, string) {
+	return right.GetStr("issuer_id"), right.GetStr("issuer_type")
+}
+
 func GetRightMusic(right Data) string {
-	return right.GetStr("music_id")
+	signature := GetRightSignature(right)
+	if signature == nil {
+		return ""
+	}
+	return GetSignatureModel(signature)
 }
 
 func GetRightRecipient(right Data) string {
 	return right.GetStr("recipient_id")
+}
+
+func GetRightPercentageShares(right Data) int {
+	return right.GetStrInt("percentage_shares")
 }
 
 func GetRightSignature(right Data) Data {
@@ -65,11 +75,20 @@ func GetRightValidTo(right Data) time.Time {
 }
 
 func ValidRight(right Data) bool {
-	entity := GetEntity(right)
-	if !ValidEntity(entity) {
+	instance := GetInstance(right)
+	if !ValidInstance(instance) {
 		return false
 	}
 	if !HasType(right, RIGHT) {
+		return false
+	}
+	issuerId, issuerType := GetRightIssuer(right)
+	switch issuerType {
+	case ARTIST, LABEL, ORGANIZATION, PUBLISHER:
+		if !MatchString(ID_REGEX, issuerId) {
+			return false
+		}
+	default:
 		return false
 	}
 	// TODO: validate context
@@ -77,8 +96,15 @@ func ValidRight(right Data) bool {
 	if !MatchString(ID_REGEX, musicId) {
 		return false
 	}
+	percentageShares := GetRightPercentageShares(right)
+	if percentageShares <= 0 || percentageShares > 100 {
+		return false
+	}
 	receipientId := GetRightRecipient(right)
 	if !MatchString(ID_REGEX, receipientId) {
+		return false
+	}
+	if issuerId == receipientId {
 		return false
 	}
 	signature := GetRightSignature(right)

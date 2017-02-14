@@ -93,14 +93,27 @@ func ValidateAlbum(album Data) error {
 	if !spec.ValidArtist(artist) {
 		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
-	publisherId := spec.GetMusicPublisher(album)
-	tx, err = bigchain.GetTx(publisherId)
-	if err != nil {
-		return err
+	labelId := spec.GetMusicLabel(album)
+	if !Empty(labelId) {
+		tx, err = bigchain.GetTx(labelId)
+		if err != nil {
+			return err
+		}
+		label := bigchain.GetTxData(tx)
+		if !spec.ValidLabel(label) {
+			return ErrorAppend(ErrInvalidModel, spec.LABEL)
+		}
 	}
-	publisher := bigchain.GetTxData(tx)
-	if !spec.ValidPublisher(publisher) {
-		return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
+	publisherId := spec.GetMusicPublisher(album)
+	if !Empty(publisherId) {
+		tx, err = bigchain.GetTx(publisherId)
+		if err != nil {
+			return err
+		}
+		publisher := bigchain.GetTxData(tx)
+		if !spec.ValidPublisher(publisher) {
+			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
+		}
 	}
 	return nil
 }
@@ -108,6 +121,37 @@ func ValidateAlbum(album Data) error {
 func ValidateTrack(track Data) error {
 	if !spec.ValidTrack(track) {
 		return ErrorAppend(ErrInvalidModel, spec.TRACK)
+	}
+	labelId := spec.GetMusicLabel(track)
+	if !Empty(labelId) {
+		tx, err := bigchain.GetTx(labelId)
+		if err != nil {
+			return err
+		}
+		label := bigchain.GetTxData(tx)
+		if !spec.ValidLabel(label) {
+			return ErrorAppend(ErrInvalidModel, spec.LABEL)
+		}
+	}
+	publisherId := spec.GetMusicPublisher(track)
+	if !Empty(publisherId) {
+		tx, err := bigchain.GetTx(publisherId)
+		if err != nil {
+			return err
+		}
+		publisher := bigchain.GetTxData(tx)
+		if !spec.ValidPublisher(publisher) {
+			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
+		}
+	}
+	albumId := spec.GetTrackAlbum(track)
+	if !Empty(albumId) {
+		tx, err := bigchain.GetTx(albumId)
+		if err != nil {
+			return err
+		}
+		album := bigchain.GetTxData(tx)
+		return ValidateAlbum(album)
 	}
 	artistId := spec.GetMusicArtist(track)
 	tx, err := bigchain.GetTx(artistId)
@@ -118,25 +162,7 @@ func ValidateTrack(track Data) error {
 	if !spec.ValidArtist(artist) {
 		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
-	publisherId := spec.GetMusicPublisher(track)
-	if MatchString(spec.ID_REGEX, publisherId) {
-		tx, err = bigchain.GetTx(publisherId)
-		if err != nil {
-			return err
-		}
-		publisher := bigchain.GetTxData(tx)
-		if !spec.ValidPublisher(publisher) {
-			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
-		}
-		return nil
-	}
-	albumId := spec.GetTrackAlbum(track)
-	tx, err = bigchain.GetTx(albumId)
-	if err != nil {
-		return err
-	}
-	album := bigchain.GetTxData(tx)
-	return ValidateAlbum(album)
+	return nil
 }
 
 func ValidateSignature(signature Data) error {
@@ -173,6 +199,7 @@ func ValidateRight(right Data) error {
 	if !spec.ValidRight(right) {
 		return ErrorAppend(ErrInvalidModel, spec.RIGHT)
 	}
+	issuerId, issuerType := spec.GetRightIssuer(right)
 	musicId := spec.GetRightMusic(right)
 	tx, err := bigchain.GetTx(musicId)
 	if err != nil {
@@ -182,16 +209,31 @@ func ValidateRight(right Data) error {
 	if err = ValidateMusic(music); err != nil {
 		return err
 	}
-	artistId := spec.GetMusicArtist(music)
-	tx, err = bigchain.GetTx(artistId)
+	agentId := spec.GetMusicAgent(music, issuerType)
+	if Empty(agentId) {
+		albumId := spec.GetTrackAlbum(music)
+		tx, err := bigchain.GetTx(albumId)
+		if err != nil {
+			return err
+		}
+		album := bigchain.GetTxData(tx)
+		if err := ValidateAlbum(album); err != nil {
+			return err
+		}
+		agentId = spec.GetMusicAgent(album, issuerType)
+	}
+	if agentId != issuerId {
+		return ErrorAppend(ErrInvalidId, "issuer")
+	}
+	tx, err = bigchain.GetTx(agentId)
 	if err != nil {
 		return err
 	}
-	artist := bigchain.GetTxData(tx)
-	if !spec.ValidArtist(artist) {
-		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
+	agent := bigchain.GetTxData(tx)
+	if !spec.ValidAgentWithType(agent, issuerType) {
+		return ErrorAppend(ErrInvalidModel, issuerType)
 	}
-	pub := spec.GetAgentPublicKey(artist)
+	pub := spec.GetAgentPublicKey(agent)
 	recipientId := spec.GetRightRecipient(right)
 	tx, err = bigchain.GetTx(recipientId)
 	if err != nil {

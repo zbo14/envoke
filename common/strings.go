@@ -5,8 +5,12 @@ import (
 	"strings"
 )
 
-func ToLower(s string) string {
-	return strings.ToLower(s)
+func Empty(s string) bool {
+	return s == ""
+}
+
+func Repeat(s string, n int) string {
+	return strings.Repeat(s, n)
 }
 
 func Split(s, sep string) []string {
@@ -17,8 +21,12 @@ func SplitN(s, sep string, n int) []string {
 	return strings.SplitN(s, sep, n)
 }
 
-func Repeat(s string, n int) string {
-	return strings.Repeat(s, n)
+func ToLower(s string) string {
+	return strings.ToLower(s)
+}
+
+func Atoi(s string) (int, error) {
+	return strconv.Atoi(s)
 }
 
 func ParseUint16(s string, base int) (int, error) {

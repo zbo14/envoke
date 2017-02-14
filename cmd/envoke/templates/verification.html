@@ -5,12 +5,12 @@
 {{define "body"}}
 <div id="verify">
     <form id="verify-form">
-        <h2>Verify Release</h2>
-        <!--<input type="text" name="music_id" placeholder="music ID" required /><br>-->
+        <h2>Verify Signature</h2>
         <input type="text" name="signature_id" placeholder="signature ID" required /><br>
         <input type="submit" value="verify" />
     </form>
 </div>
+<pre id="message"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -30,18 +30,19 @@ function httpPostAsync(addr, data, callback) {
 
 var verifyCallback = function(responseText) {
   var json = JSON.parse(responseText);
-  console.log(json); //for now
+  var str = JSON.stringify(json,null,2);
+  $("#message").text(str);
 };
 
 window.onload = function() {
-    // Verify 
-    var verifyForm = document.getElementById("verify-form");
-    verifyForm.onsubmit = function(event) {
-      event.preventDefault();
-      var formData = $("#verify-form").serialize();
-      console.log(formData);
-      httpPostAsync("http://localhost:8888/verify", formData, verifyCallback);
-    };
+  // Verify 
+  var verifyForm = document.getElementById("verify-form");
+  verifyForm.onsubmit = function(event) {
+    event.preventDefault();
+    var formData = $("#verify-form").serialize();
+    console.log(formData);
+    httpPostAsync("http://localhost:8888/verify", formData, verifyCallback);
+  };
 }
 </script>
 {{end}}

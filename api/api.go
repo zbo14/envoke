@@ -103,10 +103,11 @@ func (api *Api) AlbumHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	title := form.Value["album_title"][0]
+	labelId := form.Value["label_id"][0]
 	publisherId := form.Value["publisher_id"][0]
 	tracks := form.File["tracks"]
 	// Extract metadata from tracks, send album to Bigchain/IPDB
-	albumMessage, err := api.Album(publisherId, title, tracks)
+	albumMessage, err := api.Album(labelId, publisherId, title, tracks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -158,6 +159,7 @@ func (api *Api) TrackHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	labelId := form.Value["label_id"][0]
 	publisherId := form.Value["publisher_id"][0]
 	file, err := form.File["tracks"][0].Open()
 	if err != nil {
@@ -165,7 +167,7 @@ func (api *Api) TrackHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Extract track metadata and send to BigchainDB/IPDB
-	trackMessage, err := api.Track("", file, 0, publisherId)
+	trackMessage, err := api.Track("", file, labelId, 0, publisherId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -284,6 +286,10 @@ func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Check that we created a valid agent
+	if !spec.ValidAgent(agent) {
+		return nil, ErrorAppend(ErrInvalidModel, spec.GetType(agent))
+	}
 	tx := bigchain.GenerateTx(agent, nil, bigchain.CREATE, pub)
 	bigchain.FulfillTx(tx, priv)
 	// send request to IPDB
@@ -296,9 +302,9 @@ func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
 	return NewRegisterMessage(agentId, priv.String(), pub.String()), nil
 }
 
-func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader) (*AlbumMessage, error) {
+func (api *Api) Album(labelId, publisherId, title string, tracks []*multipart.FileHeader) (*AlbumMessage, error) {
 	// New album
-	album := spec.NewAlbum(api.agentId, publisherId, title)
+	album := spec.NewAlbum(api.agentId, labelId, publisherId, title)
 	// Check that we generated a valid linked-data album
 	if err := ld.ValidateAlbum(album); err != nil {
 		return nil, err
@@ -318,7 +324,7 @@ func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader)
 		if err != nil {
 			return nil, err
 		}
-		trackMessage, err := api.Track(albumId, file, i+1, "")
+		trackMessage, err := api.Track(albumId, file, "", i+1, "")
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +333,7 @@ func (api *Api) Album(publisherId, title string, tracks []*multipart.FileHeader)
 	return NewAlbumMessage(albumId, trackIds), nil
 }
 
-func (api *Api) Track(albumId string, file multipart.File, number int, publisherId string) (*TrackMessage, error) {
+func (api *Api) Track(albumId string, file multipart.File, labelId string, number int, publisherId string) (*TrackMessage, error) {
 	s, r := MustTeeSeeker(file)
 	// Extract metadata
 	meta, err := tag.ReadFrom(s)
@@ -342,7 +348,7 @@ func (api *Api) Track(albumId string, file multipart.File, number int, publisher
 		return nil, err
 	}
 	// New track
-	track := spec.NewTrack(albumId, api.agentId, fingerprint, number, publisherId, trackTitle)
+	track := spec.NewTrack(albumId, api.agentId, fingerprint, labelId, number, publisherId, trackTitle)
 	// Check that we generated a valid linked-data track
 	if err := ld.ValidateTrack(track); err != nil {
 		return nil, err
@@ -368,6 +374,8 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 	sig := api.priv.Sign(MustMarshalJSON(music))
 	context := Split(values.Get("context"), ",")
 	issuerId := values.Get("issuer_id")
+	issuerType := values.Get("issuer_type")
+	percentageShares := values.Get("percentage_shares")
 	recipientId := values.Get("recipient_id")
 	usage := Split(values.Get("usage"), ",")
 	validFrom, err := ParseDateStr(values.Get("valid_from"))
@@ -379,7 +387,7 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 		return nil, err
 	}
 	// New right
-	right := spec.NewRight(context, issuerId, musicId, recipientId, sig, usage, validFrom, validTo)
+	right := spec.NewRight(context, issuerId, issuerType, musicId, percentageShares, recipientId, sig, usage, validFrom, validTo)
 	// Check that we generated a valid linked-data right
 	if err = ld.ValidateRight(right); err != nil {
 		return nil, err

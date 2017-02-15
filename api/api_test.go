@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var path = "/Users/zach/Desktop/album/Allegro from Duet in C Major.mp3"
+var path = "/Users/zach/Desktop/music/Allegro from Duet in C Major.mp3"
 
 func TestApi(t *testing.T) {
 	api := NewApi()
@@ -63,22 +63,31 @@ func TestApi(t *testing.T) {
 	}
 	trackId := trackMessage.TrackId
 	PrintJSON(trackMessage)
-	// Artist issues right to publisher
+	// Artist issues right w/ 50% shares to publisher
 	values.Set("context", "commercial_use")
 	values.Set("issuer_id", artistId)
 	values.Set("issuer_type", spec.ARTIST)
 	values.Set("music_id", trackId)
-	values.Set("percentage_shares", "70")
+	values.Set("percentage_shares", "50")
 	values.Set("recipient_id", publisherId)
 	values.Set("usage", "copy,play")
 	values.Set("valid_from", DateStr(2018, 1, 1))
 	values.Set("valid_to", DateStr(2020, 1, 1))
-	rightMessage, err := api.Right(values)
+	publisherRightMessage, err := api.Right(values)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rightId := rightMessage.RightId
-	PrintJSON(rightMessage)
+	publisherRightId := publisherRightMessage.RightId
+	PrintJSON(publisherRightMessage)
+	// Artist issues right w/ 20% shares to label
+	values.Set("percentage_shares", "20")
+	values.Set("recipient_id", labelId)
+	labelRightMessage, err := api.Right(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	labelRightId := labelRightMessage.RightId
+	PrintJSON(labelRightMessage)
 	// Login Publisher
 	privstr = registerPublisher.PrivKey
 	loginPublisher, err := api.Login(publisherId, privstr, spec.PUBLISHER)
@@ -86,17 +95,14 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	Println(loginPublisher)
-	// Sign
-	signMessage, err := api.Sign(rightId)
+	// Rights
+	rightsMessage, err := api.Rights(trackId, publisherRightId, labelRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	signatureId := signMessage.SignatureId
-	PrintJSON(signMessage)
+	rightId := rightsMessage.RightsId
+	PrintJSON(rightsMessage)
 	// Verify
-	verifyMessage, err := api.Verify(signatureId)
-	if err != nil {
-		t.Fatal(err)
-	}
+	verifyMessage := api.Verify(rightId)
 	PrintJSON(verifyMessage)
 }

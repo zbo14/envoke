@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	RIGHT      = "right"
-	RIGHT_SIZE = 10
+	RIGHT       = "right"
+	RIGHTS      = "rights"
+	RIGHT_SIZE  = 9
+	RIGHTS_SIZE = 4
 )
 
 // Right
@@ -19,7 +21,6 @@ func NewRight(context []string, issuerId, issuerType, musicId, percentageShares,
 	return Data{
 		"context":           context,
 		"instance":          NewInstance(RIGHT),
-		"issuer_id":         issuerId,
 		"issuer_type":       issuerType,
 		"percentage_shares": percentageShares,
 		"recipient_id":      recipientId,
@@ -39,7 +40,12 @@ func GetRightContext(right Data) []string {
 }
 
 func GetRightIssuer(right Data) (string, string) {
-	return right.GetStr("issuer_id"), right.GetStr("issuer_type")
+	signature := GetRightSignature(right)
+	if signature == nil {
+		return "", ""
+	}
+	issuerId := GetSignatureSigner(signature)
+	return issuerId, right.GetStr("issuer_type")
 }
 
 func GetRightMusic(right Data) string {
@@ -85,7 +91,7 @@ func ValidRight(right Data) bool {
 	issuerId, issuerType := GetRightIssuer(right)
 	switch issuerType {
 	case ARTIST, LABEL, ORGANIZATION, PUBLISHER:
-		if !MatchString(ID_REGEX, issuerId) {
+		if !MatchStr(ID_REGEX, issuerId) {
 			return false
 		}
 	default:
@@ -93,7 +99,7 @@ func ValidRight(right Data) bool {
 	}
 	// TODO: validate context
 	musicId := GetRightMusic(right)
-	if !MatchString(ID_REGEX, musicId) {
+	if !MatchStr(ID_REGEX, musicId) {
 		return false
 	}
 	percentageShares := GetRightPercentageShares(right)
@@ -101,7 +107,7 @@ func ValidRight(right Data) bool {
 		return false
 	}
 	receipientId := GetRightRecipient(right)
-	if !MatchString(ID_REGEX, receipientId) {
+	if !MatchStr(ID_REGEX, receipientId) {
 		return false
 	}
 	if issuerId == receipientId {
@@ -118,4 +124,54 @@ func ValidRight(right Data) bool {
 		return false
 	}
 	return len(right) == RIGHT_SIZE
+}
+
+func NewRights(agentId, musicId, rightId string, rightIds []string, sig crypto.Signature) Data {
+	return Data{
+		"instance":  NewInstance(RIGHTS),
+		"music_id":  musicId,
+		"right_ids": rightIds,
+		"signature": NewSignature(rightId, agentId, sig),
+	}
+}
+
+func GetMyRight(rights Data) string {
+	signature := GetRightsSignature(rights)
+	if signature == nil {
+		return ""
+	}
+	return GetSignatureModel(signature)
+}
+
+func GetOtherRights(rights Data) []string {
+	return rights.GetStrSlice("right_ids")
+}
+
+func GetRightsMusic(rights Data) string {
+	return rights.GetStr("music_id")
+}
+
+func GetRightsSignature(rights Data) Data {
+	return rights.GetData("signature")
+}
+
+func ValidRights(rights Data) bool {
+	instance := GetInstance(rights)
+	if !ValidInstance(instance) {
+		return false
+	}
+	if !HasType(rights, RIGHTS) {
+		return false
+	}
+	rightIds := GetOtherRights(rights)
+	for _, rightId := range rightIds {
+		if !MatchStr(ID_REGEX, rightId) {
+			return false
+		}
+	}
+	signature := GetRightsSignature(rights)
+	if !ValidSignature(signature) {
+		return false
+	}
+	return len(rights) == RIGHTS_SIZE
 }

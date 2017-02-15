@@ -98,7 +98,7 @@ Example:
 
 ### Right
 
-The right model specifies terms of usage regarding a track or album, distribution of content, and collection of royalty payments within a context and timeframe. Entities involved in the creation of digital content have the ability to issue rights to others (or among themselves). We include the issuer ID and type, e.g. artist, publisher, or label, and the ID of the recipient. The music ID points to a track or album while the percentage shares indicate the portion of royalty payments for the recipient. The signature field contains a valid signature of the track or album by the issuer. Note: I copy-and-pasted the previous example, changing the timestamp. I could have assigned an ID to the previous example and had the right point to the signature. Usually, a signature will be generated with the right, so we will not have two separate transactions. In the following example, our artist issues an album right to the publisher.
+The right model specifies terms of usage regarding a track or album, distribution of content, and collection of royalty payments within a context and timeframe. Entities involved in the creation of digital content have the ability to issue rights to others (or among themselves). We include the issuer type, in this case artist. Note: the or label, and the ID of the recipient. The music ID points to a track or album while the percentage shares indicate the portion of royalty payments for the recipient. The signature field contains a valid signature of the track or album by the issuer. Note: I copy-and-pasted the previous example, changing the timestamp. I could have assigned an ID to the previous example and had the right point to the signature. Usually, a signature is generated with the right, so we do not have two separate transactions. In the following example, our artist issues an album right to the publisher.
 
 Example:
 ```javascript 
@@ -111,7 +111,6 @@ Example:
             "time": 14924142831,
             "type": "right"
         },
-        "issuer_id": "772d206f7f5c541f8e9153262601b5229fc81b512667f1d7c35f5101ba347188",
         "issuer_type": "artist"
         // TODO: "license"
         "percentage_shares": 70,

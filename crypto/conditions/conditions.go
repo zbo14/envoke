@@ -169,7 +169,7 @@ func ConditionURI(p []byte) (string, error) {
 
 func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 	if uri, err := ConditionURI(p); err == nil {
-		if MatchString(CONDITION_REGEX, uri) {
+		if MatchStr(CONDITION_REGEX, uri) {
 			c := NilCondition()
 			c.weight = weight
 			if err := c.UnmarshalBinary(p); err != nil {
@@ -179,7 +179,7 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 		}
 	}
 	if uri, err := FulfillmentURI(p); err == nil {
-		if MatchString(FULFILLMENT_REGEX, uri) {
+		if MatchStr(FULFILLMENT_REGEX, uri) {
 			ful := new(fulfillment)
 			if err := ful.UnmarshalBinary(p); err != nil {
 				return nil, err
@@ -216,9 +216,9 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 }
 
 func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
-	if MatchString(CONDITION_REGEX, uri) {
+	if MatchStr(CONDITION_REGEX, uri) {
 		// Try to parse condition
-		parts := Split(uri, ":")
+		parts := SplitStr(uri, ":")
 		c := NilCondition()
 		c.id, err = ParseUint16(parts[1], 16)
 		if err != nil {
@@ -242,10 +242,10 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		}
 		return c, nil
 	}
-	if MatchString(FULFILLMENT_REGEX, uri) {
+	if MatchStr(FULFILLMENT_REGEX, uri) {
 		// Try to parse non-condition fulfillment
 		ful := new(fulfillment)
-		parts := Split(uri, ":")
+		parts := SplitStr(uri, ":")
 		ful.id, err = ParseUint16(parts[1], 16)
 		if err != nil {
 			return nil, err
@@ -318,10 +318,10 @@ func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulf
 func (f *fulfillment) Bitmask() int { return f.bitmask }
 
 func (f *fulfillment) FromString(uri string) (err error) {
-	if !MatchString(FULFILLMENT_REGEX, uri) {
+	if !MatchStr(FULFILLMENT_REGEX, uri) {
 		return ErrInvalidRegex
 	}
-	parts := Split(uri, ":")
+	parts := SplitStr(uri, ":")
 	f.id, err = ParseUint16(parts[1], 16)
 	if err != nil {
 		return err
@@ -504,10 +504,10 @@ func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, 
 }
 
 func (c *Condition) FromString(uri string) (err error) {
-	if !MatchString(CONDITION_REGEX, uri) {
+	if !MatchStr(CONDITION_REGEX, uri) {
 		return ErrInvalidRegex
 	}
-	parts := Split(uri, ":")
+	parts := SplitStr(uri, ":")
 	c.id, err = ParseUint16(parts[1], 16)
 	if err != nil {
 		return err

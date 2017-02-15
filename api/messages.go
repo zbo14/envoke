@@ -54,26 +54,26 @@ func NewRightMessage(rightId string) *RightMessage {
 	}
 }
 
-type SignMessage struct {
-	SignatureId string `json:"signature_id"`
+type RightsMessage struct {
+	RightsId string `json:"rights_id"`
 }
 
-func NewSignMessage(signatureId string) *SignMessage {
-	return &SignMessage{
-		SignatureId: signatureId,
+func NewRightsMessage(rightsId string) *RightsMessage {
+	return &RightsMessage{
+		RightsId: rightsId,
 	}
 }
 
 type VerifyMessage struct {
-	Log       string `json:"log"`
-	Signature Data
-	Valid     bool `json:"valid"`
+	Data  Data
+	Log   string `json:"log"`
+	Valid bool   `json:"valid"`
 }
 
-func NewVerifyMessage(log string, signature Data, valid bool) *VerifyMessage {
+func NewVerifyMessage(data Data, log string, valid bool) *VerifyMessage {
 	return &VerifyMessage{
-		Log:       log,
-		Signature: signature,
-		Valid:     valid,
+		Data:  data,
+		Log:   log,
+		Valid: valid,
 	}
 }

@@ -15,5 +15,5 @@ func PrintJSON(v interface{}) {
 }
 
 func PrintNewlines(n int) {
-	Print(Repeat("\n", n))
+	Print(RepeatStr("\n", n))
 }

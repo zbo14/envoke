@@ -8,7 +8,7 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
-	"github.com/zbo14/envoke/chroma"
+	// "github.com/zbo14/envoke/chroma"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
@@ -36,7 +36,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/album", api.AlbumHandler)
 	mux.HandleFunc("/track", api.TrackHandler)
 	mux.HandleFunc("/right", api.RightHandler)
-	mux.HandleFunc("/sign", api.SignHandler)
+	mux.HandleFunc("/rights", api.RightsHandler)
 	mux.HandleFunc("/verify", api.VerifyHandler)
 }
 
@@ -175,7 +175,7 @@ func (api *Api) TrackHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, trackMessage)
 }
 
-func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) RightsHandler(w http.ResponseWriter, req *http.Request) {
 	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
@@ -192,8 +192,10 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 		return
 	}
-	rightId := values.Get("right_id") //signing rights for now
-	signMessage, err := api.Sign(rightId)
+	musicId := values.Get("music_id")
+	rightId := values.Get("right_id")
+	rightIds := SplitStr(values.Get("right_ids"), ",")
+	signMessage, err := api.Rights(musicId, rightId, rightIds...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -213,13 +215,9 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	signatureId := values.Get("signature_id")
-	// Verify linked-data signature
-	verifyMessage, err := api.Verify(signatureId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	modelId := values.Get("model_id")
+	// Verify linked-data model
+	verifyMessage := api.Verify(modelId)
 	WriteJSON(w, verifyMessage)
 }
 
@@ -334,7 +332,7 @@ func (api *Api) Album(labelId, publisherId, title string, tracks []*multipart.Fi
 }
 
 func (api *Api) Track(albumId string, file multipart.File, labelId string, number int, publisherId string) (*TrackMessage, error) {
-	s, r := MustTeeSeeker(file)
+	s, _ := MustTeeSeeker(file) //r
 	// Extract metadata
 	meta, err := tag.ReadFrom(s)
 	if err != nil {
@@ -343,7 +341,8 @@ func (api *Api) Track(albumId string, file multipart.File, labelId string, numbe
 	metadata := meta.Raw()
 	trackTitle := meta.Title()
 	// Get acoustic fingerprint
-	fingerprint, err := chroma.NewFingerprint(r)
+	// fingerprint, err := chroma.NewFingerprint(r)
+	fingerprint := "V0VHa09XR0xXb2VnbGt3ZW93ZWZ3ZUZ3ZWZ3Z3dlZ2VnZ2VyZ2U"
 	if err != nil {
 		return nil, err
 	}
@@ -372,12 +371,12 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 	}
 	music := bigchain.GetTxData(tx)
 	sig := api.priv.Sign(MustMarshalJSON(music))
-	context := Split(values.Get("context"), ",")
+	context := SplitStr(values.Get("context"), ",")
 	issuerId := values.Get("issuer_id")
 	issuerType := values.Get("issuer_type")
 	percentageShares := values.Get("percentage_shares")
 	recipientId := values.Get("recipient_id")
-	usage := Split(values.Get("usage"), ",")
+	usage := SplitStr(values.Get("usage"), ",")
 	validFrom, err := ParseDateStr(values.Get("valid_from"))
 	if err != nil {
 		return nil, err
@@ -402,58 +401,39 @@ func (api *Api) Right(values url.Values) (*RightMessage, error) {
 	return NewRightMessage(rightId), nil
 }
 
-func (api *Api) Sign(modelId string) (*SignMessage, error) {
-	// Check that model id matches regex
-	if !MatchString(spec.ID_REGEX, modelId) {
-		return nil, ErrInvalidId
-	}
-	// Validate linked-data model
-	model, err := ld.ValidateModelId(modelId)
+func (api *Api) Rights(musicId, rightId string, rightIds ...string) (*RightsMessage, error) {
+	tx, err := bigchain.GetTx(rightId)
 	if err != nil {
 		return nil, err
 	}
-	// Check that agent, model meet criteria
-	if !MeetsCriteria(api.agentId, model) {
-		return nil, ErrCriteriaNotMet
-	}
-	sig := api.priv.Sign(MustMarshalJSON(model))
-	signature := spec.NewSignature(modelId, api.agentId, sig)
-	// Check that we generated a valid linked-data signature
-	if err := ld.ValidateSignature(signature); err != nil {
+	right := bigchain.GetTxData(tx)
+	sig := api.priv.Sign(MustMarshalJSON(right))
+	rights := spec.NewRights(api.agentId, musicId, rightId, rightIds, sig)
+	// Check that we have valid linked-data rights
+	if err = ld.ValidateRights(rights); err != nil {
 		return nil, err
 	}
-	// Send tx with signature to IPDB
-	tx := bigchain.GenerateTx(signature, nil, bigchain.CREATE, api.pub)
+	// Send tx with rights to IPDB
+	tx = bigchain.GenerateTx(rights, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	signatureId, err := bigchain.PostTx(tx)
+	rightsId, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with signature")
-	return NewSignMessage(signatureId), nil
+	api.logger.Info("SUCCESS sent tx with rights")
+	return NewRightsMessage(rightsId), nil
 }
 
-func (api *Api) Verify(signatureId string) (*VerifyMessage, error) {
-	// Validate linked-data signature
-	signature, err := ld.ValidateSignatureId(signatureId)
-	if err != nil {
-		api.logger.Info("FAILURE could not verify signature")
-		return NewVerifyMessage(err.Error(), nil, false), nil
+func (api *Api) Verify(modelId string) *VerifyMessage {
+	verifyMessage := new(VerifyMessage)
+	model, err := ld.ValidateModelId(modelId)
+	if err == nil {
+		verifyMessage.Data = model
+		verifyMessage.Valid = true
+	} else {
+		verifyMessage.Log = err.Error()
 	}
-	agentId := spec.GetSignatureSigner(signature)
-	modelId := spec.GetSignatureModel(signature)
-	tx, err := bigchain.GetTx(modelId)
-	if err != nil {
-		return nil, err
-	}
-	model := bigchain.GetTxData(tx)
-	// Check that agent, model meet criteria
-	if !MeetsCriteria(agentId, model) {
-		api.logger.Info("FAILURE could not verify signature")
-		return NewVerifyMessage(ErrCriteriaNotMet.Error(), nil, false), nil
-	}
-	api.logger.Info("SUCCESS verified signature")
-	return NewVerifyMessage("", signature, true), nil
+	return verifyMessage
 }
 
 func AgentFromValues(values url.Values) (Data, error) {
@@ -477,6 +457,45 @@ func AgentFromValues(values url.Values) (Data, error) {
 	}
 	return nil, ErrInvalidType
 }
+
+/*
+	// Check that music id matches regex
+	if !MatchString(spec.ID_REGEX, musicId) {
+		return nil, ErrInvalidId
+	}
+	// Validate linked-data music
+	model, err := ld.ValidateMusicId(musicId)
+	if err != nil {
+		return nil, err
+	}
+	// Check that agent, model meet criteria
+	if !MeetsCriteria(api.agentId, model) {
+		return nil, ErrCriteriaNotMet
+	}
+
+	func (api *Api) Verify(signatureId string) (*VerifyMessage, error) {
+		// Validate linked-data signature
+		signature, err := ld.ValidateSignatureId(signatureId)
+		if err != nil {
+			api.logger.Info("FAILURE could not verify signature")
+			return NewVerifyMessage(err.Error(), nil, false), nil
+		}
+		agentId := spec.GetSignatureSigner(signature)
+		modelId := spec.GetSignatureModel(signature)
+		tx, err := bigchain.GetTx(modelId)
+		if err != nil {
+			return nil, err
+		}
+		model := bigchain.GetTxData(tx)
+		// Check that agent, model meet criteria
+		if !MeetsCriteria(agentId, model) {
+			api.logger.Info("FAILURE could not verify signature")
+			return NewVerifyMessage(ErrCriteriaNotMet.Error(), nil, false), nil
+		}
+		api.logger.Info("SUCCESS verified signature")
+		return NewVerifyMessage("", signature, true), nil
+	}
+*/
 
 func MeetsCriteria(agentId string, model Data) bool {
 	if spec.IsRight(model) {

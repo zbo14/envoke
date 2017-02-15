@@ -75,7 +75,7 @@ func ValidInstance(instance Data) bool {
 		ARTIST, LABEL, ORGANIZATION, PUBLISHER,
 		ALBUM, TRACK,
 		SIGNATURE,
-		RIGHT:
+		RIGHT, RIGHTS:
 		// Ok..
 	default:
 		return false
@@ -104,7 +104,7 @@ func GetAgentName(agent Data) string {
 
 func GetAgentPublicKey(agent Data) crypto.PublicKey {
 	pubstr := GetAgentPublicKeyStr(agent)
-	if Empty(pubstr) {
+	if EmptyStr(pubstr) {
 		return nil
 	}
 	pub := new(ed25519.PublicKey)
@@ -174,15 +174,15 @@ func ValidAgent(agent Data) bool {
 		return false
 	}
 	email := GetAgentEmail(agent)
-	if !MatchString(EMAIL_REGEX, email) {
+	if !MatchStr(EMAIL_REGEX, email) {
 		return false
 	}
 	name := GetAgentName(agent)
-	if Empty(name) {
+	if EmptyStr(name) {
 		return false
 	}
 	pubstr := GetAgentPublicKeyStr(agent)
-	if !MatchString(PUBKEY_REGEX, pubstr) {
+	if !MatchStr(PUBKEY_REGEX, pubstr) {
 		return false
 	}
 	return len(agent) == AGENT_SIZE
@@ -214,10 +214,10 @@ func NewAlbum(artistId, labelId, publisherId, title string) Data {
 		"instance":  NewInstance(ALBUM),
 		"title":     title,
 	}
-	if !Empty(labelId) {
+	if !EmptyStr(labelId) {
 		album.Set("label_id", labelId)
 	}
-	if !Empty(publisherId) {
+	if !EmptyStr(publisherId) {
 		album.Set("publisher_id", publisherId)
 	}
 	return album
@@ -262,25 +262,25 @@ func ValidAlbum(album Data) bool {
 		return false
 	}
 	artistId := GetMusicArtist(album)
-	if !MatchString(ID_REGEX, artistId) {
+	if !MatchStr(ID_REGEX, artistId) {
 		return false
 	}
 	labelId := GetMusicLabel(album)
-	if !Empty(labelId) {
-		if !MatchString(ID_REGEX, labelId) {
+	if !EmptyStr(labelId) {
+		if !MatchStr(ID_REGEX, labelId) {
 			return false
 		}
 		count++
 	}
 	publisherId := GetMusicPublisher(album)
-	if !Empty(publisherId) {
-		if !MatchString(ID_REGEX, publisherId) {
+	if !EmptyStr(publisherId) {
+		if !MatchStr(ID_REGEX, publisherId) {
 			return false
 		}
 		count++
 	}
 	title := GetMusicTitle(album)
-	if Empty(title) {
+	if EmptyStr(title) {
 		return false
 	}
 	return len(album) != count
@@ -299,10 +299,10 @@ func NewTrack(albumId, artistId, fingerprint, labelId string, number int, publis
 	} else {
 		track.Set("artist_id", artistId)
 	}
-	if !Empty(labelId) {
+	if !EmptyStr(labelId) {
 		track.Set("label_id", labelId)
 	}
-	if !Empty(publisherId) {
+	if !EmptyStr(publisherId) {
 		track.Set("publisher_id", publisherId)
 	}
 	return track
@@ -331,34 +331,34 @@ func ValidTrack(track Data) bool {
 	}
 	// TODO: better fingerprint validation?
 	fingerprint := GetTrackFingerprint(track)
-	if !MatchString(FINGERPRINT_URL_REGEX, fingerprint) {
+	if !MatchStr(FINGERPRINT_URL_REGEX, fingerprint) {
 		return false
 	}
 	labelId := GetMusicLabel(track)
-	if !Empty(labelId) {
-		if !MatchString(ID_REGEX, labelId) {
+	if !EmptyStr(labelId) {
+		if !MatchStr(ID_REGEX, labelId) {
 			return false
 		}
 		count++
 	}
 	publisherId := GetMusicPublisher(track)
-	if !Empty(publisherId) {
-		if !MatchString(ID_REGEX, publisherId) {
+	if !EmptyStr(publisherId) {
+		if !MatchStr(ID_REGEX, publisherId) {
 			return false
 		}
 		count++
 	}
 	title := GetMusicTitle(track)
-	if Empty(title) {
+	if EmptyStr(title) {
 		return false
 	}
 	artistId := GetMusicArtist(track)
-	if MatchString(ID_REGEX, artistId) {
+	if MatchStr(ID_REGEX, artistId) {
 		count++
 		return len(track) == count
 	}
 	albumId := GetTrackAlbum(track)
-	if !MatchString(ID_REGEX, albumId) {
+	if !MatchStr(ID_REGEX, albumId) {
 		return false
 	}
 	count++
@@ -413,15 +413,15 @@ func ValidSignature(signature Data) bool {
 		return false
 	}
 	signerId := GetSignatureSigner(signature)
-	if !MatchString(ID_REGEX, signerId) {
+	if !MatchStr(ID_REGEX, signerId) {
 		return false
 	}
 	modelId := GetSignatureModel(signature)
-	if !MatchString(ID_REGEX, modelId) {
+	if !MatchStr(ID_REGEX, modelId) {
 		return false
 	}
 	valueStr := GetSignatureValueStr(signature)
-	if !MatchString(SIGNATURE_REGEX, valueStr) {
+	if !MatchStr(SIGNATURE_REGEX, valueStr) {
 		return false
 	}
 	return len(signature) == SIGNATURE_SIZE

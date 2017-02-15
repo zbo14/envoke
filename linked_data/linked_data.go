@@ -30,6 +30,18 @@ func ValidateMusicId(musicId string) (Data, error) {
 	return music, nil
 }
 
+func ValidateSignatureId(signatureId string) (Data, error) {
+	tx, err := bigchain.GetTx(signatureId)
+	if err != nil {
+		return nil, err
+	}
+	signature := bigchain.GetTxData(tx)
+	if err = ValidateSignature(signature); err != nil {
+		return nil, err
+	}
+	return signature, nil
+}
+
 func ValidateRightId(rightId string) (Data, error) {
 	tx, err := bigchain.GetTx(rightId)
 	if err != nil {
@@ -42,16 +54,16 @@ func ValidateRightId(rightId string) (Data, error) {
 	return right, nil
 }
 
-func ValidateSignatureId(signatureId string) (Data, error) {
-	tx, err := bigchain.GetTx(signatureId)
+func ValidateRightsId(rightsId string) (Data, error) {
+	tx, err := bigchain.GetTx(rightsId)
 	if err != nil {
 		return nil, err
 	}
-	signature := bigchain.GetTxData(tx)
-	if err = ValidateSignature(signature); err != nil {
+	rights := bigchain.GetTxData(tx)
+	if err := ValidateRights(rights); err != nil {
 		return nil, err
 	}
-	return signature, nil
+	return rights, nil
 }
 
 func ValidateModel(model Data) error {
@@ -65,6 +77,8 @@ func ValidateModel(model Data) error {
 		return ValidateSignature(model)
 	case spec.RIGHT:
 		return ValidateRight(model)
+	case spec.RIGHTS:
+		return ValidateRights(model)
 	}
 	return ErrorAppend(ErrInvalidType, _type)
 }
@@ -94,7 +108,7 @@ func ValidateAlbum(album Data) error {
 		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
 	}
 	labelId := spec.GetMusicLabel(album)
-	if !Empty(labelId) {
+	if !EmptyStr(labelId) {
 		tx, err = bigchain.GetTx(labelId)
 		if err != nil {
 			return err
@@ -105,7 +119,7 @@ func ValidateAlbum(album Data) error {
 		}
 	}
 	publisherId := spec.GetMusicPublisher(album)
-	if !Empty(publisherId) {
+	if !EmptyStr(publisherId) {
 		tx, err = bigchain.GetTx(publisherId)
 		if err != nil {
 			return err
@@ -123,7 +137,7 @@ func ValidateTrack(track Data) error {
 		return ErrorAppend(ErrInvalidModel, spec.TRACK)
 	}
 	labelId := spec.GetMusicLabel(track)
-	if !Empty(labelId) {
+	if !EmptyStr(labelId) {
 		tx, err := bigchain.GetTx(labelId)
 		if err != nil {
 			return err
@@ -134,7 +148,7 @@ func ValidateTrack(track Data) error {
 		}
 	}
 	publisherId := spec.GetMusicPublisher(track)
-	if !Empty(publisherId) {
+	if !EmptyStr(publisherId) {
 		tx, err := bigchain.GetTx(publisherId)
 		if err != nil {
 			return err
@@ -145,7 +159,7 @@ func ValidateTrack(track Data) error {
 		}
 	}
 	albumId := spec.GetTrackAlbum(track)
-	if !Empty(albumId) {
+	if !EmptyStr(albumId) {
 		tx, err := bigchain.GetTx(albumId)
 		if err != nil {
 			return err
@@ -210,7 +224,7 @@ func ValidateRight(right Data) error {
 		return err
 	}
 	agentId := spec.GetMusicAgent(music, issuerType)
-	if Empty(agentId) {
+	if EmptyStr(agentId) {
 		albumId := spec.GetTrackAlbum(music)
 		tx, err := bigchain.GetTx(albumId)
 		if err != nil {
@@ -252,4 +266,60 @@ func ValidateRight(right Data) error {
 		return ErrInvalidSignature
 	}
 	return nil
+}
+
+// Criteria
+// - Rights must point to same music
+// - Total percentage shares must equal 100
+// - An agent cannot receive multiple rights
+
+func ValidateRights(rights Data) error {
+	if !spec.ValidRights(rights) {
+		return ErrorAppend(ErrInvalidModel, spec.RIGHTS)
+	}
+	musicId := spec.GetRightsMusic(rights)
+	percentageShares := 0
+	recipientIds := make(map[string]struct{})
+	rightId := spec.GetMyRight(rights)
+	tx, err := bigchain.GetTx(rightId)
+	if err != nil {
+		return err
+	}
+	right := bigchain.GetTxData(tx)
+	if err := ValidateRight(right); err != nil {
+		return err
+	}
+	if musicId != spec.GetRightMusic(right) {
+		return ErrorAppend(ErrCriteriaNotMet, "right does not point to same music")
+	}
+	percentageShares += spec.GetRightPercentageShares(right)
+	recipientIds[spec.GetRightRecipient(right)] = struct{}{}
+	rightIds := spec.GetOtherRights(rights)
+	for _, rightId = range rightIds {
+		tx, err := bigchain.GetTx(rightId)
+		if err != nil {
+			return err
+		}
+		right := bigchain.GetTxData(tx)
+		if err := ValidateRight(right); err != nil {
+			return err
+		}
+		if musicId != spec.GetRightMusic(right) {
+			return ErrorAppend(ErrCriteriaNotMet, "right does not point to same music")
+		}
+		percentageShares += spec.GetRightPercentageShares(right)
+		if percentageShares > 100 {
+			return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+		}
+		recipientId := spec.GetRightRecipient(right)
+		if _, ok := recipientIds[recipientId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "agent cannot receive multiple rights for music")
+		}
+		recipientIds[recipientId] = struct{}{}
+	}
+	// if percentageShares != 100 {
+	// 	return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
+	// }
+	signature := spec.GetRightsSignature(rights)
+	return ValidateSignature(signature)
 }

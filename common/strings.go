@@ -5,20 +5,20 @@ import (
 	"strings"
 )
 
-func Empty(s string) bool {
+func EmptyStr(s string) bool {
 	return s == ""
 }
 
-func Repeat(s string, n int) string {
+func RepeatStr(s string, n int) string {
 	return strings.Repeat(s, n)
 }
 
-func Split(s, sep string) []string {
+func SplitStr(s, sep string) []string {
 	return strings.Split(s, sep)
 }
 
-func SplitN(s, sep string, n int) []string {
-	return strings.SplitN(s, sep, n)
+func FormatInt(x int64, base int) string {
+	return strconv.FormatInt(x, base)
 }
 
 func ToLower(s string) string {
@@ -27,6 +27,18 @@ func ToLower(s string) string {
 
 func Atoi(s string) (int, error) {
 	return strconv.Atoi(s)
+}
+
+func Itoa(x int) string {
+	return strconv.Itoa(x)
+}
+
+func ParseInt32(s string, base int) (int32, error) {
+	x, err := strconv.ParseInt(s, base, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int32(x), nil
 }
 
 func ParseUint16(s string, base int) (int, error) {

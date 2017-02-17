@@ -1,9 +1,18 @@
 package common
 
 import (
+	"github.com/mvdan/xurls"
 	"net/http"
 	"net/url"
 )
+
+func MatchUrlStrict(rawurl string) bool {
+	return xurls.Strict.MatchString(rawurl)
+}
+
+func MatchUrlRelaxed(rawurl string) bool {
+	return xurls.Relaxed.MatchString(rawurl)
+}
 
 func ParseUrl(rawurl string) (*url.URL, error) {
 	return url.Parse(rawurl)

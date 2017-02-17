@@ -1,10 +1,9 @@
 package api
 
 import (
-	"bytes"
-	"mime/multipart"
+	"io"
 	"net/http"
-	"net/url"
+	"time"
 
 	"github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
@@ -33,20 +32,16 @@ func NewApi() *Api {
 func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.LoginHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
-	mux.HandleFunc("/album", api.AlbumHandler)
-	mux.HandleFunc("/track", api.TrackHandler)
-	mux.HandleFunc("/right", api.RightHandler)
-	mux.HandleFunc("/rights", api.RightsHandler)
-	mux.HandleFunc("/verify", api.VerifyHandler)
+	mux.HandleFunc("/composition", api.CompositionHandler)
+	mux.HandleFunc("/recording", api.RecordingHandler)
+	mux.HandleFunc("/license", api.LicenseHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	// Get request values
 	values, err := UrlValues(req)
 	if err != nil {
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
@@ -54,171 +49,191 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	agentId := values.Get("agent_id")
 	privstr := values.Get("private_key")
-	_type := values.Get("type")
-	// Login
-	loginMessage, err := api.Login(agentId, privstr, _type)
-	if err != nil {
+	if err := api.Login(agentId, privstr); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(loginMessage))
+	w.WriteHeader(http.StatusOK)
 }
 
 func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	// Get request values
 	values, err := UrlValues(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// Register new user
-	registerMessage, err := api.Register(values)
+	email := values.Get("email")
+	name := values.Get("name")
+	password := values.Get("password")
+	socialMedia := values.Get("socialMedia")
+	msg, err := api.Register(email, name, password, socialMedia)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, registerMessage)
+	WriteJSON(w, msg)
 }
 
-func (api *Api) AlbumHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
+func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	// Check that we're logged in
-	if !api.LoggedIn() {
-		http.Error(w, ErrInvalidLogin.Error(), http.StatusUnauthorized)
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// Multipart form
+	numRights, err := Atoi(values.Get("numRights"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	rights := make([]Data, numRights)
+	for i := 0; i < numRights; i++ {
+		n := Itoa(i)
+		context := SplitStr(values.Get("context"+n), ",")
+		exclusive, err := ParseBool(values.Get("exclusive" + n))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		percentageShares := values.Get("percentageShares" + n)
+		rightHolderId := values.Get("rightHolderId" + n)
+		usage := SplitStr(values.Get("usage"+n), ",")
+		validFrom, err := ParseDateStr(values.Get("validFrom" + n))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		validTo, err := ParseDateStr(values.Get("validTo" + n))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rights[i], err = api.Right(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	composerId := values.Get("composerId")
+	publisherId := values.Get("publisherId")
+	title := values.Get("title")
+	composition, err := api.Composition(composerId, publisherId, rights, title)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, composition)
+}
+
+func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
 	form, err := MultipartForm(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	title := form.Value["album_title"][0]
-	labelId := form.Value["label_id"][0]
-	publisherId := form.Value["publisher_id"][0]
-	tracks := form.File["tracks"]
-	// Extract metadata from tracks, send album to Bigchain/IPDB
-	albumMessage, err := api.Album(labelId, publisherId, title, tracks)
+	numRights, err := Atoi(form.Value["numRights"][0])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, albumMessage)
+	rights := make([]Data, numRights)
+	for i := 0; i < numRights; i++ {
+		n := Itoa(i)
+		context := SplitStr(form.Value["context"+n][0], ",")
+		exclusive, err := ParseBool(form.Value["exclusive"+n][0])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		percentageShares := form.Value["percentageShares"+n][0]
+		rightHolderId := form.Value["rightHolderId"+n][0]
+		usage := SplitStr(form.Value["usage"+n][0], ",")
+		validFrom, err := ParseDateStr(form.Value["validFrom"+n][0])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		validTo, err := ParseDateStr(form.Value["validTo"+n][0])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rights[i], err = api.Right(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	compositionId := form.Value["compositionId"][0]
+	file, err := form.File["recording"][0].Open()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	labelId := form.Value["labelId"][0]
+	performerId := form.Value["performerId"][0]
+	producerId := form.Value["producerId"][0]
+	publishingLicenseId := form.Value["publishingLicenseId"][0]
+	recording, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId, rights)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, recording)
 }
 
-func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
+func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	// Check that we're logged in
-	if !api.LoggedIn() {
-		http.Error(w, ErrInvalidLogin.Error(), http.StatusUnauthorized)
-		return
-	}
-	// Get request values
 	values, err := UrlValues(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	values.Set("issuer_id", api.agentId)
-	// Music Rights
-	rightMessage, err := api.Right(values)
+	compositionId := values.Get("compositionId")
+	licenseeId := values.Get("licenseeId")
+	licenseType := values.Get("licenseType")
+	recordingId := values.Get("recordingId")
+	validFrom, err := ParseDateStr(values.Get("validFrom"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, rightMessage)
-}
-
-func (api *Api) TrackHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	// Check that we're logged in
-	if !api.LoggedIn() {
-		http.Error(w, ErrInvalidLogin.Error(), http.StatusUnauthorized)
-		return
-	}
-	// Multipart form
-	form, err := MultipartForm(req)
+	validTo, err := ParseDateStr(values.Get("validTo"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	labelId := form.Value["label_id"][0]
-	publisherId := form.Value["publisher_id"][0]
-	file, err := form.File["tracks"][0].Open()
+	var license Data
+	switch licenseType {
+	case
+		spec.LICENSE_TYPE_MECHANICAL,
+		spec.LICENSE_TYPE_SYNCHRONIZATION:
+		license, err = api.PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo)
+	case spec.LICENSE_TYPE_MASTER:
+		license, err = api.RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo)
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, licenseType).Error(), http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// Extract track metadata and send to BigchainDB/IPDB
-	trackMessage, err := api.Track("", file, labelId, 0, publisherId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, trackMessage)
-}
-
-func (api *Api) RightsHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	// Check that we're logged in
-	if !api.LoggedIn() {
-		http.Error(w, ErrInvalidLogin.Error(), http.StatusUnauthorized)
-		return
-	}
-	// Get request values
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
-		return
-	}
-	musicId := values.Get("music_id")
-	rightId := values.Get("right_id")
-	rightIds := SplitStr(values.Get("right_ids"), ",")
-	signMessage, err := api.Rights(musicId, rightId, rightIds...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, signMessage)
-}
-
-func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
-	// Should be POST request
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	// Get request values
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	modelId := values.Get("model_id")
-	// Verify linked-data model
-	verifyMessage := api.Verify(modelId)
-	WriteJSON(w, verifyMessage)
+	WriteJSON(w, license)
 }
 
 func (api *Api) LoggedIn() bool {
@@ -244,263 +259,134 @@ func (api *Api) LoggedIn() bool {
 // but artist must be verified by partner org before they
 // create profile..
 
-func (api *Api) Login(agentId, privstr, _type string) (string, error) {
-	// PrivKey
+func (api *Api) Login(agentId, privstr string) error {
 	priv := new(ed25519.PrivateKey)
 	if err := priv.FromString(privstr); err != nil {
-		return "", err
+		return err
 	}
-	// Query tx with agent id
 	tx, err := bigchain.GetTx(agentId)
 	if err != nil {
-		return "", err
+		return err
 	}
-	// Validate agent
 	agent := bigchain.GetTxData(tx)
-	if !spec.ValidAgentWithType(agent, _type) {
-		return "", ErrorAppend(ErrInvalidModel, _type)
+	if err = spec.ValidAgent(agent); err != nil {
+		return err
 	}
-	// Check that privkey matches agent pubkey
-	pub := spec.GetAgentPublicKey(agent)
-	if !bytes.Equal(priv.Public().Bytes(), pub.Bytes()) {
-		return "", ErrInvalidKey
+	pub := bigchain.GetTxPublicKey(tx)
+	if !pub.Equals(priv.Public()) {
+		return ErrInvalidKey
 	}
 	api.agent = agent
 	api.agentId = agentId
 	api.priv = priv
 	api.pub = pub
 	agentName := spec.GetAgentName(agent)
-	api.logger.Info("SUCCESS you are logged in")
-	return NewLoginMessage(agentName), nil
+	api.logger.Info(Sprintf("SUCCESS %s is logged in", agentName))
+	return nil
 }
 
-func (api *Api) Register(values url.Values) (*RegisterMessage, error) {
-	// Generate keypair from password
-	password := values.Get("password")
+type RegisterMessage struct {
+	AgentId string `json:"agent_id"`
+	PrivKey string `json:"private_key"`
+	PubKey  string `json:"public_key"`
+}
+
+func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMessage, error) {
 	priv, pub := ed25519.GenerateKeypairFromPassword(password)
-	values.Set("public_key", pub.String())
-	// New agent
-	agent, err := AgentFromValues(values)
-	if err != nil {
+	agent := spec.NewAgent(email, name, socialMedia)
+	if err := spec.ValidAgent(agent); err != nil {
 		return nil, err
-	}
-	// Check that we created a valid agent
-	if !spec.ValidAgent(agent) {
-		return nil, ErrorAppend(ErrInvalidModel, spec.GetType(agent))
 	}
 	tx := bigchain.GenerateTx(agent, nil, bigchain.CREATE, pub)
 	bigchain.FulfillTx(tx, priv)
-	// send request to IPDB
 	agentId, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	_type := spec.GetType(agent)
-	api.logger.Info("SUCCESS registered new " + _type)
-	return NewRegisterMessage(agentId, priv.String(), pub.String()), nil
+	api.logger.Info("SUCCESS registered new agent: " + name)
+	return &RegisterMessage{
+		AgentId: agentId,
+		PrivKey: priv.String(),
+		PubKey:  pub.String(),
+	}, nil
 }
 
-func (api *Api) Album(labelId, publisherId, title string, tracks []*multipart.FileHeader) (*AlbumMessage, error) {
-	// New album
-	album := spec.NewAlbum(api.agentId, labelId, publisherId, title)
-	// Check that we generated a valid linked-data album
-	if err := ld.ValidateAlbum(album); err != nil {
+func (api *Api) Composition(composerId, publisherId string, rights []Data, title string) (composition Data, err error) {
+	composition = spec.NewComposition(composerId, publisherId, rights, title)
+	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
-	// Send tx with album
-	tx := bigchain.GenerateTx(album, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.GenerateTx(composition, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	albumId, err := bigchain.PostTx(tx)
+	composition["id"], err = bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with album")
-	// It would be great if we could batch write tracks
-	trackIds := make([]string, len(tracks))
-	for i, track := range tracks {
-		file, err := track.Open()
-		if err != nil {
-			return nil, err
-		}
-		trackMessage, err := api.Track(albumId, file, "", i+1, "")
-		if err != nil {
-			return nil, err
-		}
-		trackIds[i] = trackMessage.TrackId
-	}
-	return NewAlbumMessage(albumId, trackIds), nil
+	api.logger.Info("SUCCESS sent tx with composition")
+	return composition, nil
 }
 
-func (api *Api) Track(albumId string, file multipart.File, labelId string, number int, publisherId string) (*TrackMessage, error) {
+func (api *Api) Recording(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string, rights []Data) (Data, error) {
 	s, _ := MustTeeSeeker(file) //r
-	// Extract metadata
 	meta, err := tag.ReadFrom(s)
 	if err != nil {
 		return nil, err
 	}
 	metadata := meta.Raw()
-	trackTitle := meta.Title()
-	// Get acoustic fingerprint
 	// fingerprint, err := chroma.NewFingerprint(r)
 	fingerprint := "V0VHa09XR0xXb2VnbGt3ZW93ZWZ3ZUZ3ZWZ3Z3dlZ2VnZ2VyZ2U"
 	if err != nil {
 		return nil, err
 	}
-	// New track
-	track := spec.NewTrack(albumId, api.agentId, fingerprint, labelId, number, publisherId, trackTitle)
-	// Check that we generated a valid linked-data track
-	if err := ld.ValidateTrack(track); err != nil {
+	recording := spec.NewRecording(compositionId, fingerprint, labelId, performerId, producerId, publishingLicenseId, rights)
+	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
-	// Send tx with track
-	tx := bigchain.GenerateTx(track, metadata, bigchain.CREATE, api.pub)
+	tx := bigchain.GenerateTx(recording, metadata, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	trackId, err := bigchain.PostTx(tx)
+	recording["id"], err = bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with track")
-	return NewTrackMessage(trackId), nil
+	api.logger.Info("SUCCESS sent tx with recording")
+	return recording, nil
 }
 
-func (api *Api) Right(values url.Values) (*RightMessage, error) {
-	musicId := values.Get("music_id")
-	tx, err := bigchain.GetTx(musicId)
-	if err != nil {
+func (api *Api) Right(context []string, exclusive bool, percentageShares, rightHolderId string, usage []string, validFrom, validTo time.Time) (Data, error) {
+	right := spec.NewRight(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
+	if err := spec.ValidRight(right); err != nil {
 		return nil, err
 	}
-	music := bigchain.GetTxData(tx)
-	sig := api.priv.Sign(MustMarshalJSON(music))
-	context := SplitStr(values.Get("context"), ",")
-	issuerId := values.Get("issuer_id")
-	issuerType := values.Get("issuer_type")
-	percentageShares := values.Get("percentage_shares")
-	recipientId := values.Get("recipient_id")
-	usage := SplitStr(values.Get("usage"), ",")
-	validFrom, err := ParseDateStr(values.Get("valid_from"))
-	if err != nil {
+	api.logger.Info("SUCCESS created right")
+	return right, nil
+}
+
+func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType string, validFrom, validTo time.Time) (license Data, err error) {
+	license = spec.NewPublishingLicense(compositionId, licenseeId, api.agentId, licenseType, validFrom, validTo)
+	if _, err = ld.ValidatePublishingLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	validTo, err := ParseDateStr(values.Get("valid_to"))
-	if err != nil {
-		return nil, err
-	}
-	// New right
-	right := spec.NewRight(context, issuerId, issuerType, musicId, percentageShares, recipientId, sig, usage, validFrom, validTo)
-	// Check that we generated a valid linked-data right
-	if err = ld.ValidateRight(right); err != nil {
-		return nil, err
-	}
-	tx = bigchain.GenerateTx(right, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.GenerateTx(license, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	rightId, err := bigchain.PostTx(tx)
+	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with right")
-	return NewRightMessage(rightId), nil
+	api.logger.Info("SUCCESS sent tx with publishing license")
+	return license, nil
 }
 
-func (api *Api) Rights(musicId, rightId string, rightIds ...string) (*RightsMessage, error) {
-	tx, err := bigchain.GetTx(rightId)
-	if err != nil {
+func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId string, validFrom, validTo time.Time) (license Data, err error) {
+	license = spec.NewRecordingLicense(licenseeId, api.agentId, licenseType, recordingId, validFrom, validTo)
+	if _, err = ld.ValidateRecordingLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	right := bigchain.GetTxData(tx)
-	sig := api.priv.Sign(MustMarshalJSON(right))
-	rights := spec.NewRights(api.agentId, musicId, rightId, rightIds, sig)
-	// Check that we have valid linked-data rights
-	if err = ld.ValidateRights(rights); err != nil {
-		return nil, err
-	}
-	// Send tx with rights to IPDB
-	tx = bigchain.GenerateTx(rights, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.GenerateTx(license, nil, bigchain.CREATE, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	rightsId, err := bigchain.PostTx(tx)
+	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with rights")
-	return NewRightsMessage(rightsId), nil
-}
-
-func (api *Api) Verify(modelId string) *VerifyMessage {
-	verifyMessage := new(VerifyMessage)
-	model, err := ld.ValidateModelId(modelId)
-	if err == nil {
-		verifyMessage.Data = model
-		verifyMessage.Valid = true
-	} else {
-		verifyMessage.Log = err.Error()
-	}
-	return verifyMessage
-}
-
-func AgentFromValues(values url.Values) (Data, error) {
-	email := values.Get("email")
-	name := values.Get("name")
-	pub := new(ed25519.PublicKey)
-	pubstr := values.Get("public_key")
-	if err := pub.FromString(pubstr); err != nil {
-		return nil, err
-	}
-	switch values.Get("type") {
-	case spec.ARTIST:
-		return spec.NewArtist(email, name, pub), nil
-	case spec.LABEL:
-		return spec.NewLabel(email, name, pub), nil
-	case spec.ORGANIZATION:
-		return spec.NewOrganization(email, name, pub), nil
-	case spec.PUBLISHER:
-		return spec.NewPublisher(email, name, pub), nil
-		// TODO: add more partner types?
-	}
-	return nil, ErrInvalidType
-}
-
-/*
-	// Check that music id matches regex
-	if !MatchString(spec.ID_REGEX, musicId) {
-		return nil, ErrInvalidId
-	}
-	// Validate linked-data music
-	model, err := ld.ValidateMusicId(musicId)
-	if err != nil {
-		return nil, err
-	}
-	// Check that agent, model meet criteria
-	if !MeetsCriteria(api.agentId, model) {
-		return nil, ErrCriteriaNotMet
-	}
-
-	func (api *Api) Verify(signatureId string) (*VerifyMessage, error) {
-		// Validate linked-data signature
-		signature, err := ld.ValidateSignatureId(signatureId)
-		if err != nil {
-			api.logger.Info("FAILURE could not verify signature")
-			return NewVerifyMessage(err.Error(), nil, false), nil
-		}
-		agentId := spec.GetSignatureSigner(signature)
-		modelId := spec.GetSignatureModel(signature)
-		tx, err := bigchain.GetTx(modelId)
-		if err != nil {
-			return nil, err
-		}
-		model := bigchain.GetTxData(tx)
-		// Check that agent, model meet criteria
-		if !MeetsCriteria(agentId, model) {
-			api.logger.Info("FAILURE could not verify signature")
-			return NewVerifyMessage(ErrCriteriaNotMet.Error(), nil, false), nil
-		}
-		api.logger.Info("SUCCESS verified signature")
-		return NewVerifyMessage("", signature, true), nil
-	}
-*/
-
-func MeetsCriteria(agentId string, model Data) bool {
-	if spec.IsRight(model) {
-		recipientId := spec.GetRightRecipient(model)
-		return agentId == recipientId
-	}
-	return false
+	api.logger.Info("SUCCESS sent tx with recording license")
+	return license, nil
 }

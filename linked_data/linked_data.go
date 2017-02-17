@@ -3,323 +3,282 @@ package linked_data
 import (
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
+	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/spec"
 )
 
-func ValidateModelId(modelId string) (Data, error) {
-	tx, err := bigchain.GetTx(modelId)
+func ValidateCompositionById(compositionId string) (Data, error) {
+	tx, err := bigchain.GetTx(compositionId)
 	if err != nil {
 		return nil, err
 	}
-	model := bigchain.GetTxData(tx)
-	if err = ValidateModel(model); err != nil {
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	pub := bigchain.GetTxPublicKey(tx)
+	composition := bigchain.GetTxData(tx)
+	if err = spec.ValidComposition(composition); err != nil {
 		return nil, err
 	}
-	return model, nil
+	return ValidateComposition(composition, pub)
 }
 
-func ValidateMusicId(musicId string) (Data, error) {
-	tx, err := bigchain.GetTx(musicId)
+func ValidateComposition(composition Data, pub crypto.PublicKey) (Data, error) {
+	composerId := spec.GetCompositionComposer(composition)
+	tx, err := bigchain.GetTx(composerId)
 	if err != nil {
 		return nil, err
 	}
-	music := bigchain.GetTxData(tx)
-	if err = ValidateMusic(music); err != nil {
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	composerPub := bigchain.GetTxPublicKey(tx)
+	composer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(composer); err != nil {
 		return nil, err
 	}
-	return music, nil
-}
-
-func ValidateSignatureId(signatureId string) (Data, error) {
-	tx, err := bigchain.GetTx(signatureId)
+	publisherId := spec.GetCompositionPublisher(composition)
+	tx, err = bigchain.GetTx(publisherId)
 	if err != nil {
 		return nil, err
 	}
-	signature := bigchain.GetTxData(tx)
-	if err = ValidateSignature(signature); err != nil {
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	publisherPub := bigchain.GetTxPublicKey(tx)
+	publisher := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(publisher); err != nil {
 		return nil, err
 	}
-	return signature, nil
-}
-
-func ValidateRightId(rightId string) (Data, error) {
-	tx, err := bigchain.GetTx(rightId)
-	if err != nil {
-		return nil, err
+	if pub.Equals(composerPub) {
+		//..
+	} else if pub.Equals(publisherPub) {
+		//..
+	} else {
+		return nil, ErrInvalidKey
 	}
-	right := bigchain.GetTxData(tx)
-	if err := ValidateRight(right); err != nil {
-		return nil, err
-	}
-	return right, nil
-}
-
-func ValidateRightsId(rightsId string) (Data, error) {
-	tx, err := bigchain.GetTx(rightsId)
-	if err != nil {
-		return nil, err
-	}
-	rights := bigchain.GetTxData(tx)
-	if err := ValidateRights(rights); err != nil {
-		return nil, err
-	}
-	return rights, nil
-}
-
-func ValidateModel(model Data) error {
-	_type := spec.GetType(model)
-	switch _type {
-	case spec.ALBUM:
-		return ValidateAlbum(model)
-	case spec.TRACK:
-		return ValidateTrack(model)
-	case spec.SIGNATURE:
-		return ValidateSignature(model)
-	case spec.RIGHT:
-		return ValidateRight(model)
-	case spec.RIGHTS:
-		return ValidateRights(model)
-	}
-	return ErrorAppend(ErrInvalidType, _type)
-}
-
-func ValidateMusic(music Data) error {
-	_type := spec.GetType(music)
-	if _type == spec.ALBUM {
-		return ValidateAlbum(music)
-	}
-	if _type == spec.TRACK {
-		return ValidateTrack(music)
-	}
-	return ErrorAppend(ErrInvalidType, _type)
-}
-
-func ValidateAlbum(album Data) error {
-	if !spec.ValidAlbum(album) {
-		return ErrorAppend(ErrInvalidModel, spec.ALBUM)
-	}
-	artistId := spec.GetMusicArtist(album)
-	tx, err := bigchain.GetTx(artistId)
-	if err != nil {
-		return err
-	}
-	artist := bigchain.GetTxData(tx)
-	if !spec.ValidArtist(artist) {
-		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
-	}
-	labelId := spec.GetMusicLabel(album)
-	if !EmptyStr(labelId) {
-		tx, err = bigchain.GetTx(labelId)
+	rights := spec.GetCompositionRights(composition)
+	for _, right := range rights {
+		rightHolderId := spec.GetRightHolder(right)
+		tx, err = bigchain.GetTx(rightHolderId)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		label := bigchain.GetTxData(tx)
-		if !spec.ValidLabel(label) {
-			return ErrorAppend(ErrInvalidModel, spec.LABEL)
+		if !bigchain.FulfilledTx(tx) {
+			Println(3)
+			return nil, ErrInvalidFulfillment
 		}
-	}
-	publisherId := spec.GetMusicPublisher(album)
-	if !EmptyStr(publisherId) {
-		tx, err = bigchain.GetTx(publisherId)
-		if err != nil {
-			return err
-		}
-		publisher := bigchain.GetTxData(tx)
-		if !spec.ValidPublisher(publisher) {
-			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
+		rightHolder := bigchain.GetTxData(tx)
+		if err = spec.ValidAgent(rightHolder); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return composition, nil
 }
 
-func ValidateTrack(track Data) error {
-	if !spec.ValidTrack(track) {
-		return ErrorAppend(ErrInvalidModel, spec.TRACK)
-	}
-	labelId := spec.GetMusicLabel(track)
-	if !EmptyStr(labelId) {
-		tx, err := bigchain.GetTx(labelId)
-		if err != nil {
-			return err
-		}
-		label := bigchain.GetTxData(tx)
-		if !spec.ValidLabel(label) {
-			return ErrorAppend(ErrInvalidModel, spec.LABEL)
-		}
-	}
-	publisherId := spec.GetMusicPublisher(track)
-	if !EmptyStr(publisherId) {
-		tx, err := bigchain.GetTx(publisherId)
-		if err != nil {
-			return err
-		}
-		publisher := bigchain.GetTxData(tx)
-		if !spec.ValidPublisher(publisher) {
-			return ErrorAppend(ErrInvalidModel, spec.PUBLISHER)
-		}
-	}
-	albumId := spec.GetTrackAlbum(track)
-	if !EmptyStr(albumId) {
-		tx, err := bigchain.GetTx(albumId)
-		if err != nil {
-			return err
-		}
-		album := bigchain.GetTxData(tx)
-		return ValidateAlbum(album)
-	}
-	artistId := spec.GetMusicArtist(track)
-	tx, err := bigchain.GetTx(artistId)
+func ValidateRecordingById(recordingId string) (Data, error) {
+	tx, err := bigchain.GetTx(recordingId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	artist := bigchain.GetTxData(tx)
-	if !spec.ValidArtist(artist) {
-		return ErrorAppend(ErrInvalidModel, spec.ARTIST)
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
 	}
-	return nil
+	pub := bigchain.GetTxPublicKey(tx)
+	recording := bigchain.GetTxData(tx)
+	if err = spec.ValidRecording(recording); err != nil {
+		return nil, err
+	}
+	return ValidateRecording(recording, pub)
 }
 
-func ValidateSignature(signature Data) error {
-	if !spec.ValidSignature(signature) {
-		return ErrorAppend(ErrInvalidModel, spec.SIGNATURE)
-	}
-	modelId := spec.GetSignatureModel(signature)
-	tx, err := bigchain.GetTx(modelId)
+func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
+	compositionId := spec.GetRecordingComposition(recording)
+	composition, err := ValidateCompositionById(compositionId)
 	if err != nil {
-		return err
+		return nil, ErrorAppend(ErrInvalidModel, spec.COMPOSITION)
 	}
-	model := bigchain.GetTxData(tx)
-	if err := ValidateModel(model); err != nil {
-		return err
+	rights := spec.GetCompositionRights(composition)
+	rightHolderIds := make(map[string]struct{})
+	for _, right := range rights {
+		rightHolderIds[spec.GetRightHolder(right)] = struct{}{}
 	}
-	signerId := spec.GetSignatureSigner(signature)
-	tx, err = bigchain.GetTx(signerId)
+	labelId := spec.GetRecordingLabel(recording)
+	tx, err := bigchain.GetTx(labelId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	signer := bigchain.GetTxData(tx)
-	if !spec.ValidAgent(signer) {
-		return err
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
 	}
-	pub := spec.GetAgentPublicKey(signer)
-	sig := spec.GetSignatureValue(signature)
-	if !pub.Verify(MustMarshalJSON(model), sig) {
-		return ErrInvalidSignature
+	labelPub := bigchain.GetTxPublicKey(tx)
+	label := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(label); err != nil {
+		return nil, err
 	}
-	return nil
+	performerId := spec.GetRecordingPerformer(recording)
+	tx, err = bigchain.GetTx(performerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	performerPub := bigchain.GetTxPublicKey(tx)
+	performer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(performer); err != nil {
+		return nil, err
+	}
+	producerId := spec.GetRecordingProducer(recording)
+	tx, err = bigchain.GetTx(producerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	producer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(producer); err != nil {
+		return nil, ErrorAppend(ErrInvalidModel, spec.AGENT)
+	}
+	Println(rightHolderIds, performerId)
+	if pub.Equals(labelPub) {
+		if _, ok := rightHolderIds[labelId]; !ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not composition right holder")
+		}
+	} else if pub.Equals(performerPub) {
+		if _, ok := rightHolderIds[performerId]; !ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "performer is not composition right holder")
+		}
+	} else {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "recording must be signed by label or performer")
+	}
+	rights = spec.GetRecordingRights(recording)
+	for _, right := range rights {
+		rightHolderId := spec.GetRightHolder(right)
+		tx, err = bigchain.GetTx(rightHolderId)
+		if err != nil {
+			return nil, err
+		}
+		if !bigchain.FulfilledTx(tx) {
+			return nil, ErrInvalidFulfillment
+		}
+		rightHolder := bigchain.GetTxData(tx)
+		if err = spec.ValidAgent(rightHolder); err != nil {
+			return nil, ErrorAppend(ErrInvalidModel, spec.AGENT)
+		}
+	}
+	return recording, nil
 }
 
-func ValidateRight(right Data) error {
-	if !spec.ValidRight(right) {
-		return ErrorAppend(ErrInvalidModel, spec.RIGHT)
-	}
-	issuerId, issuerType := spec.GetRightIssuer(right)
-	musicId := spec.GetRightMusic(right)
-	tx, err := bigchain.GetTx(musicId)
+func ValidatePublishingLicenseById(licenseId string) (Data, error) {
+	tx, err := bigchain.GetTx(licenseId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	music := bigchain.GetTxData(tx)
-	if err = ValidateMusic(music); err != nil {
-		return err
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
 	}
-	agentId := spec.GetMusicAgent(music, issuerType)
-	if EmptyStr(agentId) {
-		albumId := spec.GetTrackAlbum(music)
-		tx, err := bigchain.GetTx(albumId)
-		if err != nil {
-			return err
-		}
-		album := bigchain.GetTxData(tx)
-		if err := ValidateAlbum(album); err != nil {
-			return err
-		}
-		agentId = spec.GetMusicAgent(album, issuerType)
+	pub := bigchain.GetTxPublicKey(tx)
+	license := bigchain.GetTxData(tx)
+	if err = spec.ValidPublishingLicense(license); err != nil {
+		return nil, err
 	}
-	if agentId != issuerId {
-		return ErrorAppend(ErrInvalidId, "issuer")
-	}
-	tx, err = bigchain.GetTx(agentId)
-	if err != nil {
-		return err
-	}
-	agent := bigchain.GetTxData(tx)
-	if !spec.ValidAgentWithType(agent, issuerType) {
-		return ErrorAppend(ErrInvalidModel, issuerType)
-	}
-	pub := spec.GetAgentPublicKey(agent)
-	recipientId := spec.GetRightRecipient(right)
-	tx, err = bigchain.GetTx(recipientId)
-	if err != nil {
-		return err
-	}
-	recipient := bigchain.GetTxData(tx)
-	if !spec.ValidAgent(recipient) {
-		return ErrorAppend(ErrInvalidModel, spec.GetType(recipient))
-	}
-	signature := spec.GetRightSignature(right)
-	if err = ValidateSignature(signature); err != nil {
-		return err
-	}
-	sig := spec.GetSignatureValue(signature)
-	if !pub.Verify(MustMarshalJSON(music), sig) {
-		return ErrInvalidSignature
-	}
-	return nil
+	return ValidatePublishingLicense(license, pub)
 }
 
-// Criteria
-// - Rights must point to same music
-// - Total percentage shares must equal 100
-// - An agent cannot receive multiple rights
-
-func ValidateRights(rights Data) error {
-	if !spec.ValidRights(rights) {
-		return ErrorAppend(ErrInvalidModel, spec.RIGHTS)
-	}
-	musicId := spec.GetRightsMusic(rights)
-	percentageShares := 0
-	recipientIds := make(map[string]struct{})
-	rightId := spec.GetMyRight(rights)
-	tx, err := bigchain.GetTx(rightId)
+func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error) {
+	compositionId := spec.GetLicenseComposition(license)
+	composition, err := ValidateCompositionById(compositionId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	right := bigchain.GetTxData(tx)
-	if err := ValidateRight(right); err != nil {
-		return err
+	rights := spec.GetCompositionRights(composition)
+	rightHolderIds := make(map[string]struct{})
+	for _, right := range rights {
+		rightHolderIds[spec.GetRightHolder(right)] = struct{}{}
 	}
-	if musicId != spec.GetRightMusic(right) {
-		return ErrorAppend(ErrCriteriaNotMet, "right does not point to same music")
+	licenserId := spec.GetLicenseLicenser(license)
+	if _, ok := rightHolderIds[licenserId]; !ok {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not a composition right holder")
 	}
-	percentageShares += spec.GetRightPercentageShares(right)
-	recipientIds[spec.GetRightRecipient(right)] = struct{}{}
-	rightIds := spec.GetOtherRights(rights)
-	for _, rightId = range rightIds {
-		tx, err := bigchain.GetTx(rightId)
-		if err != nil {
-			return err
-		}
-		right := bigchain.GetTxData(tx)
-		if err := ValidateRight(right); err != nil {
-			return err
-		}
-		if musicId != spec.GetRightMusic(right) {
-			return ErrorAppend(ErrCriteriaNotMet, "right does not point to same music")
-		}
-		percentageShares += spec.GetRightPercentageShares(right)
-		if percentageShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
-		}
-		recipientId := spec.GetRightRecipient(right)
-		if _, ok := recipientIds[recipientId]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "agent cannot receive multiple rights for music")
-		}
-		recipientIds[recipientId] = struct{}{}
+	tx, err := bigchain.GetTx(licenserId)
+	if err != nil {
+		return nil, err
 	}
-	// if percentageShares != 100 {
-	// 	return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
-	// }
-	signature := spec.GetRightsSignature(rights)
-	return ValidateSignature(signature)
+	if !bigchain.FulfilledTx(tx) {
+		return nil, err
+	}
+	if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
+		return nil, ErrInvalidKey
+	}
+	licenseeId := spec.GetLicenseLicensee(license)
+	tx, err = bigchain.GetTx(licenseeId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	licensee := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(licensee); err != nil {
+		return nil, err
+	}
+	return license, nil
+}
+
+func ValidateRecordingLicenseById(licenseId string) (Data, error) {
+	tx, err := bigchain.GetTx(licenseId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	pub := bigchain.GetTxPublicKey(tx)
+	license := bigchain.GetTxData(tx)
+	if err = spec.ValidRecordingLicense(license); err != nil {
+		return nil, err
+	}
+	return ValidateRecordingLicense(license, pub)
+}
+
+func ValidateRecordingLicense(license Data, pub crypto.PublicKey) (Data, error) {
+	recordingId := spec.GetLicenseRecording(license)
+	recording, err := ValidateRecordingById(recordingId)
+	if err != nil {
+		return nil, err
+	}
+	rights := spec.GetRecordingRights(recording)
+	rightHolderIds := make(map[string]struct{})
+	for _, right := range rights {
+		rightHolderIds[spec.GetRightHolder(right)] = struct{}{}
+	}
+	licenserId := spec.GetLicenseLicenser(license)
+	if _, ok := rightHolderIds[licenserId]; !ok {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not a recording right holder")
+	}
+	tx, err := bigchain.GetTx(licenserId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, err
+	}
+	if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
+		return nil, ErrInvalidKey
+	}
+	licenseeId := spec.GetLicenseLicensee(license)
+	tx, err = bigchain.GetTx(licenseeId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	licensee := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(licensee); err != nil {
+		return nil, err
+	}
+	return license, nil
 }

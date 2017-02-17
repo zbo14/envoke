@@ -2,8 +2,8 @@ package api
 
 import (
 	. "github.com/zbo14/envoke/common"
+	ld "github.com/zbo14/envoke/linked_data"
 	"github.com/zbo14/envoke/spec"
-	"net/url"
 	"testing"
 )
 
@@ -11,98 +11,79 @@ var path = "/Users/zach/Desktop/music/Allegro from Duet in C Major.mp3"
 
 func TestApi(t *testing.T) {
 	api := NewApi()
-	// Register Publisher
-	values := make(url.Values)
-	values.Set("email", "publisher@gmail.com")
-	values.Set("name", "publisher_name")
-	values.Set("password", "canyouguess")
-	values.Set("type", spec.PUBLISHER)
-	registerPublisher, err := api.Register(values)
+	// Register publisher
+	registerPublisher, err := api.Register("publisher@gmail.com", "publisher", "password", "www.publisher.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	publisherId := registerPublisher.AgentId
-	PrintJSON(registerPublisher)
-	// Register Record Label
-	values.Set("email", "label@gmail.com")
-	values.Set("name", "label_name")
-	values.Set("password", "shhhh")
-	values.Set("type", spec.LABEL)
-	registerLabel, err := api.Register(values)
+	// Register record label
+	registerLabel, err := api.Register("label@gmail.com", "label", "shhh", "www.record_label.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	labelId := registerLabel.AgentId
-	PrintJSON(registerLabel)
-	// Register Artist
-	values.Set("email", "artist@gmail.com")
-	values.Set("name", "artist_name")
-	values.Set("password", "itsasecret")
-	values.Set("type", spec.ARTIST)
-	registerArtist, err := api.Register(values)
+	// Register artist
+	registerArtist, err := api.Register("artist@gmail.com", "artist", "itsasecret", "www.artist.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	PrintJSON(registerArtist)
-	// Login Artist
+	// Register radio station
+	registerRadio, err := api.Register("radio@gmail.com", "radio", "waves", "www.radio.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	radioId := registerRadio.AgentId
+	// Login artist
 	artistId := registerArtist.AgentId
 	privstr := registerArtist.PrivKey
-	loginArtist, err := api.Login(artistId, privstr, spec.ARTIST)
+	if err := api.Login(artistId, privstr); err != nil {
+		t.Fatal(err)
+	}
+	// Composition Rights
+	composerRight, err := api.Right([]string{"commercial_use"}, false, "30", artistId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2020-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	PrintJSON(loginArtist)
-	// New track by artist
+	publisherRight, err := api.Right([]string{"commercial_use"}, false, "70", publisherId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2020-01-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Composition
+	composition, err := api.Composition(artistId, publisherId, []Data{composerRight, publisherRight}, "composition_title")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Recording Rights
+	labelRight, err := api.Right([]string{"commercial_use"}, false, "60", labelId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2022-01-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	performerRight, err := api.Right([]string{"commercial_use"}, false, "40", artistId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2023-01-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Recording
 	file, err := OpenFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	trackMessage, err := api.Track("", file, labelId, 0, publisherId)
+	recording, err := api.Recording(composition.GetStr("id"), file, labelId, artistId, artistId, "", []Data{labelRight, performerRight})
 	if err != nil {
 		t.Fatal(err)
 	}
-	trackId := trackMessage.TrackId
-	PrintJSON(trackMessage)
-	// Artist issues right w/ 50% shares to publisher
-	values.Set("context", "commercial_use")
-	values.Set("issuer_id", artistId)
-	values.Set("issuer_type", spec.ARTIST)
-	values.Set("music_id", trackId)
-	values.Set("percentage_shares", "50")
-	values.Set("recipient_id", publisherId)
-	values.Set("usage", "copy,play")
-	values.Set("valid_from", DateStr(2018, 1, 1))
-	values.Set("valid_to", DateStr(2020, 1, 1))
-	publisherRightMessage, err := api.Right(values)
+	// Login label
+	privstr = registerLabel.PrivKey
+	if err := api.Login(labelId, privstr); err != nil {
+		t.Fatal(err)
+	}
+	// Recording license
+	license, err := api.RecordingLicense(radioId, spec.LICENSE_TYPE_MASTER, recording.GetStr("id"), MustParseDateStr("2018-01-01"), MustParseDateStr("2019-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	publisherRightId := publisherRightMessage.RightId
-	PrintJSON(publisherRightMessage)
-	// Artist issues right w/ 20% shares to label
-	values.Set("percentage_shares", "20")
-	values.Set("recipient_id", labelId)
-	labelRightMessage, err := api.Right(values)
-	if err != nil {
-		t.Fatal(err)
-	}
-	labelRightId := labelRightMessage.RightId
-	PrintJSON(labelRightMessage)
-	// Login Publisher
-	privstr = registerPublisher.PrivKey
-	loginPublisher, err := api.Login(publisherId, privstr, spec.PUBLISHER)
-	if err != nil {
-		t.Fatal(err)
-	}
-	Println(loginPublisher)
-	// Rights
-	rightsMessage, err := api.Rights(trackId, publisherRightId, labelRightId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rightId := rightsMessage.RightsId
-	PrintJSON(rightsMessage)
 	// Verify
-	verifyMessage := api.Verify(rightId)
-	PrintJSON(verifyMessage)
+	if _, err = ld.ValidateRecordingLicenseById(license.GetStr("id")); err != nil {
+		t.Fatal(err)
+	}
 }

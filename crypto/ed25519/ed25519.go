@@ -140,6 +140,19 @@ func (pub *PublicKey) Bytes() []byte {
 	return pub.inner
 }
 
+func (pub *PublicKey) Equals(other crypto.PublicKey) bool {
+	return bytes.Equal(pub.Bytes(), other.Bytes())
+}
+
+func (pub *PublicKey) EqualsAny(others ...crypto.PublicKey) bool {
+	for _, other := range others {
+		if pub.Equals(other) {
+			return true
+		}
+	}
+	return false
+}
+
 func (pub *PublicKey) FromBytes(p []byte) error {
 	if len(p) != PUBKEY_SIZE {
 		return ErrInvalidSize
@@ -183,6 +196,19 @@ func (sig *Signature) Bytes() []byte {
 		return nil
 	}
 	return sig.p
+}
+
+func (sig *Signature) Equals(other crypto.Signature) bool {
+	return bytes.Equal(sig.Bytes(), other.Bytes())
+}
+
+func (sig *Signature) EqualsAny(others ...crypto.Signature) bool {
+	for _, other := range others {
+		if sig.Equals(other) {
+			return true
+		}
+	}
+	return false
 }
 
 func (sig *Signature) FromBytes(p []byte) error {

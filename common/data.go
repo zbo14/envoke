@@ -10,7 +10,9 @@ func (d Data) Get(key string) interface{}        { return d[key] }
 func (d Data) Set(key string, value interface{}) { d[key] = value }
 func (d Data) Clear(key string)                  { d[key] = nil }
 
+func (d Data) GetBool(key string) bool          { return MustAssertBool(d.Get(key)) }
 func (d Data) GetData(key string) Data          { return AssertData(d.Get(key)) }
+func (d Data) GetDataSlice(key string) []Data   { return AssertDataSlice(d.Get(key)) }
 func (d Data) GetInt(key string) int            { return AssertInt(d.Get(key)) }
 func (d Data) GetInt32(key string) int32        { return AssertInt32(d.Get(key)) }
 func (d Data) GetInt32Slice(key string) []int32 { return AssertInt32Slice(d.Get(key)) }

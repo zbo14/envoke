@@ -2,6 +2,10 @@ package common
 
 import "time"
 
+func MustAssertBool(v interface{}) bool {
+	return v.(bool)
+}
+
 func AssertData(v interface{}) Data {
 	if d, ok := v.(Data); ok {
 		return d
@@ -9,6 +13,14 @@ func AssertData(v interface{}) Data {
 	if m, ok := v.(map[string]interface{}); ok {
 		return Data(m)
 	}
+	return nil
+}
+
+func AssertDataSlice(v interface{}) []Data {
+	if slice, ok := v.([]Data); ok {
+		return slice
+	}
+	Printf("%T", v)
 	return nil
 }
 
@@ -27,8 +39,8 @@ func AssertInt32(v interface{}) int32 {
 }
 
 func AssertInt32Slice(v interface{}) []int32 {
-	if n, ok := v.([]int32); ok {
-		return n
+	if slice, ok := v.([]int32); ok {
+		return slice
 	}
 	return nil
 }

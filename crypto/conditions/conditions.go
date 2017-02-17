@@ -212,7 +212,7 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 			return f, nil
 		}
 	}
-	return nil, ErrInvalidRegex
+	return nil, ErrInvalidFulfillment
 }
 
 func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
@@ -281,7 +281,7 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		}
 		return f, nil
 	}
-	return nil, ErrInvalidRegex
+	return nil, ErrInvalidFulfillment
 }
 
 type fulfillment struct {
@@ -319,7 +319,7 @@ func (f *fulfillment) Bitmask() int { return f.bitmask }
 
 func (f *fulfillment) FromString(uri string) (err error) {
 	if !MatchStr(FULFILLMENT_REGEX, uri) {
-		return ErrInvalidRegex
+		return ErrInvalidFulfillment
 	}
 	parts := SplitStr(uri, ":")
 	f.id, err = ParseUint16(parts[1], 16)
@@ -505,7 +505,7 @@ func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, 
 
 func (c *Condition) FromString(uri string) (err error) {
 	if !MatchStr(CONDITION_REGEX, uri) {
-		return ErrInvalidRegex
+		return ErrInvalidCondition
 	}
 	parts := SplitStr(uri, ":")
 	c.id, err = ParseUint16(parts[1], 16)

@@ -33,12 +33,30 @@ func Itoa(x int) string {
 	return strconv.Itoa(x)
 }
 
+func FormatInt64(x int64, base int) string {
+	return strconv.FormatInt(x, base)
+}
+
+func ParseBool(s string) (bool, error) {
+	return strconv.ParseBool(s)
+}
+
 func ParseInt32(s string, base int) (int32, error) {
 	x, err := strconv.ParseInt(s, base, 32)
 	if err != nil {
 		return 0, err
 	}
 	return int32(x), nil
+}
+
+func ParseInt64(s string, base int) (int64, error) {
+	return strconv.ParseInt(s, base, 64)
+}
+
+func MustParseInt64(s string, base int) int64 {
+	x, err := ParseInt64(s, base)
+	Check(err)
+	return x
 }
 
 func ParseUint16(s string, base int) (int, error) {

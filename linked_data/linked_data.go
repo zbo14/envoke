@@ -65,7 +65,6 @@ func ValidateComposition(composition Data, pub crypto.PublicKey) (Data, error) {
 			return nil, err
 		}
 		if !bigchain.FulfilledTx(tx) {
-			Println(3)
 			return nil, ErrInvalidFulfillment
 		}
 		rightHolder := bigchain.GetTxData(tx)
@@ -96,7 +95,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	compositionId := spec.GetRecordingComposition(recording)
 	composition, err := ValidateCompositionById(compositionId)
 	if err != nil {
-		return nil, ErrorAppend(ErrInvalidModel, spec.COMPOSITION)
+		return nil, err
 	}
 	rights := spec.GetCompositionRights(composition)
 	rightHolderIds := make(map[string]struct{})
@@ -141,7 +140,6 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	if err = spec.ValidAgent(producer); err != nil {
 		return nil, ErrorAppend(ErrInvalidModel, spec.AGENT)
 	}
-	Println(rightHolderIds, performerId)
 	if pub.Equals(labelPub) {
 		if _, ok := rightHolderIds[labelId]; !ok {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not composition right holder")

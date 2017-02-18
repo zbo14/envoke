@@ -1,0 +1,69 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+  <header>LOGIN</header>
+  <form id="login-form">
+    <input type="text" name="agentId" placeholder="AGENT ID" required /><br>
+    <input type="password" name="privateKey" placeholder="PRIVATE KEY" required /><br>
+    <input type="submit" value="login" />
+  </form>
+  <header>REGISTER</header>
+  <form id="register-form">
+    <input type="text" name="name" placeholder="NAME" required /><br>
+    <input type="text" name="email" placeholder="EMAIL" required /><br> 
+    <input type="text" name="socialMedia" placeholder="SOCIAL MEDIA" required /><br>
+    <input type="password" name="password" placeholder="PASSWORD" required /><br>
+    <input type="submit" value="register"/>
+  </form>
+  <pre id="message"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState == 4) {
+        if (xhr.status == 200) {
+          callback(xhr.responseText);
+        } else {
+          alert(xhr.responseText);
+        };
+      };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+  var json = JSON.parse(responseText);
+  var str = JSON.stringify(json,null,2);
+  $("#message").text(str);
+};
+
+var redirect = function(responseText) {
+  console.log(responseText)
+  location.replace("http://localhost:8888/composition_recording");
+}
+
+window.onload = function(){
+
+    var loginForm = $("#login-form");
+    loginForm.submit(function(event) {
+      event.preventDefault();
+      var formData = loginForm.serialize();
+      httpPostAsync("http://localhost:8888/login", formData, redirect);
+    });
+
+    var registerForm = $("#register-form");
+    registerForm.submit(function(event) {
+      event.preventDefault();
+      var formData = registerForm.serialize();   
+      httpPostAsync("http://localhost:8888/register", formData, callback); 
+    });
+}
+</script>
+{{end}}
+
+
+

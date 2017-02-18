@@ -20,12 +20,12 @@ const (
 	LICENSE_TYPE_MECHANICAL      = "mechanical_license"
 	LICENSE_TYPE_SYNCHRONIZATION = "synchronization_license"
 
-	// INSTANCE_SIZE    =
-	// AGENT_SIZE       =
-	// COMPOSITION_SIZE =
-	// RECORDING_SIZE   =
-	// RIGHT_SIZE       =
-	// LICENSE_SIZE     =
+	INSTANCE_SIZE    = 2
+	AGENT_SIZE       = 4
+	COMPOSITION_SIZE = 5
+	RECORDING_SIZE   = 7
+	RIGHT_SIZE       = 5
+	LICENSE_SIZE     = 7
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -68,11 +68,14 @@ func GetInstanceType(instance Data) string {
 	return instance.GetStr("type")
 }
 
-func GetInstance(thing Data) Data {
+func GetInstance(thing Data) (instance Data) {
 	if err := ValidInstance(thing); err == nil {
 		return thing
 	}
-	return thing.GetData("instance")
+	if instance = thing.GetData("instance"); instance == nil {
+		instance = AssertMapData(thing["instance"])
+	}
+	return instance
 }
 
 func GetType(thing Data) string {
@@ -100,6 +103,9 @@ func ValidInstance(instance Data) error {
 		// Ok..
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
+	}
+	if len(instance) != INSTANCE_SIZE {
+		return ErrorAppend(ErrInvalidSize, "instance")
 	}
 	return nil
 }
@@ -151,6 +157,9 @@ func ValidAgent(agent Data) error {
 	if !MatchUrlRelaxed(socialMedia) {
 		return ErrorAppend(ErrInvalidUrl, "social media")
 	}
+	if len(agent) != AGENT_SIZE {
+		return ErrorAppend(ErrInvalidSize, AGENT)
+	}
 	return nil
 }
 
@@ -170,8 +179,13 @@ func GetCompositionComposer(composition Data) string {
 	return composition.GetStr("composerId")
 }
 
-func GetCompositionRights(composition Data) []interface{} {
-	return composition["rights"].([]interface{})
+func GetCompositionRights(composition Data) []Data {
+	slice := composition.GetInterfaceSlice("rights")
+	rights := make([]Data, len(slice))
+	for i, s := range slice {
+		rights[i] = AssertMapData(s)
+	}
+	return rights
 }
 
 func GetCompositionPublisher(composition Data) string {
@@ -219,6 +233,9 @@ func ValidComposition(composition Data) error {
 	if EmptyStr(title) {
 		return ErrorAppend(ErrEmptyStr, "title")
 	}
+	if len(composition) != COMPOSITION_SIZE {
+		return ErrorAppend(ErrInvalidSize, COMPOSITION)
+	}
 	return nil
 }
 
@@ -263,7 +280,12 @@ func GetRecordingProducer(recording Data) string {
 }
 
 func GetRecordingRights(recording Data) []Data {
-	return recording.GetDataSlice("rights")
+	slice := recording.GetInterfaceSlice("rights")
+	rights := make([]Data, len(slice))
+	for i, s := range slice {
+		rights[i] = AssertMapData(s)
+	}
+	return rights
 }
 
 func ValidRecording(recording Data) error {
@@ -308,36 +330,32 @@ func ValidRecording(recording Data) error {
 		}
 		rightHolderIds[rightHolderId] = struct{}{}
 	}
+	if percentageShares != 100 {
+		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares does not equal 100")
+	}
 	publishingLicenseId := GetRecordingPublishingLicense(recording)
 	if !EmptyStr(publishingLicenseId) {
 		if !MatchId(publishingLicenseId) {
 			return ErrorAppend(ErrCriteriaNotMet, "Recording must have composition right or publishing license")
 		}
 	}
+	if len(recording) != RECORDING_SIZE {
+		return ErrorAppend(ErrInvalidSize, RECORDING)
+	}
 	return nil
 }
 
 // Right
 
-func NewRight(context []string, exclusive bool, percentageShares, rightHolderId string, usage []string, validFrom, validTo time.Time) Data {
+func NewRight(percentageShares, rightHolderId, validFrom, validTo string) Data {
 	return Data{
-		"context":          context,
-		"exclusive":        exclusive,
+		// should we include context, usage?
 		"instance":         NewInstance(RIGHT),
 		"percentageShares": percentageShares,
 		"rightHolderId":    rightHolderId,
-		"usage":            usage,
 		"validFrom":        validFrom,
 		"validTo":          validTo,
 	}
-}
-
-func GetRightContext(right Data) []string {
-	return right.GetStrSlice("context")
-}
-
-func GetRightExclusive(right Data) bool {
-	return right.GetBool("exclusive")
 }
 
 func GetRightPercentageShares(right Data) int {
@@ -348,16 +366,12 @@ func GetRightHolder(right Data) string {
 	return right.GetStr("rightHolderId")
 }
 
-func GetRightUsage(right Data) []string {
-	return right.GetStrSlice("usage")
-}
-
 func GetRightValidFrom(right Data) time.Time {
-	return right.GetTime("validFrom")
+	return MustParseDateStr(right.GetStr("validFrom"))
 }
 
 func GetRightValidTo(right Data) time.Time {
-	return right.GetTime("validTo")
+	return MustParseDateStr(right.GetStr("validTo"))
 }
 
 func ValidRight(right Data) error {
@@ -380,8 +394,14 @@ func ValidRight(right Data) error {
 	// TODO: validate usage
 	validFrom := GetRightValidFrom(right)
 	validTo := GetRightValidTo(right)
-	if validFrom.After(validTo) {
-		return ErrInvalidTime
+	if !validFrom.Before(validTo) {
+		return ErrorAppend(ErrInvalidTime, "range")
+	}
+	if validTo.Before(Now()) {
+		return ErrorAppend(ErrInvalidTime, "expired")
+	}
+	if len(right) != RIGHT_SIZE {
+		return ErrorAppend(ErrInvalidSize, RIGHT)
 	}
 	return nil
 }
@@ -390,7 +410,7 @@ func ValidRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, licenseType, _type string, validFrom, validTo time.Time) Data {
+func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo string) Data {
 	return Data{
 		"instance":    NewInstance(_type),
 		"licenseeId":  licenseeId,
@@ -401,13 +421,13 @@ func NewLicense(licenseeId, licenserId, licenseType, _type string, validFrom, va
 	}
 }
 
-func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType string, validFrom, validTo time.Time) Data {
+func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, validFrom, validTo string) Data {
 	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_PUBLISHING, validFrom, validTo)
 	license.Set("compositionId", compositionId)
 	return license
 }
 
-func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId string, validFrom, validTo time.Time) Data {
+func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId, validFrom, validTo string) Data {
 	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_RECORDING, validFrom, validTo)
 	license.Set("recordingId", recordingId)
 	return license
@@ -434,11 +454,11 @@ func GetLicenseType(license Data) string {
 }
 
 func GetLicenseValidFrom(license Data) time.Time {
-	return license.GetTime("validFrom")
+	return MustParseDateStr(license.GetStr("validFrom"))
 }
 
 func GetLicenseValidTo(license Data) time.Time {
-	return license.GetTime("validTo")
+	return MustParseDateStr(license.GetStr("validTo"))
 }
 
 func ValidLicense(license Data, _type string) error {
@@ -488,6 +508,9 @@ func ValidPublishingLicense(license Data) error {
 	default:
 		return ErrorAppend(ErrInvalidType, licenseType)
 	}
+	if len(license) != LICENSE_SIZE {
+		return ErrorAppend(ErrInvalidSize, "license")
+	}
 	return nil
 }
 
@@ -506,6 +529,9 @@ func ValidRecordingLicense(license Data) error {
 		//..
 	default:
 		return ErrorAppend(ErrInvalidType, licenseType)
+	}
+	if len(license) != LICENSE_SIZE {
+		return ErrorAppend(ErrInvalidSize, "license")
 	}
 	return nil
 }

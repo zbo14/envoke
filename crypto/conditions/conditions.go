@@ -426,16 +426,13 @@ func (f *fulfillment) Validate(p []byte) bool {
 		// Ok..
 	case f.id == ED25519_ID && f.bitmask == ED25519_BITMASK:
 		if f.size != ED25519_SIZE {
-			Println(1)
 			return false
 		}
 	case f.id == RSA_ID && f.bitmask == RSA_BITMASK:
 		if f.size != RSA_SIZE {
-			Println(2)
 			return false
 		}
 	default:
-		Println(3)
 		return false
 	}
 	switch {

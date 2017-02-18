@@ -3,7 +3,6 @@ package api
 import (
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
@@ -21,6 +20,7 @@ type Api struct {
 	logger  Logger
 	priv    crypto.PrivateKey
 	pub     crypto.PublicKey
+	rights  []Data
 }
 
 func NewApi() *Api {
@@ -32,9 +32,11 @@ func NewApi() *Api {
 func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.LoginHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
+	mux.HandleFunc("/right", api.RightHandler)
 	mux.HandleFunc("/composition", api.CompositionHandler)
 	mux.HandleFunc("/recording", api.RecordingHandler)
-	mux.HandleFunc("/license", api.LicenseHandler)
+	mux.HandleFunc("/publishing_license", api.PublishingLicenseHandler)
+	mux.HandleFunc("/recording_license", api.RecordingLicenseHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
@@ -47,8 +49,8 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 		return
 	}
-	agentId := values.Get("agent_id")
-	privstr := values.Get("private_key")
+	agentId := values.Get("agentId")
+	privstr := values.Get("privateKey")
 	if err := api.Login(agentId, privstr); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -78,6 +80,33 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, msg)
 }
 
+func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	percentageShares := values.Get("percentageShares")
+	rightHolderId := values.Get("rightHolderId")
+	validFrom := values.Get("validFrom")
+	validTo := values.Get("validTo")
+	right, err := api.Right(percentageShares, rightHolderId, validFrom, validTo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	api.rights = append(api.rights, right)
+	w.WriteHeader(http.StatusOK)
+}
+
 func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
@@ -88,47 +117,19 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	numRights, err := Atoi(values.Get("numRights"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if api.rights == nil {
+		http.Error(w, ErrorAppend(ErrCriteriaNotMet, "no composition rights").Error(), http.StatusBadRequest)
 		return
-	}
-	rights := make([]Data, numRights)
-	for i := 0; i < numRights; i++ {
-		n := Itoa(i)
-		context := SplitStr(values.Get("context"+n), ",")
-		exclusive, err := ParseBool(values.Get("exclusive" + n))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		percentageShares := values.Get("percentageShares" + n)
-		rightHolderId := values.Get("rightHolderId" + n)
-		usage := SplitStr(values.Get("usage"+n), ",")
-		validFrom, err := ParseDateStr(values.Get("validFrom" + n))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		validTo, err := ParseDateStr(values.Get("validTo" + n))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		rights[i], err = api.Right(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 	}
 	composerId := values.Get("composerId")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	composition, err := api.Composition(composerId, publisherId, rights, title)
+	composition, err := api.Composition(composerId, publisherId, api.rights, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	api.rights = nil
 	WriteJSON(w, composition)
 }
 
@@ -142,38 +143,9 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	numRights, err := Atoi(form.Value["numRights"][0])
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if api.rights == nil {
+		http.Error(w, ErrorAppend(ErrCriteriaNotMet, "no recording rights").Error(), http.StatusBadRequest)
 		return
-	}
-	rights := make([]Data, numRights)
-	for i := 0; i < numRights; i++ {
-		n := Itoa(i)
-		context := SplitStr(form.Value["context"+n][0], ",")
-		exclusive, err := ParseBool(form.Value["exclusive"+n][0])
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		percentageShares := form.Value["percentageShares"+n][0]
-		rightHolderId := form.Value["rightHolderId"+n][0]
-		usage := SplitStr(form.Value["usage"+n][0], ",")
-		validFrom, err := ParseDateStr(form.Value["validFrom"+n][0])
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		validTo, err := ParseDateStr(form.Value["validTo"+n][0])
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		rights[i], err = api.Right(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 	}
 	compositionId := form.Value["compositionId"][0]
 	file, err := form.File["recording"][0].Open()
@@ -185,15 +157,16 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publishingLicenseId := form.Value["publishingLicenseId"][0]
-	recording, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId, rights)
+	recording, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId, api.rights)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	api.rights = nil
 	WriteJSON(w, recording)
 }
 
-func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) PublishingLicenseHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -206,29 +179,32 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	compositionId := values.Get("compositionId")
 	licenseeId := values.Get("licenseeId")
 	licenseType := values.Get("licenseType")
+	validFrom := values.Get("validFrom")
+	validTo := values.Get("validTo")
+	license, err := api.PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, license)
+}
+
+func (api *Api) RecordingLicenseHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	licenseeId := values.Get("licenseeId")
+	licenseType := values.Get("licenseType")
 	recordingId := values.Get("recordingId")
-	validFrom, err := ParseDateStr(values.Get("validFrom"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	validTo, err := ParseDateStr(values.Get("validTo"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	var license Data
-	switch licenseType {
-	case
-		spec.LICENSE_TYPE_MECHANICAL,
-		spec.LICENSE_TYPE_SYNCHRONIZATION:
-		license, err = api.PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo)
-	case spec.LICENSE_TYPE_MASTER:
-		license, err = api.RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo)
-	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, licenseType).Error(), http.StatusBadRequest)
-		return
-	}
+	validFrom := values.Get("validFrom")
+	validTo := values.Get("validTo")
+	license, err := api.RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -252,12 +228,6 @@ func (api *Api) LoggedIn() bool {
 	api.logger.Error("LOGIN FAILED")
 	return false
 }
-
-// should we do login or just registration via partner org?
-// having artist identity on envoke might ease attribution
-// e.g. album/track contains uri to artist profile in db
-// but artist must be verified by partner org before they
-// create profile..
 
 func (api *Api) Login(agentId, privstr string) error {
 	priv := new(ed25519.PrivateKey)
@@ -352,8 +322,8 @@ func (api *Api) Recording(compositionId string, file io.Reader, labelId, perform
 	return recording, nil
 }
 
-func (api *Api) Right(context []string, exclusive bool, percentageShares, rightHolderId string, usage []string, validFrom, validTo time.Time) (Data, error) {
-	right := spec.NewRight(context, exclusive, percentageShares, rightHolderId, usage, validFrom, validTo)
+func (api *Api) Right(percentageShares, rightHolderId, validFrom, validTo string) (Data, error) {
+	right := spec.NewRight(percentageShares, rightHolderId, validFrom, validTo)
 	if err := spec.ValidRight(right); err != nil {
 		return nil, err
 	}
@@ -361,7 +331,7 @@ func (api *Api) Right(context []string, exclusive bool, percentageShares, rightH
 	return right, nil
 }
 
-func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType string, validFrom, validTo time.Time) (license Data, err error) {
+func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo string) (license Data, err error) {
 	license = spec.NewPublishingLicense(compositionId, licenseeId, api.agentId, licenseType, validFrom, validTo)
 	if _, err = ld.ValidatePublishingLicense(license, api.pub); err != nil {
 		return nil, err
@@ -376,7 +346,7 @@ func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType string,
 	return license, nil
 }
 
-func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId string, validFrom, validTo time.Time) (license Data, err error) {
+func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo string) (license Data, err error) {
 	license = spec.NewRecordingLicense(licenseeId, api.agentId, licenseType, recordingId, validFrom, validTo)
 	if _, err = ld.ValidateRecordingLicense(license, api.pub); err != nil {
 		return nil, err

@@ -11,79 +11,82 @@ var path = "/Users/zach/Desktop/music/Allegro from Duet in C Major.mp3"
 
 func TestApi(t *testing.T) {
 	api := NewApi()
-	// Register publisher
-	registerPublisher, err := api.Register("publisher@gmail.com", "publisher", "password", "www.publisher.com")
+	publisher1, err := api.Register("publisher1@gmail.com", "publisher1", "password1", "www.publisher1.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	publisherId := registerPublisher.AgentId
-	// Register record label
-	registerLabel, err := api.Register("label@gmail.com", "label", "shhh", "www.record_label.com")
+	publisher1Id := publisher1.AgentId
+	publisher2, err := api.Register("publisher2@gmail.com", "publisher2", "password2", "www.publisher2.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	labelId := registerLabel.AgentId
-	// Register artist
-	registerArtist, err := api.Register("artist@gmail.com", "artist", "itsasecret", "www.artist.com")
+	publisher2Id := publisher2.AgentId
+	label, err := api.Register("label@gmail.com", "label", "shhh", "www.record_label.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Register radio station
-	registerRadio, err := api.Register("radio@gmail.com", "radio", "waves", "www.radio.com")
+	labelId := label.AgentId
+	artist, err := api.Register("artist@gmail.com", "artist", "itsasecret", "www.soundcloud_profile.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	radioId := registerRadio.AgentId
-	// Login artist
-	artistId := registerArtist.AgentId
-	privstr := registerArtist.PrivKey
-	if err := api.Login(artistId, privstr); err != nil {
-		t.Fatal(err)
-	}
-	// Composition Rights
-	composerRight, err := api.Right([]string{"commercial_use"}, false, "30", artistId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2020-01-01"))
+	radio, err := api.Register("radio@gmail.com", "radio", "waves", "www.radio_station.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	publisherRight, err := api.Right([]string{"commercial_use"}, false, "70", publisherId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2020-01-01"))
+	radioId := radio.AgentId
+	artistId := artist.AgentId
+	privstr := artist.PrivKey
+	if err = api.Login(artistId, privstr); err != nil {
+		t.Fatal(err)
+	}
+	composerRight, err := api.Right("30", artistId, "2018-01-01", "2020-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Composition
-	composition, err := api.Composition(artistId, publisherId, []Data{composerRight, publisherRight}, "composition_title")
+	publisher1Right, err := api.Right("70", publisher1Id, "2018-01-01", "2020-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Recording Rights
-	labelRight, err := api.Right([]string{"commercial_use"}, false, "60", labelId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2022-01-01"))
+	composition, err := api.Composition(artistId, publisher1Id, []Data{composerRight, publisher1Right}, "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
-	performerRight, err := api.Right([]string{"commercial_use"}, false, "40", artistId, []string{"copy", "play"}, MustParseDateStr("2018-01-01"), MustParseDateStr("2023-01-01"))
+	compositionId := composition.GetStr("id")
+	labelRight, err := api.Right("60", labelId, "2018-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Recording
+	performerRight, err := api.Right("40", artistId, "2018-01-01", "2023-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
 	file, err := OpenFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Recording(composition.GetStr("id"), file, labelId, artistId, artistId, "", []Data{labelRight, performerRight})
+	recording, err := api.Recording(compositionId, file, labelId, artistId, artistId, "", []Data{labelRight, performerRight})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Login label
-	privstr = registerLabel.PrivKey
-	if err := api.Login(labelId, privstr); err != nil {
+	recordingId := recording.GetStr("id")
+	privstr = label.PrivKey
+	if err = api.Login(labelId, privstr); err != nil {
 		t.Fatal(err)
 	}
-	// Recording license
-	license, err := api.RecordingLicense(radioId, spec.LICENSE_TYPE_MASTER, recording.GetStr("id"), MustParseDateStr("2018-01-01"), MustParseDateStr("2019-01-01"))
+	license, err := api.RecordingLicense(radioId, spec.LICENSE_TYPE_MASTER, recordingId, "2018-01-01", "2019-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Verify
 	if _, err = ld.ValidateRecordingLicenseById(license.GetStr("id")); err != nil {
+		t.Fatal(err)
+	}
+	privstr = publisher1.PrivKey
+	if err = api.Login(publisher1Id, privstr); err != nil {
+		t.Fatal(err)
+	}
+	license, err = api.PublishingLicense(compositionId, publisher2Id, spec.LICENSE_TYPE_MECHANICAL, "2018-01-01", "2025-01-01")
+	if _, err = ld.ValidatePublishingLicenseById(license.GetStr("id")); err != nil {
 		t.Fatal(err)
 	}
 }

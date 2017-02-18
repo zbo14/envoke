@@ -10,14 +10,16 @@ func (d Data) Get(key string) interface{}        { return d[key] }
 func (d Data) Set(key string, value interface{}) { d[key] = value }
 func (d Data) Clear(key string)                  { d[key] = nil }
 
-func (d Data) GetBool(key string) bool          { return MustAssertBool(d.Get(key)) }
-func (d Data) GetData(key string) Data          { return AssertData(d.Get(key)) }
-func (d Data) GetDataSlice(key string) []Data   { return AssertDataSlice(d.Get(key)) }
-func (d Data) GetInt(key string) int            { return AssertInt(d.Get(key)) }
-func (d Data) GetInt32(key string) int32        { return AssertInt32(d.Get(key)) }
-func (d Data) GetInt32Slice(key string) []int32 { return AssertInt32Slice(d.Get(key)) }
-func (d Data) GetInt64(key string) int64        { return AssertInt64(d.Get(key)) }
-func (d Data) GetStr(key string) string         { return AssertStr(d.Get(key)) }
+func (d Data) GetBool(key string) bool                    { return MustAssertBool(d.Get(key)) }
+func (d Data) GetData(key string) Data                    { return AssertData(d.Get(key)) }
+func (d Data) GetDataSlice(key string) []Data             { return AssertDataSlice(d.Get(key)) }
+func (d Data) GetInt(key string) int                      { return AssertInt(d.Get(key)) }
+func (d Data) GetInt32(key string) int32                  { return AssertInt32(d.Get(key)) }
+func (d Data) GetInt32Slice(key string) []int32           { return AssertInt32Slice(d.Get(key)) }
+func (d Data) GetInt64(key string) int64                  { return AssertInt64(d.Get(key)) }
+func (d Data) GetInterfaceSlice(key string) []interface{} { return AssertInterfaceSlice(d.Get(key)) }
+func (d Data) GetMap(key string) map[string]interface{}   { return AssertMap(d.Get(key)) }
+func (d Data) GetStr(key string) string                   { return AssertStr(d.Get(key)) }
 
 func (d Data) GetStrInt(key string) int {
 	x, err := Atoi(d.GetStr(key))
@@ -37,7 +39,7 @@ func (d Data) GetInnerValue(keys ...string) (v interface{}) {
 			v = inner.Get(k)
 			break
 		}
-		inner = inner.GetData(k)
+		inner = inner.GetMap(k)
 	}
 	return
 }
@@ -49,7 +51,7 @@ func (d Data) SetInnerValue(v interface{}, keys ...string) {
 			inner.Set(k, v)
 			return
 		}
-		inner = inner.GetData(k)
+		inner = inner.GetMap(k)
 	}
 }
 
@@ -58,5 +60,5 @@ func (d Data) GetInnerStr(keys ...string) string {
 }
 
 func (d Data) GetInnerData(keys ...string) Data {
-	return AssertData(d.GetInnerValue(keys...))
+	return AssertMapData(d.GetInnerValue(keys...))
 }

@@ -18,6 +18,16 @@ func MustCreateFile(path string) *os.File {
 	return file
 }
 
+func OpenWriteFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+}
+
+func MustOpenWriteFile(path string) *os.File {
+	file, err := OpenWriteFile(path)
+	Check(err)
+	return file
+}
+
 func OpenFile(path string) (*os.File, error) {
 	return os.Open(path)
 }

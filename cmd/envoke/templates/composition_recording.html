@@ -30,6 +30,22 @@
     <input accept="audio" type="file" name="recording" required /><br>
     <input type="submit" value="submit" />
 </form>
+<header>SEARCH</header>
+<form id="search-form" name="search-form">
+    <input type="text" name="modelId" placeholder="COMPOSITION/RECORDING ID" required /><br>
+    <select form="search-form" name="field" required>
+        <option value="" disabled selected></option>
+        <option value="composer">COMPOSER</option>
+        <option value="composition">COMPOSITION</option>
+        <option value="label">LABEL</option>
+        <option value="performer">PERFORMER</option>
+        <option value="producer">PRODUCER</option>
+        <option value="publisher">PUBLISHER</option>
+        <option value="publishingLicense">PUBLISHING LICENSE</option>
+        <option value="rightHolders">RIGHT HOLDERS</option>
+    </select>
+    <input type="submit" value="search" />
+</form>
 <pre id="message"></pre>
 <script type="text/javascript">
 
@@ -76,6 +92,13 @@ window.onload = function() {
     event.preventDefault();
     var formData = new FormData(event.target);
     httpPostAsync("http://localhost:8888/recording", formData, callback);
+  });
+
+  var searchForm = $("#search-form");
+  searchForm.submit(function(event){
+    event.preventDefault();
+    var formData = searchForm.serialize();
+    httpPostAsync("http://localhost:8888/search", formData, callback);
   });
 }
 </script>

@@ -224,7 +224,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	field := values.Get("field")
 	modelId := values.Get("modelId")
-	model, err := ld.QueryModelIdField(modelId, field)
+	model, err := ld.QueryModelIdField(field, modelId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

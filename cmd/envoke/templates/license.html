@@ -32,6 +32,18 @@
     <input type="date" name="validTo" required /><br>
     <input type="submit" value="submit" />
 </form>
+<header>SEARCH</header>
+<form id="search-form" name="search-form">
+    <input type="text" name="modelId" placeholder="LICENSE ID" required /><br>
+    <select form="search-form" name="field" required>
+        <option value="" disabled selected></option>
+        <option value="composition">COMPOSITION</option>
+        <option value="licensee">LICENSEE</option>
+        <option value="licenser">LICENSER</option>
+        <option value="recording">RECORDING</option>
+    </select>
+    <input type="submit" value="search" />
+</form>
 <pre id="message"></pre>
 <script type="text/javascript">
 
@@ -57,17 +69,26 @@ var callback = function(responseText) {
 };
 
 window.onload = function() {
+
     var publishingLicenseForm = $("#publishing-license-form");
     publishingLicenseForm.submit(function(event) {
         event.preventDefault();
         var formData = publishingLicenseForm.serialize();
         httpPostAsync("http://localhost:8888/publishing_license", formData, callback);
     });
+
     var recordingLicenseForm = $("#recording-license-form");
     recordingLicenseForm.submit(function(event){
         event.preventDefault();
         var formData = recordingLicenseForm.serialize();
         httpPostAsync("http://localhost:8888/recording_license", formData, callback);
+    });
+
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search", formData, callback);
     });
 }
 </script>

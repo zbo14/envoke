@@ -20,12 +20,13 @@ const (
 	LICENSE_TYPE_MECHANICAL      = "mechanical_license"
 	LICENSE_TYPE_SYNCHRONIZATION = "synchronization_license"
 
-	INSTANCE_SIZE    = 2
-	AGENT_SIZE       = 4
-	COMPOSITION_SIZE = 5
-	RECORDING_SIZE   = 7
-	RIGHT_SIZE       = 5
-	LICENSE_SIZE     = 7
+	INSTANCE_SIZE        = 2
+	AGENT_SIZE           = 4
+	COMPOSITION_SIZE     = 5
+	RECORDING_SIZE_SMALL = 6
+	RECORDING_SIZE_BIG   = 7
+	RIGHT_SIZE           = 5
+	LICENSE_SIZE         = 7
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -333,8 +334,13 @@ func ValidRecording(recording Data) error {
 		if !MatchId(publishingLicenseId) {
 			return ErrorAppend(ErrCriteriaNotMet, "Recording must have composition right or publishing license")
 		}
+		if len(recording) != RECORDING_SIZE_BIG {
+			return ErrorAppend(ErrInvalidSize, RECORDING)
+		}
+		return nil
 	}
-	if len(recording) != RECORDING_SIZE {
+	if len(recording) != RECORDING_SIZE_SMALL {
+		Println(recording)
 		return ErrorAppend(ErrInvalidSize, RECORDING)
 	}
 	return nil
@@ -483,9 +489,9 @@ func ValidLicense(license Data, _type string) error {
 	if validFrom.After(validTo) {
 		return ErrInvalidTime
 	}
-	if len(license) != LICENSE_SIZE-1 {
-		return ErrorAppend(ErrInvalidSize, "license")
-	}
+	// if len(license) != LICENSE_SIZE {
+	//	return ErrorAppend(ErrInvalidSize, "license")
+	// }
 	return nil
 }
 

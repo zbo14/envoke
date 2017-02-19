@@ -257,4 +257,4 @@ Examples:
 
 ### Validation
 
-The spec implements numeric validation (e.g. making sure total percentage shares do not exceed 100), text validation with regular-expressions (e.g. checking that ids are 64-character hexidecimal and emails have appropriate formats), and time validation (e.g. checking that rights and licenses have valid timeframes). The `linked_data` module implements a more intensive validation process, traversing the graph of data models and checking whether referenced entities exist in the database and satisfy the definitions in the spec. 
+The spec implements numeric validation (e.g. making sure total percentage shares do not exceed 100), text validation with regular-expressions (e.g. checking that ids are 64-character hexidecimal), and time validation (e.g. checking that rights and licenses have valid timeframes). The `linked_data` module implements a more intensive validation process, traversing the graph of data models and checking whether referenced entities exist in the database and satisfy the definitions in the spec. 

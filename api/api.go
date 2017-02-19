@@ -6,7 +6,6 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
-	// "github.com/zbo14/envoke/chroma"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
@@ -37,6 +36,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/recording", api.RecordingHandler)
 	mux.HandleFunc("/publishing_license", api.PublishingLicenseHandler)
 	mux.HandleFunc("/recording_license", api.RecordingLicenseHandler)
+	mux.HandleFunc("/search", api.SearchHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
@@ -212,6 +212,26 @@ func (api *Api) RecordingLicenseHandler(w http.ResponseWriter, req *http.Request
 	WriteJSON(w, license)
 }
 
+func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	field := values.Get("field")
+	modelId := values.Get("modelId")
+	model, err := ld.QueryModelIdField(modelId, field)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, model)
+}
+
 func (api *Api) LoggedIn() bool {
 	switch {
 	case api.agent == nil:
@@ -297,18 +317,13 @@ func (api *Api) Composition(composerId, publisherId string, rights []Data, title
 }
 
 func (api *Api) Recording(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string, rights []Data) (Data, error) {
-	s, _ := MustTeeSeeker(file) //r
-	meta, err := tag.ReadFrom(s)
+	rs := MustReadSeeker(file)
+	meta, err := tag.ReadFrom(rs)
 	if err != nil {
 		return nil, err
 	}
 	metadata := meta.Raw()
-	// fingerprint, err := chroma.NewFingerprint(r)
-	fingerprint := "V0VHa09XR0xXb2VnbGt3ZW93ZWZ3ZUZ3ZWZ3Z3dlZ2VnZ2VyZ2U"
-	if err != nil {
-		return nil, err
-	}
-	recording := spec.NewRecording(compositionId, fingerprint, labelId, performerId, producerId, publishingLicenseId, rights)
+	recording := spec.NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId, rights)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}

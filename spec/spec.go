@@ -239,11 +239,10 @@ func ValidComposition(composition Data) error {
 	return nil
 }
 
-func NewRecording(compositionId, fingerprint, labelId, performerId, producerId, publishingLicenseId string, rights []Data) Data {
+func NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId string, rights []Data) Data {
 	recording := Data{
 		"compositionId": compositionId,
 		"instance":      NewInstance(RECORDING),
-		"fingerprint":   fingerprint,
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
@@ -257,10 +256,6 @@ func NewRecording(compositionId, fingerprint, labelId, performerId, producerId, 
 
 func GetRecordingComposition(recording Data) string {
 	return recording.GetStr("compositionId")
-}
-
-func GetRecordingFingerprint(recording Data) string {
-	return recording.GetStr("fingerprint")
 }
 
 func GetRecordingLabel(recording Data) string {
@@ -301,10 +296,10 @@ func ValidRecording(recording Data) error {
 		return ErrorAppend(ErrInvalidId, "compositionId")
 	}
 	// TODO: better fingerprint validation?
-	fingerprint := GetRecordingFingerprint(recording)
-	if !MatchFingerprint(fingerprint) {
-		return ErrorAppend(ErrInvalidFingerprint, "fingerprint")
-	}
+	// fingerprint := GetRecordingFingerprint(recording)
+	// if !MatchFingerprint(fingerprint) {
+	//	return ErrorAppend(ErrInvalidFingerprint, "fingerprint")
+	// }
 	labelId := GetRecordingLabel(recording)
 	if !MatchId(labelId) {
 		return ErrorAppend(ErrInvalidId, "labelId")
@@ -487,6 +482,9 @@ func ValidLicense(license Data, _type string) error {
 	validTo := GetLicenseValidTo(license)
 	if validFrom.After(validTo) {
 		return ErrInvalidTime
+	}
+	if len(license) != LICENSE_SIZE-1 {
+		return ErrorAppend(ErrInvalidSize, "license")
 	}
 	return nil
 }

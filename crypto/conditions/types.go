@@ -239,7 +239,7 @@ func ThresholdBitmask(subs Fulfillments) int {
 func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 	var i, j int
 	numSubs := subs.Len()
-	j = Pow2(numSubs)
+	j = Exp2(numSubs)
 	sums := make([]int, j)
 	sets := make([]Fulfillments, j)
 	thresholds := make([]int, j)
@@ -368,7 +368,7 @@ func ThresholdSize(subs Fulfillments, threshold int) int {
 	var i, j int
 	numSubs := subs.Len()
 	total := 4 + UvarintSize(numSubs) + numSubs
-	j = Pow2(numSubs)
+	j = Exp2(numSubs)
 	extras := make([]int, j)
 	thresholds := make([]int, j)
 	for i, _ = range thresholds {

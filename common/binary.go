@@ -6,6 +6,50 @@ import (
 	"github.com/whyrusleeping/cbor/go"
 )
 
+// Int16
+
+func Int16Bytes(x int16) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, &x)
+	p := buf.Bytes()
+	return p[len(p)-2:]
+}
+
+func Int16(p []byte) (x int16, err error) {
+	if len(p) < 2 {
+		return 0, ErrInvalidSize
+	}
+	buf := bytes.NewBuffer(p)
+	if err = binary.Read(buf, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return x, nil
+}
+
+func Int16SliceBytes(x []int16) (p []byte) {
+	buf := new(bytes.Buffer)
+	for _, n := range x {
+		binary.Write(buf, binary.BigEndian, &n)
+		q := buf.Bytes()
+		p = append(p, q[len(q)-2:]...)
+	}
+	return p
+}
+
+func Int16Slice(p []byte) ([]int16, error) {
+	if len(p) < 2 || len(p)%2 != 0 {
+		return nil, ErrInvalidSize
+	}
+	buf := bytes.NewBuffer(p)
+	x := make([]int16, len(p)/2)
+	for i := range x {
+		if err := binary.Read(buf, binary.BigEndian, &x[i]); err != nil {
+			return nil, err
+		}
+	}
+	return x, nil
+}
+
 // Int32
 
 func Int32Bytes(x int32) []byte {
@@ -26,12 +70,12 @@ func Int32(p []byte) (x int32, err error) {
 	return x, nil
 }
 
-func Int32SliceBytes(xs []int32) (p []byte) {
+func Int32SliceBytes(x []int32) (p []byte) {
 	buf := new(bytes.Buffer)
-	for _, x := range xs {
-		binary.Write(buf, binary.BigEndian, &x)
-		p_ := buf.Bytes()
-		p = append(p, p_[len(p_)-4:]...)
+	for _, n := range x {
+		binary.Write(buf, binary.BigEndian, &n)
+		q := buf.Bytes()
+		p = append(p, q[len(q)-4:]...)
 	}
 	return p
 }
@@ -41,13 +85,13 @@ func Int32Slice(p []byte) ([]int32, error) {
 		return nil, ErrInvalidSize
 	}
 	buf := bytes.NewBuffer(p)
-	xs := make([]int32, len(p)/4)
-	for i, _ := range xs {
-		if err := binary.Read(buf, binary.BigEndian, &xs[i]); err != nil {
+	x := make([]int32, len(p)/4)
+	for i := range x {
+		if err := binary.Read(buf, binary.BigEndian, &x[i]); err != nil {
 			return nil, err
 		}
 	}
-	return xs, nil
+	return x, nil
 }
 
 // Uint16

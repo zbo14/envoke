@@ -227,8 +227,10 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	}
 	labelPub := bigchain.GetTxPublicKey(tx)
 	label := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(label); err != nil {
-		return nil, err
+	if _, ok := rightHolderIds[labelId]; !ok {
+		if err = spec.ValidAgent(label); err != nil {
+			return nil, err
+		}
 	}
 	performerId := spec.GetRecordingPerformer(recording)
 	tx, err = bigchain.GetTx(performerId)
@@ -240,8 +242,10 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	}
 	performerPub := bigchain.GetTxPublicKey(tx)
 	performer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(performer); err != nil {
-		return nil, err
+	if _, ok := rightHolderIds[performerId]; !ok {
+		if err = spec.ValidAgent(performer); err != nil {
+			return nil, err
+		}
 	}
 	producerId := spec.GetRecordingProducer(recording)
 	tx, err = bigchain.GetTx(producerId)
@@ -256,7 +260,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 		return nil, ErrorAppend(ErrInvalidModel, spec.AGENT)
 	}
 	if pub.Equals(labelPub) {
-		if _, ok := rightHolderIds[performerId]; !ok {
+		if _, ok := rightHolderIds[labelId]; !ok {
 			licenseId := spec.GetRecordingPublishingLicense(recording)
 			license, err := ValidatePublishingLicenseById(licenseId)
 			if err != nil {
@@ -278,7 +282,6 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 			}
 		}
 	} else {
-		Println(pub, labelPub, performerPub)
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recording must be signed by label or performer")
 	}
 	rights = spec.GetRecordingRights(recording)

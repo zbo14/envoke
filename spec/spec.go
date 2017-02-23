@@ -166,12 +166,12 @@ func ValidAgent(agent Data) error {
 
 // Composition
 
-func NewComposition(composerId, publisherId string, rights []Data, title string) Data {
+func NewComposition(composerId, publisherId string, rightIds []string, title string) Data {
 	return Data{
 		"composerId":  composerId,
 		"instance":    NewInstance(COMPOSITION),
 		"publisherId": publisherId,
-		"rights":      rights,
+		"rightIds":    rightIds,
 		"title":       title,
 	}
 }
@@ -180,6 +180,7 @@ func GetCompositionComposer(composition Data) string {
 	return composition.GetStr("composerId")
 }
 
+/*
 func GetCompositionRights(composition Data) []Data {
 	slice := composition.GetInterfaceSlice("rights")
 	rights := make([]Data, len(slice))
@@ -187,6 +188,11 @@ func GetCompositionRights(composition Data) []Data {
 		rights[i] = AssertMapData(s)
 	}
 	return rights
+}
+*/
+
+func GetCompositionRights(composition Data) []string {
+	return composition.GetStrSlice("rightIds")
 }
 
 func GetCompositionPublisher(composition Data) string {
@@ -209,23 +215,35 @@ func ValidComposition(composition Data) error {
 	if !MatchId(composerId) {
 		return ErrorAppend(ErrInvalidId, "composerId")
 	}
-	percentageShares := 0
-	rightHolderIds := make(map[string]struct{})
-	rights := GetCompositionRights(composition)
-	for _, right := range rights {
-		if err := ValidRight(AssertData(right)); err != nil {
-			return err
+	rightIds := GetCompositionRights(composition)
+	seen := make(map[string]struct{})
+	for _, rightId := range rightIds {
+		if _, ok := seen[rightId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
 		}
-		percentageShares += GetRightPercentageShares(AssertData(right))
-		if percentageShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+		if !MatchId(rightId) {
+			return ErrorAppend(ErrInvalidId, "rightId")
 		}
-		rightHolderId := GetRightHolder(AssertData(right))
-		if _, ok := rightHolderIds[rightHolderId]; ok {
-			return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
-		}
-		rightHolderIds[rightHolderId] = struct{}{}
+		seen[rightId] = struct{}{}
 	}
+	/*
+		percentageShares := 0
+		rightHolderIds := make(map[string]struct{})
+		for _, right := range rights {
+			if err := ValidRight(AssertData(right)); err != nil {
+				return err
+			}
+			percentageShares += GetRightPercentageShares(AssertData(right))
+			if percentageShares > 100 {
+				return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+			}
+			rightHolderId := GetRightHolder(AssertData(right))
+			if _, ok := rightHolderIds[rightHolderId]; ok {
+				return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
+			}
+			rightHolderIds[rightHolderId] = struct{}{}
+		}
+	*/
 	publisherId := GetCompositionPublisher(composition)
 	if !MatchId(publisherId) {
 		return ErrorAppend(ErrInvalidId, "publisherId")
@@ -240,14 +258,14 @@ func ValidComposition(composition Data) error {
 	return nil
 }
 
-func NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId string, rights []Data) Data {
+func NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId string, rightIds []string) Data {
 	recording := Data{
 		"compositionId": compositionId,
 		"instance":      NewInstance(RECORDING),
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
-		"rights":        rights,
+		"rightIds":      rightIds,
 	}
 	if publishingLicenseId != "" {
 		recording.Set("publishingLicenseId", publishingLicenseId)
@@ -275,6 +293,11 @@ func GetRecordingProducer(recording Data) string {
 	return recording.GetStr("producerId")
 }
 
+func GetRecordingRights(recording Data) []string {
+	return recording.GetStrSlice("rightIds")
+}
+
+/*
 func GetRecordingRights(recording Data) []Data {
 	slice := recording.GetInterfaceSlice("rights")
 	rights := make([]Data, len(slice))
@@ -283,6 +306,7 @@ func GetRecordingRights(recording Data) []Data {
 	}
 	return rights
 }
+*/
 
 func ValidRecording(recording Data) error {
 	instance := GetInstance(recording)
@@ -309,26 +333,39 @@ func ValidRecording(recording Data) error {
 	if !MatchId(performerId) {
 		return ErrorAppend(ErrInvalidId, "performerId")
 	}
-	percentageShares := 0
-	rightHolderIds := make(map[string]struct{})
-	rights := GetRecordingRights(recording)
-	for _, right := range rights {
-		if err := ValidRight(right); err != nil {
-			return err
+	rightIds := GetRecordingRights(recording)
+	seen := make(map[string]struct{})
+	for _, rightId := range rightIds {
+		if _, ok := seen[rightId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
 		}
-		percentageShares += GetRightPercentageShares(right)
-		if percentageShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+		if !MatchId(rightId) {
+			return ErrorAppend(ErrInvalidId, "rightId")
 		}
-		rightHolderId := GetRightHolder(right)
-		if _, ok := rightHolderIds[rightHolderId]; ok {
-			return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
-		}
-		rightHolderIds[rightHolderId] = struct{}{}
+		seen[rightId] = struct{}{}
 	}
-	if percentageShares != 100 {
-		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares does not equal 100")
-	}
+	/*
+		percentageShares := 0
+		rightHolderIds := make(map[string]struct{})
+		rights := GetRecordingRights(recording)
+		for _, right := range rights {
+			if err := ValidRight(right); err != nil {
+				return err
+			}
+			percentageShares += GetRightPercentageShares(right)
+			if percentageShares > 100 {
+				return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+			}
+			rightHolderId := GetRightHolder(right)
+			if _, ok := rightHolderIds[rightHolderId]; ok {
+				return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
+			}
+			rightHolderIds[rightHolderId] = struct{}{}
+		}
+		if percentageShares != 100 {
+			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares does not equal 100")
+		}
+	*/
 	publishingLicenseId := GetRecordingPublishingLicense(recording)
 	if !EmptyStr(publishingLicenseId) {
 		if !MatchId(publishingLicenseId) {
@@ -340,7 +377,6 @@ func ValidRecording(recording Data) error {
 		return nil
 	}
 	if len(recording) != RECORDING_SIZE_SMALL {
-		Println(recording)
 		return ErrorAppend(ErrInvalidSize, RECORDING)
 	}
 	return nil
@@ -348,14 +384,13 @@ func ValidRecording(recording Data) error {
 
 // Right
 
-func NewRight(percentageShares, rightHolderId, validFrom, validTo string) Data {
+func NewRight(percentageShares, validFrom, validTo string) Data {
 	return Data{
-		// should we include context, usage?
 		"instance":         NewInstance(RIGHT),
 		"percentageShares": percentageShares,
-		"rightHolderId":    rightHolderId,
-		"validFrom":        validFrom,
-		"validTo":          validTo,
+		// "rightHolderId":    rightHolderId,
+		"validFrom": validFrom,
+		"validTo":   validTo,
 	}
 }
 
@@ -363,9 +398,9 @@ func GetRightPercentageShares(right Data) int {
 	return right.GetStrInt("percentageShares")
 }
 
-func GetRightHolder(right Data) string {
-	return right.GetStr("rightHolderId")
-}
+// func GetRightHolder(right Data) string {
+// 	return right.GetStr("rightHolderId")
+// }
 
 func GetRightValidFrom(right Data) time.Time {
 	return MustParseDateStr(right.GetStr("validFrom"))
@@ -383,16 +418,14 @@ func ValidRight(right Data) error {
 	if !HasType(right, RIGHT) {
 		return ErrorAppend(ErrInvalidType, GetType(right))
 	}
-	// TODO: validate context, exclusive
 	percentageShares := GetRightPercentageShares(right)
 	if percentageShares <= 0 || percentageShares > 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0 and less than 100")
 	}
-	rightHolderId := GetRightHolder(right)
-	if !MatchId(rightHolderId) {
-		return ErrorAppend(ErrInvalidId, "rightHolderId")
-	}
-	// TODO: validate usage
+	// rightHolderId := GetRightHolder(right)
+	// if !MatchId(rightHolderId) {
+	//	return ErrorAppend(ErrInvalidId, "rightHolderId")
+	// }
 	validFrom := GetRightValidFrom(right)
 	validTo := GetRightValidTo(right)
 	if !validFrom.Before(validTo) {
@@ -407,11 +440,9 @@ func ValidRight(right Data) error {
 	return nil
 }
 
-// TODO: right transfers
-
 // License
 
-func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo string) Data {
+func NewLicense(licenseeId, licenserId, licenseType, rightId, _type, validFrom, validTo string) Data {
 	return Data{
 		"instance":    NewInstance(_type),
 		"licenseeId":  licenseeId,
@@ -422,14 +453,14 @@ func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo s
 	}
 }
 
-func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_PUBLISHING, validFrom, validTo)
+func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, rightId, validFrom, validTo string) Data {
+	license := NewLicense(licenseeId, licenserId, licenseType, rightId, LICENSE_PUBLISHING, validFrom, validTo)
 	license.Set("compositionId", compositionId)
 	return license
 }
 
-func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_RECORDING, validFrom, validTo)
+func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId, rightId, validFrom, validTo string) Data {
+	license := NewLicense(licenseeId, licenserId, licenseType, rightId, LICENSE_RECORDING, validFrom, validTo)
 	license.Set("recordingId", recordingId)
 	return license
 }

@@ -14,34 +14,30 @@ func TestBigchain(t *testing.T) {
 	seed := BytesFromB58(seedstr)
 	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
 	// Data model
-	artist := spec.NewArtist("artist@email.com", "artist_name", pub)
-	metadata := spec.Data{"dummy": "dummy"}
-	// Generate tx
-	tx := GenerateTx(artist, metadata, CREATE, pub)
-	// Print prepared tx
-	// PrintJSON(tx)
-	// Fulfill the tx
+	composition := spec.NewComposition("composerId", "publisherId", []string{"rightId1", "rightId2"}, "title")
+	// Create tx
+	tx := IndividualCreateTx(composition, pub)
 	FulfillTx(tx, priv)
 	// Check if it's fulfilled
 	if !FulfilledTx(tx) {
 		t.Error("tx is not fulfilled")
 	}
-	// Print fulfilled tx
-	// PrintJSON(tx)
-	// Send POST request with tx
 	txId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx, err = GetTx(txId)
+	t.Log(txId)
+	// Transfer tx
+	_, pubNew := ed25519.GenerateKeypairFromPassword("password")
+	tx = IndividualTransferTx(txId, 0, pubNew, pub)
+	// PrintJSON(tx)
+	FulfillTx(tx, priv)
+	if !FulfilledTx(tx) {
+		t.Error("tx is not fulfilled")
+	}
+	txId, err = PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	data := GetTxData(tx)
-	// Println(data)
-	artist = new(spec.Agent)
-	if err := FillStruct(artist, data); err != nil {
-		t.Fatal(err)
-	}
-	t.Log(artist)
+	t.Log(txId)
 }

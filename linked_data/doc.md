@@ -15,7 +15,7 @@ This module defines a linked-data validation for data models in envoke. When a m
 
 (2) Validation process for a publishing license
 
-- Check that publishing license has valid fields
+- Validate fields in publishing license
 - Query composition and run validation process (1)
 - Check that licenser id matches a composition right holder id
 - Query licenser and check that key matches license key (*already validated fields)
@@ -29,7 +29,7 @@ This module defines a linked-data validation for data models in envoke. When a m
 
 - Validate fields in the recording
 - Query composition and run validation process (1)
-- Query label, perforner, producer and validate fields
+- Query label, performer, producer and validate fields
 - Check that recording key matches label or performer key
 - Agent with matching key must hold composition right or publishing license
 - If there's a publishing license, run the validation process (2)

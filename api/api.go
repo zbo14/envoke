@@ -104,7 +104,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	api.rights = append(api.rights, right)
-	w.WriteHeader(http.StatusOK)
+	WriteJSON(w, right)
 }
 
 func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {

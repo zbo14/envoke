@@ -4,94 +4,195 @@ import (
 	"bytes"
 	"encoding/binary"
 	"github.com/whyrusleeping/cbor/go"
+	"io"
 )
 
-// Int16
+const SEG = 1024
 
-func Int16Bytes(x int16) []byte {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, &x)
-	p := buf.Bytes()
-	return p[len(p)-2:]
+// Float64
+
+func WriteFloat64(w io.Writer, x float64) (err error) {
+	return binary.Write(w, binary.BigEndian, &x)
 }
 
-func Int16(p []byte) (x int16, err error) {
-	if len(p) < 2 {
-		return 0, ErrInvalidSize
+func WriteFloat64s(w io.Writer, x []float64) (err error) {
+	for _, n := range x {
+		if err = WriteFloat64(w, n); err != nil {
+			return err
+		}
 	}
-	buf := bytes.NewBuffer(p)
-	if err = binary.Read(buf, binary.BigEndian, &x); err != nil {
+	return nil
+}
+
+func ReadFloat64(r io.Reader) (x float64, err error) {
+	if err = binary.Read(r, binary.BigEndian, &x); err != nil {
 		return 0, err
 	}
 	return x, nil
 }
 
-func Int16SliceBytes(x []int16) (p []byte) {
-	buf := new(bytes.Buffer)
-	for _, n := range x {
-		binary.Write(buf, binary.BigEndian, &n)
-		q := buf.Bytes()
-		p = append(p, q[len(q)-2:]...)
-	}
-	return p
-}
-
-func Int16Slice(p []byte) ([]int16, error) {
-	if len(p) < 2 || len(p)%2 != 0 {
-		return nil, ErrInvalidSize
-	}
-	buf := bytes.NewBuffer(p)
-	x := make([]int16, len(p)/2)
-	for i := range x {
-		if err := binary.Read(buf, binary.BigEndian, &x[i]); err != nil {
+func ReadFloat64s(r io.Reader, seg int) (x []float64, err error) {
+	x = make([]float64, seg)
+	for i := 0; ; i++ {
+		if i == len(x) {
+			x = append(x, make([]float64, seg)...)
+		}
+		x[i], err = ReadFloat64(r)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return x[:i], nil
+			}
 			return nil, err
 		}
+	}
+}
+
+func BytesFloat64(x float64) []byte {
+	buf := new(bytes.Buffer)
+	WriteFloat64(buf, x)
+	return buf.Bytes()
+}
+
+func Float64(p []byte) (float64, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadFloat64(buf)
+}
+
+func BytesFloat64s(x []float64) []byte {
+	buf := new(bytes.Buffer)
+	WriteFloat64s(buf, x)
+	return buf.Bytes()
+}
+
+func Float64s(p []byte) ([]float64, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadFloat64s(buf, SEG)
+}
+
+// Int16
+
+func ReadInt16(r io.Reader) (x int16, err error) {
+	if err = binary.Read(r, binary.BigEndian, &x); err != nil {
+		return 0, err
 	}
 	return x, nil
 }
 
+func ReadInt16s(r io.Reader, seg int) (x []int16, err error) {
+	x = make([]int16, seg)
+	for i := 0; ; i++ {
+		if i == len(x) {
+			x = append(x, make([]int16, seg)...)
+		}
+		x[i], err = ReadInt16(r)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return x[:i], nil
+			}
+			return nil, err
+		}
+	}
+}
+
+func WriteInt16(w io.Writer, x int16) (err error) {
+	return binary.Write(w, binary.BigEndian, &x)
+}
+
+func WriteInt16s(w io.Writer, x []int16) (err error) {
+	for _, n := range x {
+		if err = WriteInt16(w, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BytesInt16(x int16) []byte {
+	buf := new(bytes.Buffer)
+	WriteInt16(buf, x)
+	p := buf.Bytes()
+	return p[len(p)-2:]
+}
+
+func Int16(p []byte) (int16, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadInt16(buf)
+}
+
+func BytesInt16s(x []int16) []byte {
+	buf := new(bytes.Buffer)
+	for _, n := range x {
+		buf.Write(BytesInt16(n))
+	}
+	return buf.Bytes()
+}
+
+func Int16s(p []byte) ([]int16, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadInt16s(buf, SEG)
+}
+
 // Int32
 
-func Int32Bytes(x int32) []byte {
+func ReadInt32(r io.Reader) (x int32, err error) {
+	if err = binary.Read(r, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return x, nil
+}
+
+func ReadInt32s(r io.Reader, seg int) (x []int32, err error) {
+	x = make([]int32, seg)
+	for i := 0; ; i++ {
+		if i == len(x) {
+			x = append(x, make([]int32, seg)...)
+		}
+		x[i], err = ReadInt32(r)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return x[:i], nil
+			}
+			return nil, err
+		}
+	}
+}
+
+func WriteInt32(w io.Writer, x int32) (err error) {
+	return binary.Write(w, binary.BigEndian, &x)
+}
+
+func WriteInt32s(w io.Writer, x []int32) (err error) {
+	for _, n := range x {
+		if err = WriteInt32(w, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BytesInt32(x int32) []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, &x)
+	WriteInt32(buf, x)
 	p := buf.Bytes()
 	return p[len(p)-4:]
 }
 
 func Int32(p []byte) (x int32, err error) {
-	if len(p) < 4 {
-		return 0, ErrInvalidSize
-	}
 	buf := bytes.NewBuffer(p)
-	if err = binary.Read(buf, binary.BigEndian, &x); err != nil {
-		return 0, err
-	}
-	return x, nil
+	return ReadInt32(buf)
 }
 
-func Int32SliceBytes(x []int32) (p []byte) {
+func BytesInt32s(x []int32) []byte {
 	buf := new(bytes.Buffer)
 	for _, n := range x {
-		binary.Write(buf, binary.BigEndian, &n)
-		q := buf.Bytes()
-		p = append(p, q[len(q)-4:]...)
+		buf.Write(BytesInt32(n))
 	}
-	return p
+	return buf.Bytes()
 }
 
-func Int32Slice(p []byte) ([]int32, error) {
-	if len(p) < 4 || len(p)%4 != 0 {
-		return nil, ErrInvalidSize
-	}
+func Int32s(p []byte) ([]int32, error) {
 	buf := bytes.NewBuffer(p)
-	x := make([]int32, len(p)/4)
-	for i := range x {
-		if err := binary.Read(buf, binary.BigEndian, &x[i]); err != nil {
-			return nil, err
-		}
-	}
-	return x, nil
+	return ReadInt32s(buf, SEG)
 }
 
 // Uint16

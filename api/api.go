@@ -95,10 +95,10 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	percentageShares := values.Get("percentageShares")
-	rightHolderId := values.Get("rightHolderId")
+	// rightHolderId := values.Get("rightHolderId")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	right, err := api.Right(percentageShares, rightHolderId, validFrom, validTo)
+	right, err := api.Right(percentageShares, validFrom, validTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -302,11 +302,20 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 }
 
 func (api *Api) Composition(composerId, publisherId string, rights []Data, title string) (composition Data, err error) {
-	composition = spec.NewComposition(composerId, publisherId, rights, title)
+	rightIds := make([]string, len(rights))
+	for i, right := range rights {
+		tx := bigchain.CreateTx(right, api.pub)
+		bigchain.FulfillTx(tx, priv)
+		rightIds[i], err = bigchain.PostTx(tx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	composition = spec.NewComposition(composerId, publisherId, rightIds, title)
 	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.GenerateTx(composition, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.CreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	composition["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -337,8 +346,8 @@ func (api *Api) Recording(compositionId string, file io.Reader, labelId, perform
 	return recording, nil
 }
 
-func (api *Api) Right(percentageShares, rightHolderId, validFrom, validTo string) (Data, error) {
-	right := spec.NewRight(percentageShares, rightHolderId, validFrom, validTo)
+func (api *Api) Right(percentageShares, validFrom, validTo string) (Data, error) {
+	right := spec.NewRight(percentageShares, validFrom, validTo)
 	if err := spec.ValidRight(right); err != nil {
 		return nil, err
 	}

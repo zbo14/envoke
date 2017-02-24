@@ -9,6 +9,8 @@ import (
 
 const (
 	AGENT              = "agent"
+	INFO_COMPOSITION   = "composition_info"
+	INFO_RECORDING     = "recording_info"
 	COMPOSITION        = "composition"
 	RECORDING          = "recording"
 	RIGHT              = "right"
@@ -20,13 +22,14 @@ const (
 	LICENSE_TYPE_MECHANICAL      = "mechanical_license"
 	LICENSE_TYPE_SYNCHRONIZATION = "synchronization_license"
 
-	INSTANCE_SIZE        = 2
-	AGENT_SIZE           = 4
-	COMPOSITION_SIZE     = 5
-	RECORDING_SIZE_SMALL = 6
-	RECORDING_SIZE_BIG   = 7
-	RIGHT_SIZE           = 5
-	LICENSE_SIZE         = 7
+	INSTANCE_SIZE         = 2
+	AGENT_SIZE            = 4
+	INFO_COMPOSITION_SIZE = 4
+	INFO_RECORDING_SIZE   = 5
+	COMPOSITION_SIZE      = 3
+	RECORDING_SIZE        = 3
+	RIGHT_SIZE            = 5
+	LICENSE_SIZE          = 7
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -166,41 +169,67 @@ func ValidAgent(agent Data) error {
 
 // Composition
 
-func NewComposition(composerId, publisherId string, rightIds []string, title string) Data {
+func NewCompositionInfo(composerId, publisherId, title string) Data {
 	return Data{
 		"composerId":  composerId,
-		"instance":    NewInstance(COMPOSITION),
+		"instance":    NewInstance(INFO_COMPOSITION),
 		"publisherId": publisherId,
-		"rightIds":    rightIds,
 		"title":       title,
 	}
 }
 
-func GetCompositionComposer(composition Data) string {
-	return composition.GetStr("composerId")
+func NewComposition(infoId string, rightIds []string) Data {
+	return Data{
+		"infoId":   infoId,
+		"instance": NewInstance(COMPOSITION),
+		"rightIds": rightIds,
+	}
 }
 
-/*
-func GetCompositionRights(composition Data) []Data {
-	slice := composition.GetInterfaceSlice("rights")
-	rights := make([]Data, len(slice))
-	for i, s := range slice {
-		rights[i] = AssertMapData(s)
-	}
-	return rights
+func GetInfoComposer(info Data) string {
+	return info.GetStr("composerId")
 }
-*/
+
+func GetInfoPublisher(info Data) string {
+	return info.GetStr("publisherId")
+}
+
+func GetInfoTitle(info Data) string {
+	return info.GetStr("title")
+}
 
 func GetCompositionRights(composition Data) []string {
 	return composition.GetStrSlice("rightIds")
 }
 
-func GetCompositionPublisher(composition Data) string {
-	return composition.GetStr("publisherId")
+func GetCompositionInfo(composition Data) string {
+	return composition.GetStr("infoId")
 }
 
-func GetCompositionTitle(composition Data) string {
-	return composition.GetStr("title")
+func ValidCompositionInfo(info Data) error {
+	instance := GetInstance(info)
+	if err := ValidInstance(instance); err != nil {
+		return err
+	}
+	if !HasType(info, INFO_COMPOSITION) {
+		return ErrorAppend(ErrInvalidType, GetType(info))
+	}
+	composerId := GetInfoComposer(info)
+	if !MatchId(composerId) {
+		return ErrorAppend(ErrInvalidId, "composerId")
+	}
+	publisherId := GetInfoPublisher(info)
+	if !MatchId(publisherId) {
+		return ErrorAppend(ErrInvalidId, "publisherId")
+	}
+	title := GetInfoTitle(info)
+	if EmptyStr(title) {
+		return ErrorAppend(ErrEmptyStr, "title")
+	}
+	if len(info) != INFO_COMPOSITION_SIZE {
+		return ErrorAppend(ErrInvalidSize, INFO_COMPOSITION)
+	}
+	return nil
 }
 
 func ValidComposition(composition Data) error {
@@ -211,9 +240,9 @@ func ValidComposition(composition Data) error {
 	if !HasType(composition, COMPOSITION) {
 		return ErrorAppend(ErrInvalidType, GetType(composition))
 	}
-	composerId := GetCompositionComposer(composition)
-	if !MatchId(composerId) {
-		return ErrorAppend(ErrInvalidId, "composerId")
+	infoId := GetCompositionInfo(composition)
+	if !MatchId(infoId) {
+		return ErrorAppend(ErrInvalidId, "infoId")
 	}
 	rightIds := GetCompositionRights(composition)
 	seen := make(map[string]struct{})
@@ -226,87 +255,103 @@ func ValidComposition(composition Data) error {
 		}
 		seen[rightId] = struct{}{}
 	}
-	/*
-		percentageShares := 0
-		rightHolderIds := make(map[string]struct{})
-		for _, right := range rights {
-			if err := ValidRight(AssertData(right)); err != nil {
-				return err
-			}
-			percentageShares += GetRightPercentageShares(AssertData(right))
-			if percentageShares > 100 {
-				return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
-			}
-			rightHolderId := GetRightHolder(AssertData(right))
-			if _, ok := rightHolderIds[rightHolderId]; ok {
-				return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
-			}
-			rightHolderIds[rightHolderId] = struct{}{}
-		}
-	*/
-	publisherId := GetCompositionPublisher(composition)
-	if !MatchId(publisherId) {
-		return ErrorAppend(ErrInvalidId, "publisherId")
-	}
-	title := GetCompositionTitle(composition)
-	if EmptyStr(title) {
-		return ErrorAppend(ErrEmptyStr, "title")
-	}
 	if len(composition) != COMPOSITION_SIZE {
 		return ErrorAppend(ErrInvalidSize, COMPOSITION)
 	}
 	return nil
 }
 
-func NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId string, rightIds []string) Data {
-	recording := Data{
+// Recording
+
+func NewRecordingInfo(compositionId, labelId, performerId, producerId, publishingLicenseId string) Data {
+	info := Data{
 		"compositionId": compositionId,
-		"instance":      NewInstance(RECORDING),
+		"instance":      NewInstance(INFO_RECORDING),
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
-		"rightIds":      rightIds,
 	}
 	if publishingLicenseId != "" {
-		recording.Set("publishingLicenseId", publishingLicenseId)
+		info.Set("publishingLicenseId", publishingLicenseId)
 	}
-	return recording
+	return info
 }
 
-func GetRecordingComposition(recording Data) string {
-	return recording.GetStr("compositionId")
+func NewRecording(infoId string, rightIds []string) Data {
+	return Data{
+		"infoId":   infoId,
+		"instance": NewInstance(RECORDING),
+		"rightIds": rightIds,
+	}
 }
 
-func GetRecordingLabel(recording Data) string {
-	return recording.GetStr("labelId")
+func GetInfoComposition(info Data) string {
+	return info.GetStr("compositionId")
 }
 
-func GetRecordingPublishingLicense(recording Data) string {
-	return recording.GetStr("publishingLicenseId")
+func GetInfoLabel(info Data) string {
+	return info.GetStr("labelId")
 }
 
-func GetRecordingPerformer(recording Data) string {
-	return recording.GetStr("performerId")
+func GetInfoPublishingLicense(info Data) string {
+	return info.GetStr("publishingLicenseId")
 }
 
-func GetRecordingProducer(recording Data) string {
-	return recording.GetStr("producerId")
+func GetInfoPerformer(info Data) string {
+	return info.GetStr("performerId")
+}
+
+func GetInfoProducer(info Data) string {
+	return info.GetStr("producerId")
 }
 
 func GetRecordingRights(recording Data) []string {
 	return recording.GetStrSlice("rightIds")
 }
 
-/*
-func GetRecordingRights(recording Data) []Data {
-	slice := recording.GetInterfaceSlice("rights")
-	rights := make([]Data, len(slice))
-	for i, s := range slice {
-		rights[i] = AssertMapData(s)
-	}
-	return rights
+func GetRecordingInfo(recording Data) string {
+	return recording.GetStr("infoId")
 }
-*/
+
+func ValidRecordingInfo(info Data) error {
+	instance := GetInstance(info)
+	if err := ValidInstance(instance); err != nil {
+		return err
+	}
+	if !HasType(info, INFO_RECORDING) {
+		return ErrorAppend(ErrInvalidType, GetType(info))
+	}
+	compositionId := GetInfoComposition(info)
+	if !MatchId(compositionId) {
+		return ErrorAppend(ErrInvalidId, "compositionId")
+	}
+	labelId := GetInfoLabel(info)
+	if !MatchId(labelId) {
+		return ErrorAppend(ErrInvalidId, "labelId")
+	}
+	performerId := GetInfoPerformer(info)
+	if !MatchId(performerId) {
+		return ErrorAppend(ErrInvalidId, "performerId")
+	}
+	producerId := GetInfoProducer(info)
+	if !MatchId(producerId) {
+		return ErrorAppend(ErrInvalidId, "performerId")
+	}
+	publishingLicenseId := GetInfoPublishingLicense(info)
+	if !EmptyStr(publishingLicenseId) {
+		if !MatchId(publishingLicenseId) {
+			return ErrorAppend(ErrInvalidId, "publishingLicenseId")
+		}
+		if len(info) != INFO_RECORDING_SIZE+1 {
+			return ErrorAppend(ErrInvalidSize, INFO_RECORDING)
+		}
+		return nil
+	}
+	if len(info) != INFO_RECORDING_SIZE {
+		return ErrorAppend(ErrInvalidSize, INFO_RECORDING)
+	}
+	return nil
+}
 
 func ValidRecording(recording Data) error {
 	instance := GetInstance(recording)
@@ -316,22 +361,9 @@ func ValidRecording(recording Data) error {
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
 	}
-	compositionId := GetRecordingComposition(recording)
-	if !MatchId(compositionId) {
-		return ErrorAppend(ErrInvalidId, "compositionId")
-	}
-	// TODO: better fingerprint validation?
-	// fingerprint := GetRecordingFingerprint(recording)
-	// if !MatchFingerprint(fingerprint) {
-	//	return ErrorAppend(ErrInvalidFingerprint, "fingerprint")
-	// }
-	labelId := GetRecordingLabel(recording)
-	if !MatchId(labelId) {
-		return ErrorAppend(ErrInvalidId, "labelId")
-	}
-	performerId := GetRecordingPerformer(recording)
-	if !MatchId(performerId) {
-		return ErrorAppend(ErrInvalidId, "performerId")
+	infoId := GetRecordingInfo(recording)
+	if !MatchId(infoId) {
+		return ErrorAppend(ErrInvalidId, "infoId")
 	}
 	rightIds := GetRecordingRights(recording)
 	seen := make(map[string]struct{})
@@ -344,39 +376,7 @@ func ValidRecording(recording Data) error {
 		}
 		seen[rightId] = struct{}{}
 	}
-	/*
-		percentageShares := 0
-		rightHolderIds := make(map[string]struct{})
-		rights := GetRecordingRights(recording)
-		for _, right := range rights {
-			if err := ValidRight(right); err != nil {
-				return err
-			}
-			percentageShares += GetRightPercentageShares(right)
-			if percentageShares > 100 {
-				return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
-			}
-			rightHolderId := GetRightHolder(right)
-			if _, ok := rightHolderIds[rightHolderId]; ok {
-				return ErrorAppend(ErrInvalidId, "agent cannot hold multiple rights to recording")
-			}
-			rightHolderIds[rightHolderId] = struct{}{}
-		}
-		if percentageShares != 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares does not equal 100")
-		}
-	*/
-	publishingLicenseId := GetRecordingPublishingLicense(recording)
-	if !EmptyStr(publishingLicenseId) {
-		if !MatchId(publishingLicenseId) {
-			return ErrorAppend(ErrCriteriaNotMet, "Recording must have composition right or publishing license")
-		}
-		if len(recording) != RECORDING_SIZE_BIG {
-			return ErrorAppend(ErrInvalidSize, RECORDING)
-		}
-		return nil
-	}
-	if len(recording) != RECORDING_SIZE_SMALL {
+	if len(recording) != RECORDING_SIZE {
 		return ErrorAppend(ErrInvalidSize, RECORDING)
 	}
 	return nil
@@ -384,23 +384,23 @@ func ValidRecording(recording Data) error {
 
 // Right
 
-func NewRight(percentageShares, validFrom, validTo string) Data {
+func NewRight(infoId, percentageShares, validFrom, validTo string) Data {
 	return Data{
+		"infoId":           infoId,
 		"instance":         NewInstance(RIGHT),
 		"percentageShares": percentageShares,
-		// "rightHolderId":    rightHolderId,
-		"validFrom": validFrom,
-		"validTo":   validTo,
+		"validFrom":        validFrom,
+		"validTo":          validTo,
 	}
+}
+
+func GetRightInfo(right Data) string {
+	return right.GetStr("infoId")
 }
 
 func GetRightPercentageShares(right Data) int {
 	return right.GetStrInt("percentageShares")
 }
-
-// func GetRightHolder(right Data) string {
-// 	return right.GetStr("rightHolderId")
-// }
 
 func GetRightValidFrom(right Data) time.Time {
 	return MustParseDateStr(right.GetStr("validFrom"))
@@ -418,14 +418,14 @@ func ValidRight(right Data) error {
 	if !HasType(right, RIGHT) {
 		return ErrorAppend(ErrInvalidType, GetType(right))
 	}
+	infoId := GetRightInfo(right)
+	if !MatchId(infoId) {
+		return ErrorAppend(ErrInvalidId, "infoId")
+	}
 	percentageShares := GetRightPercentageShares(right)
 	if percentageShares <= 0 || percentageShares > 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0 and less than 100")
 	}
-	// rightHolderId := GetRightHolder(right)
-	// if !MatchId(rightHolderId) {
-	//	return ErrorAppend(ErrInvalidId, "rightHolderId")
-	// }
 	validFrom := GetRightValidFrom(right)
 	validTo := GetRightValidTo(right)
 	if !validFrom.Before(validTo) {

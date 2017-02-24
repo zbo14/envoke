@@ -77,6 +77,13 @@ func AssertStrSlice(v interface{}) []string {
 	if slice, ok := v.([]string); ok {
 		return slice
 	}
+	if slice, ok := v.([]interface{}); ok {
+		strs := make([]string, len(slice))
+		for i, s := range slice {
+			strs[i] = s.(string)
+		}
+		return strs
+	}
 	return nil
 }
 

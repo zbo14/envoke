@@ -99,6 +99,8 @@ func ValidInstance(instance Data) error {
 	switch _type {
 	case
 		AGENT,
+		INFO_COMPOSITION,
+		INFO_RECORDING,
 		COMPOSITION,
 		RECORDING,
 		RIGHT,
@@ -442,7 +444,7 @@ func ValidRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, licenseType, rightId, _type, validFrom, validTo string) Data {
+func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo string) Data {
 	return Data{
 		"instance":    NewInstance(_type),
 		"licenseeId":  licenseeId,
@@ -453,14 +455,14 @@ func NewLicense(licenseeId, licenserId, licenseType, rightId, _type, validFrom, 
 	}
 }
 
-func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, rightId, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, rightId, LICENSE_PUBLISHING, validFrom, validTo)
+func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, validFrom, validTo string) Data {
+	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_PUBLISHING, validFrom, validTo)
 	license.Set("compositionId", compositionId)
 	return license
 }
 
-func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId, rightId, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, rightId, LICENSE_RECORDING, validFrom, validTo)
+func NewRecordingLicense(licenseeId, licenserId, licenseType, recordingId, validFrom, validTo string) Data {
+	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_RECORDING, validFrom, validTo)
 	license.Set("recordingId", recordingId)
 	return license
 }

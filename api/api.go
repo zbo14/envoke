@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/dhowden/tag"
+	// "github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
@@ -19,7 +19,6 @@ type Api struct {
 	logger  Logger
 	priv    crypto.PrivateKey
 	pub     crypto.PublicKey
-	rights  []Data
 }
 
 func NewApi() *Api {
@@ -32,6 +31,8 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.LoginHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/right", api.RightHandler)
+	mux.HandleFunc("/composition_info", api.CompositionInfoHandler)
+	mux.HandleFunc("/recording_info", api.RecordingInfoHandler)
 	mux.HandleFunc("/composition", api.CompositionHandler)
 	mux.HandleFunc("/recording", api.RecordingHandler)
 	mux.HandleFunc("/publishing_license", api.PublishingLicenseHandler)
@@ -94,20 +95,19 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	infoId := values.Get("infoId")
 	percentageShares := values.Get("percentageShares")
-	// rightHolderId := values.Get("rightHolderId")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	right, err := api.Right(percentageShares, validFrom, validTo)
+	right, err := api.Right(infoId, percentageShares, validFrom, validTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	api.rights = append(api.rights, right)
 	WriteJSON(w, right)
 }
 
-func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) CompositionInfoHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -117,23 +117,18 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if api.rights == nil {
-		http.Error(w, ErrorAppend(ErrCriteriaNotMet, "no composition rights").Error(), http.StatusBadRequest)
-		return
-	}
 	composerId := values.Get("composerId")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	composition, err := api.Composition(composerId, publisherId, api.rights, title)
+	info, err := api.CompositionInfo(composerId, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	api.rights = nil
-	WriteJSON(w, composition)
+	WriteJSON(w, info)
 }
 
-func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) RecordingInfoHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -141,10 +136,6 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	form, err := MultipartForm(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if api.rights == nil {
-		http.Error(w, ErrorAppend(ErrCriteriaNotMet, "no recording rights").Error(), http.StatusBadRequest)
 		return
 	}
 	compositionId := form.Value["compositionId"][0]
@@ -157,12 +148,51 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publishingLicenseId := form.Value["publishingLicenseId"][0]
-	recording, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId, api.rights)
+	info, err := api.RecordingInfo(compositionId, file, labelId, performerId, producerId, publishingLicenseId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	api.rights = nil
+	WriteJSON(w, info)
+}
+
+func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	infoId := values.Get("infoId")
+	rightIds := SplitStr(values.Get("rightIds"), ",")
+	composition, err := api.Composition(infoId, rightIds)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, composition)
+}
+
+func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	infoId := values.Get("infoId")
+	rightIds := SplitStr(values.Get("rightIds"), ",")
+	recording, err := api.Recording(infoId, rightIds)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	WriteJSON(w, recording)
 }
 
@@ -287,7 +317,7 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	if err := spec.ValidAgent(agent); err != nil {
 		return nil, err
 	}
-	tx := bigchain.GenerateTx(agent, nil, bigchain.CREATE, pub)
+	tx := bigchain.IndividualCreateTx(agent, pub)
 	bigchain.FulfillTx(tx, priv)
 	agentId, err := bigchain.PostTx(tx)
 	if err != nil {
@@ -301,21 +331,48 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	}, nil
 }
 
-func (api *Api) Composition(composerId, publisherId string, rights []Data, title string) (composition Data, err error) {
-	rightIds := make([]string, len(rights))
-	for i, right := range rights {
-		tx := bigchain.CreateTx(right, api.pub)
-		bigchain.FulfillTx(tx, priv)
-		rightIds[i], err = bigchain.PostTx(tx)
-		if err != nil {
-			return nil, err
-		}
+func (api *Api) CompositionInfo(composerId, publisherId, title string) (info Data, err error) {
+	info = spec.NewCompositionInfo(composerId, publisherId, title)
+	if _, err = ld.ValidateCompositionInfo(info, api.pub); err != nil {
+		return nil, err
 	}
-	composition = spec.NewComposition(composerId, publisherId, rightIds, title)
+	tx := bigchain.IndividualCreateTx(info, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	info["id"], err = bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS sent tx with composition info")
+	return info, nil
+}
+
+func (api *Api) RecordingInfo(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string) (info Data, err error) {
+	// rs := MustReadSeeker(file)
+	// meta, err := tag.ReadFrom(rs)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// metadata := meta.Raw()
+	info = spec.NewRecordingInfo(compositionId, labelId, performerId, producerId, publishingLicenseId)
+	if _, err = ld.ValidateRecordingInfo(info, api.pub); err != nil {
+		return nil, err
+	}
+	tx := bigchain.IndividualCreateTx(info, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	info["id"], err = bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS sent tx with recording info")
+	return info, nil
+}
+
+func (api *Api) Composition(infoId string, rightIds []string) (composition Data, err error) {
+	composition = spec.NewComposition(infoId, rightIds)
 	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.CreateTx(composition, api.pub)
+	tx := bigchain.IndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	composition["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -325,18 +382,12 @@ func (api *Api) Composition(composerId, publisherId string, rights []Data, title
 	return composition, nil
 }
 
-func (api *Api) Recording(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string, rights []Data) (Data, error) {
-	rs := MustReadSeeker(file)
-	meta, err := tag.ReadFrom(rs)
-	if err != nil {
-		return nil, err
-	}
-	metadata := meta.Raw()
-	recording := spec.NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId, rights)
+func (api *Api) Recording(infoId string, rightIds []string) (recording Data, err error) {
+	recording = spec.NewRecording(infoId, rightIds)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.GenerateTx(recording, metadata, bigchain.CREATE, api.pub)
+	tx := bigchain.IndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	recording["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -346,9 +397,15 @@ func (api *Api) Recording(compositionId string, file io.Reader, labelId, perform
 	return recording, nil
 }
 
-func (api *Api) Right(percentageShares, validFrom, validTo string) (Data, error) {
-	right := spec.NewRight(percentageShares, validFrom, validTo)
-	if err := spec.ValidRight(right); err != nil {
+func (api *Api) Right(infoId, percentageShares, validFrom, validTo string) (right Data, err error) {
+	right = spec.NewRight(infoId, percentageShares, validFrom, validTo)
+	if err = spec.ValidRight(right); err != nil {
+		return nil, err
+	}
+	tx := bigchain.IndividualCreateTx(right, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	right["id"], err = bigchain.PostTx(tx)
+	if err != nil {
 		return nil, err
 	}
 	api.logger.Info("SUCCESS created right")
@@ -360,7 +417,7 @@ func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType, validF
 	if _, err = ld.ValidatePublishingLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.GenerateTx(license, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.IndividualCreateTx(license, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -375,7 +432,7 @@ func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId, validFrom
 	if _, err = ld.ValidateRecordingLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.GenerateTx(license, nil, bigchain.CREATE, api.pub)
+	tx := bigchain.IndividualCreateTx(license, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {

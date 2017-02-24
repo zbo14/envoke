@@ -49,60 +49,89 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, radio)
 	radioId := radio.AgentId
-	if err = api.Login(composer.AgentId, composer.PrivKey); err != nil {
+	if err = api.Login(composerId, composer.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	composerRight, err := api.Right("20", composerId, "2020-01-01", "3030-01-01")
+	compositionInfo, err := api.CompositionInfo(composerId, publisherId, "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
-	publisherRight, err := api.Right("80", publisherId, "2020-01-01", "2030-01-01")
+	compositionInfoId := compositionInfo.GetStr("id")
+	composerRight, err := api.Right(compositionInfoId, "20", "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Composition(composerId, publisherId, []Data{composerRight, publisherRight}, "untitled")
+	composerRightId := composerRight.GetStr("id")
+	if err = api.Login(publisherId, publisher.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	publisherRight, err := api.Right(compositionInfoId, "80", "2020-01-01", "2030-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, composition)
+	publisherRightId := publisherRight.GetStr("id")
+	if err = api.Login(composerId, composer.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	composition, err := api.Composition(compositionInfoId, []string{composerRightId, publisherRightId})
+	if err != nil {
+		t.Fatal(err)
+	}
 	compositionId := composition.GetStr("id")
 	if err = api.Login(publisherId, publisher.PrivKey); err != nil {
 		t.Fatal(err)
 	}
+	Println(compositionId)
 	publishingLicense, err := api.PublishingLicense(compositionId, labelId, spec.LICENSE_TYPE_MECHANICAL, "2020-01-01", "2025-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, publishingLicense)
 	publishingLicenseId := publishingLicense.GetStr("id")
 	if err = api.Login(labelId, label.PrivKey); err != nil {
-		t.Fatal(err)
-	}
-	labelRight, err := api.Right("50", labelId, "2020-01-01", "2030-01-01")
-	if err != nil {
-		t.Fatal(err)
-	}
-	performerRight, err := api.Right("30", performerId, "2020-01-01", "3030-01-01")
-	if err != nil {
-		t.Fatal(err)
-	}
-	producerRight, err := api.Right("20", producerId, "2020-01-01", "3030-01-01")
-	if err != nil {
 		t.Fatal(err)
 	}
 	file, err := OpenFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId, []Data{labelRight, performerRight, producerRight})
+	recordingInfo, err := api.RecordingInfo(compositionId, file, labelId, performerId, producerId, publishingLicenseId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, recording)
+	recordingInfoId := recordingInfo.GetStr("id")
+	labelRight, err := api.Right(recordingInfoId, "70", "2020-01-01", "2080-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	labelRightId := labelRight.GetStr("id")
+	if err = api.Login(performerId, performer.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	performerRight, err := api.Right(recordingInfoId, "20", "2020-01-01", "2080-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	performerRightId := performerRight.GetStr("id")
+	if err = api.Login(producerId, producer.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	producerRight, err := api.Right(recordingInfoId, "10", "2020-01-01", "2080-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	producerRightId := producerRight.GetStr("id")
+	if err = api.Login(labelId, label.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	recording, err := api.Recording(recordingInfoId, []string{labelRightId, performerRightId, producerRightId})
+	if err != nil {
+		t.Fatal(err)
+	}
 	recordingId := recording.GetStr("id")
-	recordingLicense, err := api.RecordingLicense(radioId, spec.LICENSE_TYPE_MASTER, recordingId, "2020-01-01", "2022-01-01")
+	recordingLicense, err := api.RecordingLicense(radioId, spec.LICENSE_TYPE_MASTER, recordingId, "2020-01-01", "2022")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, recordingLicense)
+	recordingLicenseId := recordingLicense.GetStr("id")
+	t.Log(recordingLicenseId)
 }

@@ -14,9 +14,9 @@ func TestBigchain(t *testing.T) {
 	seed := BytesFromB58(seedstr)
 	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
 	// Data model
-	composition := spec.NewComposition("composerId", "publisherId", []string{"rightId1", "rightId2"}, "title")
+	info := spec.NewCompositionInfo("composerId", "publisherId", "title")
 	// Create tx
-	tx := IndividualCreateTx(composition, pub)
+	tx := IndividualCreateTx(info, pub)
 	FulfillTx(tx, priv)
 	// Check if it's fulfilled
 	if !FulfilledTx(tx) {
@@ -30,11 +30,12 @@ func TestBigchain(t *testing.T) {
 	// Transfer tx
 	_, pubNew := ed25519.GenerateKeypairFromPassword("password")
 	tx = IndividualTransferTx(txId, 0, pubNew, pub)
-	// PrintJSON(tx)
+	PrintJSON(tx)
 	FulfillTx(tx, priv)
 	if !FulfilledTx(tx) {
 		t.Error("tx is not fulfilled")
 	}
+	PrintJSON(tx)
 	txId, err = PostTx(tx)
 	if err != nil {
 		t.Fatal(err)

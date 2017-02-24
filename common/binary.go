@@ -9,6 +9,74 @@ import (
 
 const SEG = 1024
 
+// Float32
+
+func WriteFloat32(w io.Writer, x float32) (err error) {
+	return binary.Write(w, binary.BigEndian, &x)
+}
+
+func WriteFloat32s(w io.Writer, x []float32) (err error) {
+	for _, n := range x {
+		if err = WriteFloat32(w, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ReadFloat32(r io.Reader) (x float32, err error) {
+	if err = binary.Read(r, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return x, nil
+}
+
+func ReadFloat32s(r io.Reader, seg int) (x []float32, err error) {
+	x = make([]float32, seg)
+	for i := 0; ; i++ {
+		if i == len(x) {
+			x = append(x, make([]float32, seg)...)
+		}
+		x[i], err = ReadFloat32(r)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return x[:i], nil
+			}
+			return nil, err
+		}
+	}
+}
+
+func ReadNFloat32s(r io.Reader, n int) ([]float32, error) {
+	x := make([]float32, n)
+	if err := binary.Read(r, binary.BigEndian, &x); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+func BytesFloat32(x float32) []byte {
+	buf := new(bytes.Buffer)
+	WriteFloat32(buf, x)
+	return buf.Bytes()
+}
+
+func Float32(p []byte) (float32, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadFloat32(buf)
+}
+
+func BytesFloat32s(x []float32) []byte {
+	buf := new(bytes.Buffer)
+	WriteFloat32s(buf, x)
+	return buf.Bytes()
+}
+
+func Float32s(p []byte) ([]float32, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadFloat32s(buf, SEG)
+}
+
 // Float64
 
 func WriteFloat64(w io.Writer, x float64) (err error) {
@@ -45,6 +113,14 @@ func ReadFloat64s(r io.Reader, seg int) (x []float64, err error) {
 			return nil, err
 		}
 	}
+}
+
+func ReadNFloat64s(r io.Reader, n int) ([]float64, error) {
+	x := make([]float64, n)
+	if err := binary.Read(r, binary.BigEndian, &x); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
 func BytesFloat64(x float64) []byte {
@@ -92,6 +168,14 @@ func ReadInt16s(r io.Reader, seg int) (x []int16, err error) {
 			return nil, err
 		}
 	}
+}
+
+func ReadNInt16s(r io.Reader, n int) ([]int16, error) {
+	x := make([]int16, n)
+	if err := binary.Read(r, binary.BigEndian, &x); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
 func WriteInt16(w io.Writer, x int16) (err error) {
@@ -157,6 +241,14 @@ func ReadInt32s(r io.Reader, seg int) (x []int32, err error) {
 	}
 }
 
+func ReadNInt32s(r io.Reader, n int) ([]int32, error) {
+	x := make([]int32, n)
+	if err := binary.Read(r, binary.BigEndian, &x); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
 func WriteInt32(w io.Writer, x int32) (err error) {
 	return binary.Write(w, binary.BigEndian, &x)
 }
@@ -193,6 +285,77 @@ func BytesInt32s(x []int32) []byte {
 func Int32s(p []byte) ([]int32, error) {
 	buf := bytes.NewBuffer(p)
 	return ReadInt32s(buf, SEG)
+}
+
+// Int64
+
+func ReadInt64(r io.Reader) (x int64, err error) {
+	if err = binary.Read(r, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return x, nil
+}
+
+func ReadInt64s(r io.Reader, seg int) (x []int64, err error) {
+	x = make([]int64, seg)
+	for i := 0; ; i++ {
+		if i == len(x) {
+			x = append(x, make([]int64, seg)...)
+		}
+		x[i], err = ReadInt64(r)
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return x[:i], nil
+			}
+			return nil, err
+		}
+	}
+}
+
+func ReadNInt64s(r io.Reader, n int) ([]int64, error) {
+	x := make([]int64, n)
+	if err := binary.Read(r, binary.BigEndian, &x); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+func WriteInt64(w io.Writer, x int64) (err error) {
+	return binary.Write(w, binary.BigEndian, &x)
+}
+
+func WriteInt64s(w io.Writer, x []int64) (err error) {
+	for _, n := range x {
+		if err = WriteInt64(w, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BytesInt64(x int64) []byte {
+	buf := new(bytes.Buffer)
+	WriteInt64(buf, x)
+	p := buf.Bytes()
+	return p[len(p)-8:]
+}
+
+func Int64(p []byte) (int64, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadInt64(buf)
+}
+
+func BytesInt64s(x []int64) []byte {
+	buf := new(bytes.Buffer)
+	for _, n := range x {
+		buf.Write(BytesInt64(n))
+	}
+	return buf.Bytes()
+}
+
+func Int64s(p []byte) ([]int64, error) {
+	buf := bytes.NewBuffer(p)
+	return ReadInt64s(buf, SEG)
 }
 
 // Uint16

@@ -28,6 +28,10 @@ func ValidateModel(model Data, pub crypto.PublicKey) (Data, error) {
 	switch _type {
 	case spec.AGENT:
 		err = spec.ValidAgent(model)
+	case spec.INFO_COMPOSITION:
+		model, err = ValidateCompositionInfo(model, pub)
+	case spec.INFO_RECORDING:
+		model, err = ValidateRecordingInfo(model, pub)
 	case spec.COMPOSITION:
 		model, err = ValidateComposition(model, pub)
 	case spec.RECORDING:
@@ -61,10 +65,6 @@ func QueryModelIdField(field, modelId string) (interface{}, error) {
 func QueryModelField(field string, model Data, pub crypto.PublicKey) (interface{}, error) {
 	_type := spec.GetType(model)
 	switch _type {
-	case spec.INFO_COMPOSITION:
-		return QueryCompositionInfoField(field, model, pub)
-	case spec.INFO_RECORDING:
-		return QueryRecordingInfoField(field, model, pub)
 	case spec.COMPOSITION:
 		return QueryCompositionField(field, model, pub)
 	case spec.RECORDING:
@@ -88,6 +88,7 @@ func ValidateCompositionInfoById(infoId string) (Data, error) {
 	if !bigchain.FulfilledTx(tx) {
 		return nil, ErrInvalidFulfillment
 	}
+	Println(tx)
 	pub := bigchain.GetTxPublicKey(tx)
 	info := bigchain.GetTxData(tx)
 	if err := spec.ValidCompositionInfo(info); err != nil {
@@ -132,20 +133,6 @@ func ValidateCompositionInfo(info Data, pub crypto.PublicKey) (Data, error) {
 		return nil, err
 	}
 	return info, nil
-}
-
-func QueryCompositionInfoField(field string, info Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateCompositionInfo(info, pub); err != nil {
-		return nil, err
-	}
-	switch field {
-	case "composer":
-		return GetInfoComposer(info)
-	case "publisher":
-		return GetInfoPublisher(info)
-	default:
-		return nil, ErrorAppend(ErrInvalidField, field)
-	}
 }
 
 func GetInfoComposer(info Data) (Data, error) {
@@ -246,10 +233,28 @@ func QueryCompositionField(field string, composition Data, pub crypto.PublicKey)
 		return nil, err
 	}
 	switch field {
+	case "composer":
+		info, err := GetCompositionInfo(composition)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoComposer(info)
 	case "info":
 		return GetCompositionInfo(composition)
+	case "publisher":
+		info, err := GetCompositionInfo(composition)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoPublisher(info)
 	case "rights":
 		return GetCompositionRights(composition)
+	case "title":
+		info, err := GetCompositionInfo(composition)
+		if err != nil {
+			return nil, err
+		}
+		return spec.GetInfoTitle(info), nil
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
@@ -387,27 +392,6 @@ func ValidateRecordingInfo(info Data, pub crypto.PublicKey) (Data, error) {
 	}
 	return info, nil
 }
-
-func QueryRecordingInfoField(field string, info Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateRecordingInfo(info, pub); err != nil {
-		return nil, err
-	}
-	switch field {
-	case "composition":
-		return GetInfoComposition(info)
-	case "label":
-		return GetInfoLabel(info)
-	case "performer":
-		return GetInfoPerformer(info)
-	case "producer":
-		return GetInfoProducer(info)
-	case "publishingLicense":
-		return GetInfoPublishingLicense(info)
-	default:
-		return nil, ErrorAppend(ErrInvalidField, field)
-	}
-}
-
 func GetInfoComposition(info Data) (Data, error) {
 	compositionId := spec.GetInfoComposition(info)
 	tx, err := bigchain.GetTx(compositionId)
@@ -532,10 +516,50 @@ func QueryRecordingField(field string, recording Data, pub crypto.PublicKey) (in
 		return nil, err
 	}
 	switch field {
+	case "composition":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoComposition(info)
 	case "info":
 		return GetRecordingInfo(recording)
+	case "label":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoLabel(info)
+	case "performer":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoPerformer(info)
+	case "producer":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoProducer(info)
+	case "publishingLicense":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		return GetInfoPublishingLicense(info)
 	case "rights":
 		return GetRecordingRights(recording)
+	case "title":
+		info, err := GetRecordingInfo(recording)
+		if err != nil {
+			return nil, err
+		}
+		composition, err := GetInfoComposition(info)
+		if err != nil {
+			return nil, err
+		}
+		return QueryCompositionField("title", composition, pub)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}

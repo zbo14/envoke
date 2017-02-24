@@ -31,10 +31,10 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.LoginHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/right", api.RightHandler)
-	mux.HandleFunc("/composition_info", api.CompositionInfoHandler)
-	mux.HandleFunc("/recording_info", api.RecordingInfoHandler)
 	mux.HandleFunc("/composition", api.CompositionHandler)
 	mux.HandleFunc("/recording", api.RecordingHandler)
+	mux.HandleFunc("/publish", api.PublishHandler)
+	mux.HandleFunc("/release", api.ReleaseHandler)
 	mux.HandleFunc("/publishing_license", api.PublishingLicenseHandler)
 	mux.HandleFunc("/recording_license", api.RecordingLicenseHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
@@ -107,7 +107,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, right)
 }
 
-func (api *Api) CompositionInfoHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -120,7 +120,7 @@ func (api *Api) CompositionInfoHandler(w http.ResponseWriter, req *http.Request)
 	composerId := values.Get("composerId")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	info, err := api.CompositionInfo(composerId, publisherId, title)
+	info, err := api.Composition(composerId, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -128,7 +128,7 @@ func (api *Api) CompositionInfoHandler(w http.ResponseWriter, req *http.Request)
 	WriteJSON(w, info)
 }
 
-func (api *Api) RecordingInfoHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -148,7 +148,7 @@ func (api *Api) RecordingInfoHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publishingLicenseId := form.Value["publishingLicenseId"][0]
-	info, err := api.RecordingInfo(compositionId, file, labelId, performerId, producerId, publishingLicenseId)
+	info, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -156,7 +156,7 @@ func (api *Api) RecordingInfoHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, info)
 }
 
-func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -168,7 +168,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	infoId := values.Get("infoId")
 	rightIds := SplitStr(values.Get("rightIds"), ",")
-	composition, err := api.Composition(infoId, rightIds)
+	composition, err := api.Publish(infoId, rightIds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -176,7 +176,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, composition)
 }
 
-func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -188,7 +188,7 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	infoId := values.Get("infoId")
 	rightIds := SplitStr(values.Get("rightIds"), ",")
-	recording, err := api.Recording(infoId, rightIds)
+	recording, err := api.Release(infoId, rightIds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -331,7 +331,7 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	}, nil
 }
 
-func (api *Api) CompositionInfo(composerId, publisherId, title string) (info Data, err error) {
+func (api *Api) Composition(composerId, publisherId, title string) (info Data, err error) {
 	info = spec.NewCompositionInfo(composerId, publisherId, title)
 	if _, err = ld.ValidateCompositionInfo(info, api.pub); err != nil {
 		return nil, err
@@ -346,7 +346,7 @@ func (api *Api) CompositionInfo(composerId, publisherId, title string) (info Dat
 	return info, nil
 }
 
-func (api *Api) RecordingInfo(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string) (info Data, err error) {
+func (api *Api) Recording(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string) (info Data, err error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
@@ -367,7 +367,7 @@ func (api *Api) RecordingInfo(compositionId string, file io.Reader, labelId, per
 	return info, nil
 }
 
-func (api *Api) Composition(infoId string, rightIds []string) (composition Data, err error) {
+func (api *Api) Publish(infoId string, rightIds []string) (composition Data, err error) {
 	composition = spec.NewComposition(infoId, rightIds)
 	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func (api *Api) Composition(infoId string, rightIds []string) (composition Data,
 	return composition, nil
 }
 
-func (api *Api) Recording(infoId string, rightIds []string) (recording Data, err error) {
+func (api *Api) Release(infoId string, rightIds []string) (recording Data, err error) {
 	recording = spec.NewRecording(infoId, rightIds)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err

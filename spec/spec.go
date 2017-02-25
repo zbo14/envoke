@@ -34,9 +34,12 @@ const (
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
 	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
-	ID_REGEX              = `^[A-Fa-f0-9]{64}$`                                                // hex
-	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$`                                    // base58
-	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$`                                    // base58
+	HFA_REGEX             = `^[A-Z0-9]{6}$`
+	ID_REGEX              = `^[A-Fa-f0-9]{64}$` // hex
+	ISRC_REGEX            = `^[a-z]{2}[a-z0-9]{3}[7890][0-9][0-9]{5}$`
+	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
+	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
+	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
 )
 
 func MatchEmail(email string) bool {
@@ -171,10 +174,12 @@ func ValidAgent(agent Data) error {
 
 // Composition
 
-func NewComposition(composerId, publisherId, title string) Data {
+func NewComposition(composerId, hfa, iswc, publisherId, title string) Data {
 	return Data{
 		"composerId":  composerId,
+		"hfa":         hfa,
 		"instance":    NewInstance(COMPOSITION),
+		"iswc":        iswc,
 		"publisherId": publisherId,
 		"title":       title,
 	}
@@ -182,6 +187,14 @@ func NewComposition(composerId, publisherId, title string) Data {
 
 func GetCompositionComposerId(composition Data) string {
 	return composition.GetStr("composerId")
+}
+
+func GetCompositionHFA(composition Data) string {
+	return composition.GetStr("hfa")
+}
+
+func GetCompositionISWC(composition Data) string {
+	return composition.GetStr("iswc")
 }
 
 func GetCompositionPublisherId(composition Data) string {
@@ -203,6 +216,14 @@ func ValidComposition(composition Data) error {
 	composerId := GetCompositionComposerId(composition)
 	if !MatchId(composerId) {
 		return ErrorAppend(ErrInvalidId, "composerId")
+	}
+	hfa := GetCompositionHFA(composition)
+	if !MatchStr(HFA_REGEX, hfa) {
+		return Error("Invalid HFA song code")
+	}
+	iswc := GetCompositionISWC(composition)
+	if !MatchStr(HFA_REGEX, iswc) {
+		return Error("Invalid ISWC code")
 	}
 	publisherId := GetCompositionPublisherId(composition)
 	if !MatchId(publisherId) {
@@ -265,9 +286,10 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(labelId, performerId, producerId, publicationId, publishingLicenseId string) Data {
+func NewRecording(isrc, labelId, performerId, producerId, publicationId, publishingLicenseId string) Data {
 	recording := Data{
 		"instance":      NewInstance(RECORDING),
+		"isrc":          isrc,
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
@@ -279,8 +301,8 @@ func NewRecording(labelId, performerId, producerId, publicationId, publishingLic
 	return recording
 }
 
-func GetRecordingPublicationId(recording Data) string {
-	return recording.GetStr("publicationId")
+func GetRecordingISRC(recording Data) string {
+	return recording.GetStr("isrc")
 }
 
 func GetRecordingLabelId(recording Data) string {
@@ -299,6 +321,10 @@ func GetRecordingProducerId(recording Data) string {
 	return recording.GetStr("producerId")
 }
 
+func GetRecordingPublicationId(recording Data) string {
+	return recording.GetStr("publicationId")
+}
+
 func ValidRecording(recording Data) error {
 	instance := GetInstance(recording)
 	if err := ValidInstance(instance); err != nil {
@@ -306,6 +332,10 @@ func ValidRecording(recording Data) error {
 	}
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
+	}
+	isrc := GetRecordingISRC(recording)
+	if !MatchStr(ISRC_REGEX, isrc) {
+		return Error("Invalid ISRC code")
 	}
 	labelId := GetRecordingLabelId(recording)
 	if !MatchId(labelId) {

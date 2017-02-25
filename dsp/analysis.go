@@ -9,72 +9,81 @@ import (
 )
 
 var (
+	FAN_VALUE            = 15
 	NEIGHBORHOOD_SIZE    = 20
 	OVERLAP_RATIO        = 0.5
 	SAMPLING_RATE        = 44100
-	SIMILARITY_THRESHOLD = 0.3
+	SIMILARITY_THRESHOLD = 0.1
 	WINDOW               = HammingWindow
 	WINDOW_SIZE          = 4096
 )
 
-func Fingerprint(dists []float64) []byte {
-	p := make([]byte, 8*len(dists))
-	for i, dist := range dists {
-		binary.BigEndian.PutUint64(p[i*8:(i+1)*8], math.Float64bits(dist))
-	}
-	return Checksum256(p)
+func DefaultCompareConstellations(c1, c2 map[string]struct{}) bool {
+	return CompareConstellations(c1, c2, SIMILARITY_THRESHOLD)
 }
 
-func SimilarityMeasure(dists1, dists2 []float64) (diff float64) {
-	var i int
-	l1 := len(dists1)
-	l2 := len(dists2)
-	if l1 == l2 {
-		for i = range dists1 {
-			diff += math.Pow(dists1[i]-dists2[i], 2)
-		}
-		return diff / float64(l1)
-	} else if l1 < l2 {
-		for i = 0; i+l1 < l2; i++ {
-			diff += SimilarityMeasure(dists1, dists2[i:i+l1])
-		}
-	} else {
-		for i = 0; i+l2 < l1; i++ {
-			diff += SimilarityMeasure(dists1[i:i+l2], dists2)
+func CompareConstellations(c1, c2 map[string]struct{}, threshold float64) bool {
+	shared := 0
+	for fprint := range c1 {
+		if _, ok := c2[fprint]; ok {
+			shared++
 		}
 	}
-	return diff
+	ratio := 2 * float64(shared) / float64(len(c1)+len(c2))
+	Println(ratio)
+	return ratio >= threshold
 }
 
-func PeakDistances(freqs []float64, peaks [][]bool) (dists []float64) {
-	freqMin, freqMax := freqs[0], freqs[len(freqs)-1]
-	freqRange := freqMax - freqMin
-	prevFreq := freqMin
-	prevTime := 0
-	n := len(peaks)
-	for i := range peaks {
-		for j := range peaks[i] {
-			if peaks[i][j] {
-				dists = append(dists, math.Pow((freqs[j]-prevFreq)/freqRange, 2)+math.Pow(float64(i-prevTime)/float64(n-1), 2))
-				prevFreq, prevTime = freqs[j], i
+func DefaultConstellation(peakFreqs [][]float64) map[string]struct{} {
+	return Constellation(FAN_VALUE, peakFreqs)
+}
+
+func Constellation(fan int, peakFreqs [][]float64) map[string]struct{} {
+	fprints := make(map[string]struct{})
+	n := len(peakFreqs)
+	for i, freqs := range peakFreqs {
+		m := len(freqs)
+	OUTER:
+		for j := range freqs {
+			rem := fan
+			for k := j + 1; k < m; k++ {
+				fprints[Fingerprint(freqs[j], freqs[k], 0)] = struct{}{}
+				if rem--; rem == 0 {
+					continue OUTER
+				}
+			}
+			for a := i + 1; a < n; a++ {
+				for b := 0; b < len(peakFreqs[a]); b++ {
+					fprints[Fingerprint(freqs[j], peakFreqs[a][b], a-i)] = struct{}{}
+					if rem--; rem == 0 {
+						continue OUTER
+					}
+				}
 			}
 		}
 	}
-	return
+	return fprints
 }
 
-func DefaultFindPeaks(sgram [][]float64) [][]bool {
-	return FindPeaks(NEIGHBORHOOD_SIZE, sgram)
+func Fingerprint(freq1, freq2 float64, tdelta int) string {
+	p := make([]byte, 16)
+	binary.BigEndian.PutUint64(p[0:8], math.Float64bits(freq1))
+	binary.BigEndian.PutUint64(p[8:], math.Float64bits(freq2))
+	p = append(p, Uint64Bytes(tdelta)...)
+	return BytesToHex(Checksum256(p))
 }
 
-func FindPeaks(nbr int, sgram [][]float64) [][]bool {
+func DefaultPeakFrequencies(freqs []float64, sgram [][]float64) [][]float64 {
+	return PeakFrequencies(freqs, NEIGHBORHOOD_SIZE, sgram)
+}
+
+func PeakFrequencies(freqs []float64, nbr int, sgram [][]float64) [][]float64 {
 	n := len(sgram)
-	peaks := make([][]bool, n)
+	peakFreqs := make([][]float64, n)
 	for i, x := range sgram {
 	OUTER:
 		for j := range x {
 			m := len(x)
-			peaks[i] = make([]bool, m)
 			for k := 0; k <= nbr; k++ {
 				if k != 0 {
 					if j-k >= 0 {
@@ -101,10 +110,10 @@ func FindPeaks(nbr int, sgram [][]float64) [][]bool {
 					}
 				}
 			}
-			peaks[i][j] = true
+			peakFreqs[i] = append(peakFreqs[i], freqs[j])
 		}
 	}
-	return peaks
+	return peakFreqs
 }
 
 func DefaultFftSpectrogram(x []float64) ([]float64, [][]float64, error) {
@@ -120,19 +129,8 @@ func FftSpectrogram(fs, l int, olap float64, win func(int) []float64, x []float6
 	for i := range sgram {
 		ApplyWindow(win, sgram[i])
 		z := FftReal(sgram[i])
-		min, max := math.Inf(1), math.Inf(-1)
 		for j := 0; j < l2p1; j++ {
-			sgram[i][j] = math.Sqrt(real(z[j] * cmplx.Conj(z[j])))
-			if sgram[i][j] < min {
-				min = sgram[i][j]
-			}
-			if sgram[i][j] > max {
-				max = sgram[i][j]
-			}
-		}
-		for j := 0; j < l2p1; j++ {
-			sgram[i][j] -= min
-			sgram[i][j] /= (max - min)
+			sgram[i][j] = math.Log10(math.Sqrt(real(z[j] * cmplx.Conj(z[j]))))
 		}
 		sgram[i] = sgram[i][:l2p1]
 	}
@@ -142,3 +140,33 @@ func FftSpectrogram(fs, l int, olap float64, win func(int) []float64, x []float6
 	}
 	return freqs, sgram, nil
 }
+
+/*
+func SimilarityMeasure(dists1, dists2 []float64) (diff float64) {
+	l1 := len(dists1)
+	l2 := len(dists2)
+	if l1 == l2 {
+		for i, dist := range dists1 {
+			diff += math.Pow(dist-dists2[i], 2)
+		}
+		return diff
+	} else if l1 < l2 {
+		diff = math.Inf(1)
+		for i := 0; i+l1 <= l2; i++ {
+			d := SimilarityMeasure(dists1, dists2[i:i+l1])
+			if d < diff {
+				diff = d
+			}
+		}
+	} else {
+		diff = math.Inf(1)
+		for i := 0; i+l2 < l1; i++ {
+			d := SimilarityMeasure(dists1[i:i+l2], dists2)
+			if d < diff {
+				diff = d
+			}
+		}
+	}
+	return diff
+}
+*/

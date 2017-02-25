@@ -23,16 +23,15 @@ func TestDsp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	peaks := DefaultFindPeaks(sgram)
-	dists1 := PeakDistances(freqs, peaks)
+	peakFreqs := DefaultPeakFrequencies(freqs, sgram)
+	constellation1 := DefaultConstellation(peakFreqs)
 	file = MustOpenFile(path2)
 	x = MustReadTimeDomain(file)
 	freqs, sgram, err = DefaultFftSpectrogram(x)
 	if err != nil {
 		t.Fatal(err)
 	}
-	peaks = DefaultFindPeaks(sgram)
-	dists2 := PeakDistances(freqs, peaks)
-	sim := SimilarityMeasure(dists1, dists2)
-	t.Log(sim)
+	peakFreqs = DefaultPeakFrequencies(freqs, sgram)
+	constellation2 := DefaultConstellation(peakFreqs)
+	t.Log(DefaultCompareConstellations(constellation1, constellation2))
 }

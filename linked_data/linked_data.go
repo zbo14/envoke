@@ -28,18 +28,18 @@ func ValidateModel(model Data, pub crypto.PublicKey) (Data, error) {
 	switch _type {
 	case spec.AGENT:
 		err = spec.ValidAgent(model)
-	case spec.INFO_COMPOSITION:
-		model, err = ValidateCompositionInfo(model, pub)
-	case spec.INFO_RECORDING:
-		model, err = ValidateRecordingInfo(model, pub)
 	case spec.COMPOSITION:
 		model, err = ValidateComposition(model, pub)
 	case spec.RECORDING:
 		model, err = ValidateRecording(model, pub)
+	case spec.PUBLICATION:
+		model, err = ValidatePublication(model, pub)
+	case spec.RELEASE:
+		model, err = ValidateRelease(model, pub)
 	case spec.LICENSE_PUBLISHING:
 		model, err = ValidatePublishingLicense(model, pub)
-	case spec.LICENSE_RECORDING:
-		model, err = ValidateRecordingLicense(model, pub)
+	case spec.LICENSE_RELEASE:
+		model, err = ValidateReleaseLicense(model, pub)
 	default:
 		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
@@ -65,99 +65,20 @@ func QueryModelIdField(field, modelId string) (interface{}, error) {
 func QueryModelField(field string, model Data, pub crypto.PublicKey) (interface{}, error) {
 	_type := spec.GetType(model)
 	switch _type {
-	case spec.COMPOSITION:
-		return QueryCompositionField(field, model, pub)
-	case spec.RECORDING:
-		return QueryRecordingField(field, model, pub)
+	case spec.PUBLICATION:
+		return QueryPublicationField(field, model, pub)
+	case spec.RELEASE:
+		return QueryReleaseField(field, model, pub)
 	case spec.LICENSE_PUBLISHING:
 		return QueryPublishingLicenseField(field, model, pub)
-	case spec.LICENSE_RECORDING:
-		return QueryRecordingLicenseField(field, model, pub)
+	case spec.LICENSE_RELEASE:
+		return QueryReleaseLicenseField(field, model, pub)
 	default:
 		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
 }
 
 // Composition
-
-func ValidateCompositionInfoById(infoId string) (Data, error) {
-	tx, err := bigchain.GetTx(infoId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	Println(tx)
-	pub := bigchain.GetTxPublicKey(tx)
-	info := bigchain.GetTxData(tx)
-	if err := spec.ValidCompositionInfo(info); err != nil {
-		return nil, err
-	}
-	return ValidateCompositionInfo(info, pub)
-}
-
-func ValidateCompositionInfo(info Data, pub crypto.PublicKey) (Data, error) {
-	composerId := spec.GetInfoComposer(info)
-	tx, err := bigchain.GetTx(composerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	signed := false
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signed = true
-	}
-	composer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(composer); err != nil {
-		return nil, err
-	}
-	publisherId := spec.GetInfoPublisher(info)
-	tx, err = bigchain.GetTx(publisherId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signed = true
-	}
-	if !signed {
-		return nil, ErrInvalidKey
-	}
-	publisher := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(publisher); err != nil {
-		return nil, err
-	}
-	return info, nil
-}
-
-func GetInfoComposer(info Data) (Data, error) {
-	composerId := spec.GetInfoComposer(info)
-	tx, err := bigchain.GetTx(composerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetInfoPublisher(info Data) (Data, error) {
-	publisherId := spec.GetInfoPublisher(info)
-	tx, err := bigchain.GetTx(publisherId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
 
 func ValidateCompositionById(compositionId string) (Data, error) {
 	tx, err := bigchain.GetTx(compositionId)
@@ -176,29 +97,93 @@ func ValidateCompositionById(compositionId string) (Data, error) {
 }
 
 func ValidateComposition(composition Data, pub crypto.PublicKey) (Data, error) {
-	infoId := spec.GetCompositionInfo(composition)
-	info, err := ValidateCompositionInfoById(infoId)
+	composerId := spec.GetCompositionComposerId(composition)
+	tx, err := bigchain.GetTx(composerId)
 	if err != nil {
 		return nil, err
 	}
-	signerId := spec.GetInfoComposer(info)
-	tx, err := bigchain.GetTx(signerId)
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "composition must be signed by composer")
+	}
+	composer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(composer); err != nil {
+		return nil, err
+	}
+	publisherId := spec.GetCompositionPublisherId(composition)
+	tx, err = bigchain.GetTx(publisherId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	publisher := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(publisher); err != nil {
+		return nil, err
+	}
+	return composition, nil
+}
+
+func GetCompositionComposer(composition Data) (Data, error) {
+	composerId := spec.GetCompositionComposerId(composition)
+	tx, err := bigchain.GetTx(composerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetCompositionPublisher(composition Data) (Data, error) {
+	publisherId := spec.GetCompositionPublisherId(composition)
+	tx, err := bigchain.GetTx(publisherId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func ValidatePublicationById(publicationId string) (Data, error) {
+	tx, err := bigchain.GetTx(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	pub := bigchain.GetTxPublicKey(tx)
+	publication := bigchain.GetTxData(tx)
+	if err := spec.ValidPublication(publication); err != nil {
+		return nil, err
+	}
+	return ValidatePublication(publication, pub)
+}
+
+func ValidatePublication(publication Data, pub crypto.PublicKey) (Data, error) {
+	compositionId := spec.GetPublicationCompositionId(publication)
+	composition, err := ValidateCompositionById(compositionId)
+	if err != nil {
+		return nil, err
+	}
+	publisherId := spec.GetCompositionPublisherId(composition)
+	tx, err := bigchain.GetTx(publisherId)
 	if err != nil {
 		return nil, err
 	}
 	if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signerId = spec.GetInfoPublisher(info)
-		tx, err = bigchain.GetTx(signerId)
-		if err != nil {
-			return nil, err
-		}
-		if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "composition must be signed by composer or publisher")
-		}
+		return nil, ErrorAppend(ErrCriteriaNotMet, "publication must be signed by publisher")
 	}
 	percentageShares := 0
 	rightHolders := make(map[string]struct{})
-	rightIds := spec.GetCompositionRights(composition)
+	rightIds := spec.GetPublicationRightIds(publication)
 	for _, rightId := range rightIds {
 		tx, err = bigchain.GetTx(rightId)
 		if err != nil {
@@ -214,8 +199,8 @@ func ValidateComposition(composition Data, pub crypto.PublicKey) (Data, error) {
 		if _, ok := rightHolders[bigchain.GetTxPublicKey(tx).String()]; ok {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to composition")
 		}
-		if infoId != spec.GetRightInfo(right) {
-			return nil, ErrorAppend(ErrInvalidId, "right infoId")
+		if compositionId != spec.GetRightCompositionId(right) {
+			return nil, ErrorAppend(ErrInvalidId, "right compositionId")
 		}
 		percentageShares += spec.GetRightPercentageShares(right)
 		if percentageShares > 100 {
@@ -228,41 +213,41 @@ func ValidateComposition(composition Data, pub crypto.PublicKey) (Data, error) {
 	return composition, nil
 }
 
-func QueryCompositionField(field string, composition Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateComposition(composition, pub); err != nil {
+func QueryPublicationField(field string, publication Data, pub crypto.PublicKey) (interface{}, error) {
+	if _, err := ValidatePublication(publication, pub); err != nil {
 		return nil, err
 	}
 	switch field {
 	case "composer":
-		info, err := GetCompositionInfo(composition)
+		composition, err := GetPublicationComposition(publication)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoComposer(info)
-	case "info":
-		return GetCompositionInfo(composition)
+		return GetCompositionComposer(composition)
+	case "composition":
+		return GetPublicationComposition(publication)
 	case "publisher":
-		info, err := GetCompositionInfo(composition)
+		composition, err := GetPublicationComposition(publication)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoPublisher(info)
+		return GetCompositionPublisher(composition)
 	case "rights":
-		return GetCompositionRights(composition)
+		return GetPublicationRights(publication)
 	case "title":
-		info, err := GetCompositionInfo(composition)
+		composition, err := GetPublicationComposition(publication)
 		if err != nil {
 			return nil, err
 		}
-		return spec.GetInfoTitle(info), nil
+		return spec.GetCompositionTitle(composition), nil
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
 }
 
-func GetCompositionInfo(composition Data) (Data, error) {
-	infoId := spec.GetCompositionInfo(composition)
-	tx, err := bigchain.GetTx(infoId)
+func GetPublicationComposition(publication Data) (Data, error) {
+	compositionId := spec.GetPublicationCompositionId(publication)
+	tx, err := bigchain.GetTx(compositionId)
 	if err != nil {
 		return nil, err
 	}
@@ -272,8 +257,8 @@ func GetCompositionInfo(composition Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetCompositionRights(composition Data) ([]Data, error) {
-	rightIds := spec.GetCompositionRights(composition)
+func GetPublicationRights(publication Data) ([]Data, error) {
+	rightIds := spec.GetPublicationRightIds(publication)
 	rights := make([]Data, len(rightIds))
 	for i, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
@@ -289,168 +274,6 @@ func GetCompositionRights(composition Data) ([]Data, error) {
 }
 
 // Recording
-
-func ValidateRecordingInfoById(infoId string) (Data, error) {
-	tx, err := bigchain.GetTx(infoId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	pub := bigchain.GetTxPublicKey(tx)
-	info := bigchain.GetTxData(tx)
-	if err := spec.ValidRecordingInfo(info); err != nil {
-		return nil, err
-	}
-	return ValidateRecordingInfo(info, pub)
-}
-
-func ValidateRecordingInfo(info Data, pub crypto.PublicKey) (Data, error) {
-	labelId := spec.GetInfoLabel(info)
-	tx, err := bigchain.GetTx(labelId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	label := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(label); err != nil {
-		return nil, err
-	}
-	signed := false
-	var signerId string
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signed = true
-		signerId = labelId
-	}
-	performerId := spec.GetInfoPerformer(info)
-	tx, err = bigchain.GetTx(performerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	performer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(performer); err != nil {
-		return nil, err
-	}
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signed = true
-		signerId = performerId
-	}
-	producerId := spec.GetInfoProducer(info)
-	tx, err = bigchain.GetTx(producerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	producer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(producer); err != nil {
-		return nil, err
-	}
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-		signed = true
-		signerId = producerId
-	}
-	if !signed {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recording must be signed by label, performer, or producer")
-	}
-	compositionId := spec.GetInfoComposition(info)
-	composition, err := ValidateCompositionById(compositionId)
-	if err != nil {
-		return nil, err
-	}
-	rightHolder := false
-	rightIds := spec.GetCompositionRights(composition)
-	for _, rightId := range rightIds {
-		tx, err := bigchain.GetTx(rightId)
-		if err != nil {
-			return nil, err
-		}
-		if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-			rightHolder = true
-			break
-		}
-	}
-	if !rightHolder {
-		licenseId := spec.GetInfoPublishingLicense(info)
-		license, err := ValidatePublishingLicenseById(licenseId)
-		if err != nil {
-			return nil, err
-		}
-		if compositionId != spec.GetLicenseComposition(license) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "publishing license is not for composition")
-		}
-		if signerId != spec.GetLicenseLicensee(license) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not licensee of publishing license")
-		}
-	}
-	return info, nil
-}
-func GetInfoComposition(info Data) (Data, error) {
-	compositionId := spec.GetInfoComposition(info)
-	tx, err := bigchain.GetTx(compositionId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetInfoLabel(info Data) (Data, error) {
-	labelId := spec.GetInfoLabel(info)
-	tx, err := bigchain.GetTx(labelId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetInfoPerformer(info Data) (Data, error) {
-	performerId := spec.GetInfoPerformer(info)
-	tx, err := bigchain.GetTx(performerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetInfoProducer(info Data) (Data, error) {
-	producerId := spec.GetInfoProducer(info)
-	tx, err := bigchain.GetTx(producerId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetInfoPublishingLicense(info Data) (Data, error) {
-	licenseId := spec.GetInfoPublishingLicense(info)
-	tx, err := bigchain.GetTx(licenseId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
 
 func ValidateRecordingById(recordingId string) (Data, error) {
 	tx, err := bigchain.GetTx(recordingId)
@@ -469,21 +292,179 @@ func ValidateRecordingById(recordingId string) (Data, error) {
 }
 
 func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
-	infoId := spec.GetRecordingInfo(recording)
-	tx, err := bigchain.GetTx(infoId)
+	labelId := spec.GetRecordingLabelId(recording)
+	tx, err := bigchain.GetTx(labelId)
 	if err != nil {
 		return nil, err
 	}
 	if !bigchain.FulfilledTx(tx) {
 		return nil, ErrInvalidFulfillment
 	}
-	info := bigchain.GetTxData(tx)
-	if _, err := ValidateRecordingInfo(info, pub); err != nil {
+	label := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(label); err != nil {
+		return nil, err
+	}
+	performerId := spec.GetRecordingPerformerId(recording)
+	tx, err = bigchain.GetTx(performerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	performer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(performer); err != nil {
+		return nil, err
+	}
+	signed := false
+	var signerId string
+	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+		signed = true
+		signerId = performerId
+	}
+	producerId := spec.GetRecordingProducerId(recording)
+	tx, err = bigchain.GetTx(producerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	producer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(producer); err != nil {
+		return nil, err
+	}
+	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+		signed = true
+		signerId = producerId
+	}
+	if !signed {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "recording must be signed by performer or producer")
+	}
+	publicationId := spec.GetRecordingPublicationId(recording)
+	publication, err := ValidatePublicationById(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	rightHolder := false
+	rightIds := spec.GetPublicationRightIds(publication)
+	for _, rightId := range rightIds {
+		tx, err := bigchain.GetTx(rightId)
+		if err != nil {
+			return nil, err
+		}
+		if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+			rightHolder = true
+			break
+		}
+	}
+	if !rightHolder {
+		licenseId := spec.GetRecordingPublishingLicenseId(recording)
+		license, err := ValidatePublishingLicenseById(licenseId)
+		if err != nil {
+			return nil, err
+		}
+		if publicationId != spec.GetLicensePublicationId(license) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "wrong publishing license")
+		}
+		if signerId != spec.GetLicenseLicenseeId(license) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not licensee of publishing license")
+		}
+	}
+	return recording, nil
+}
+func GetRecordingPublication(recording Data) (Data, error) {
+	publicationId := spec.GetRecordingPublicationId(recording)
+	tx, err := bigchain.GetTx(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetRecordingLabel(recording Data) (Data, error) {
+	labelId := spec.GetRecordingLabelId(recording)
+	tx, err := bigchain.GetTx(labelId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetRecordingPerformer(recording Data) (Data, error) {
+	performerId := spec.GetRecordingPerformerId(recording)
+	tx, err := bigchain.GetTx(performerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetRecordingProducer(recording Data) (Data, error) {
+	producerId := spec.GetRecordingProducerId(recording)
+	tx, err := bigchain.GetTx(producerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetRecordingPublishingLicense(recording Data) (Data, error) {
+	licenseId := spec.GetRecordingPublishingLicenseId(recording)
+	tx, err := bigchain.GetTx(licenseId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func ValidateReleaseById(releaseId string) (Data, error) {
+	tx, err := bigchain.GetTx(releaseId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	pub := bigchain.GetTxPublicKey(tx)
+	release := bigchain.GetTxData(tx)
+	if err := spec.ValidRelease(release); err != nil {
+		return nil, err
+	}
+	return ValidateRelease(release, pub)
+}
+
+func ValidateRelease(release Data, pub crypto.PublicKey) (Data, error) {
+	recordingId := spec.GetReleaseRecordingId(release)
+	tx, err := bigchain.GetTx(recordingId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	recording := bigchain.GetTxData(tx)
+	if _, err := ValidateRecording(recording, pub); err != nil {
 		return nil, err
 	}
 	percentageShares := 0
 	rightHolders := make(map[string]struct{})
-	rightIds := spec.GetRecordingRights(recording)
+	rightIds := spec.GetReleaseRightIds(recording)
 	for _, rightId := range rightIds {
 		tx, err = bigchain.GetTx(rightId)
 		if err != nil {
@@ -511,63 +492,53 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	return recording, nil
 }
 
-func QueryRecordingField(field string, recording Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateRecording(recording, pub); err != nil {
+func QueryReleaseField(field string, release Data, pub crypto.PublicKey) (interface{}, error) {
+	if _, err := ValidateRelease(release, pub); err != nil {
 		return nil, err
 	}
 	switch field {
-	case "composition":
-		info, err := GetRecordingInfo(recording)
-		if err != nil {
-			return nil, err
-		}
-		return GetInfoComposition(info)
-	case "info":
-		return GetRecordingInfo(recording)
 	case "label":
-		info, err := GetRecordingInfo(recording)
+		recording, err := GetReleaseRecording(release)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoLabel(info)
+		return GetRecordingLabel(recording)
 	case "performer":
-		info, err := GetRecordingInfo(recording)
+		recording, err := GetReleaseRecording(release)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoPerformer(info)
+		return GetRecordingPerformer(recording)
 	case "producer":
-		info, err := GetRecordingInfo(recording)
+		recording, err := GetReleaseRecording(release)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoProducer(info)
+		return GetRecordingProducer(recording)
+	case "publication":
+		recording, err := GetReleaseRecording(release)
+		if err != nil {
+			return nil, err
+		}
+		return GetRecordingPublication(recording)
 	case "publishingLicense":
-		info, err := GetRecordingInfo(recording)
+		recording, err := GetReleaseRecording(release)
 		if err != nil {
 			return nil, err
 		}
-		return GetInfoPublishingLicense(info)
+		return GetRecordingPublishingLicense(recording)
+	case "recording":
+		return GetReleaseRecording(release)
 	case "rights":
-		return GetRecordingRights(recording)
-	case "title":
-		info, err := GetRecordingInfo(recording)
-		if err != nil {
-			return nil, err
-		}
-		composition, err := GetInfoComposition(info)
-		if err != nil {
-			return nil, err
-		}
-		return QueryCompositionField("title", composition, pub)
+		return GetReleaseRights(release)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
 }
 
-func GetRecordingInfo(recording Data) (Data, error) {
-	infoId := spec.GetRecordingInfo(recording)
-	tx, err := bigchain.GetTx(infoId)
+func GetReleaseRecording(release Data) (Data, error) {
+	recordingId := spec.GetReleaseRecordingId(release)
+	tx, err := bigchain.GetTx(recordingId)
 	if err != nil {
 		return nil, err
 	}
@@ -577,8 +548,8 @@ func GetRecordingInfo(recording Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetRecordingRights(recording Data) ([]Data, error) {
-	rightIds := spec.GetRecordingRights(recording)
+func GetReleaseRights(release Data) ([]Data, error) {
+	rightIds := spec.GetReleaseRightIds(release)
 	rights := make([]Data, len(rightIds))
 	for i, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
@@ -591,6 +562,56 @@ func GetRecordingRights(recording Data) ([]Data, error) {
 		rights[i] = bigchain.GetTxData(tx)
 	}
 	return rights, nil
+}
+
+// License
+
+func GetLicenseLicensee(license Data) (Data, error) {
+	licenseeId := spec.GetLicenseLicenseeId(license)
+	tx, err := bigchain.GetTx(licenseeId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetLicenseLicenser(license Data) (Data, error) {
+	licenserId := spec.GetLicenseLicenserId(license)
+	tx, err := bigchain.GetTx(licenserId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetLicensePublication(license Data) (Data, error) {
+	publicationId := spec.GetLicensePublicationId(license)
+	tx, err := bigchain.GetTx(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
+}
+
+func GetLicenseRelease(license Data) (Data, error) {
+	releaseId := spec.GetLicenseReleaseId(license)
+	tx, err := bigchain.GetTx(releaseId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
 }
 
 // Publishing License
@@ -612,13 +633,13 @@ func ValidatePublishingLicenseById(licenseId string) (Data, error) {
 }
 
 func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error) {
-	compositionId := spec.GetLicenseComposition(license)
-	composition, err := ValidateCompositionById(compositionId)
+	publicationId := spec.GetLicensePublicationId(license)
+	publication, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return nil, err
 	}
 	rightHolder := false
-	rightIds := spec.GetCompositionRights(composition)
+	rightIds := spec.GetPublicationRightIds(publication)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
@@ -630,9 +651,9 @@ func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error)
 		}
 	}
 	if !rightHolder {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a composition right holder")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a publication right holder")
 	}
-	licenserId := spec.GetLicenseLicenser(license)
+	licenserId := spec.GetLicenseLicenserId(license)
 	tx, err := bigchain.GetTx(licenserId)
 	if err != nil {
 		return nil, err
@@ -648,7 +669,7 @@ func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error)
 	if err = spec.ValidAgent(licenser); err != nil {
 		return nil, err
 	}
-	licenseeId := spec.GetLicenseLicensee(license)
+	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
 	if err != nil {
 		return nil, err
@@ -669,55 +690,19 @@ func QueryPublishingLicenseField(field string, license Data, pub crypto.PublicKe
 	}
 	switch field {
 	case "licensee":
-		return GetPublishingLicenseLicensee(license)
+		return GetLicenseLicensee(license)
 	case "licenser":
-		return GetPublishingLicenseLicenser(license)
-	case "composition":
-		return GetPublishingLicenseComposition(license)
+		return GetLicenseLicenser(license)
+	case "publication":
+		return GetLicensePublication(license)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
 }
 
-func GetPublishingLicenseLicensee(license Data) (Data, error) {
-	licenseeId := spec.GetLicenseLicensee(license)
-	tx, err := bigchain.GetTx(licenseeId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
+// Release license
 
-func GetPublishingLicenseLicenser(license Data) (Data, error) {
-	licenserId := spec.GetLicenseLicenser(license)
-	tx, err := bigchain.GetTx(licenserId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetPublishingLicenseComposition(license Data) (Data, error) {
-	compositionId := spec.GetLicenseComposition(license)
-	tx, err := bigchain.GetTx(compositionId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-// Recording license
-
-func ValidateRecordingLicenseById(licenseId string) (Data, error) {
+func ValidateReleaseLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
 	if err != nil {
 		return nil, err
@@ -727,20 +712,20 @@ func ValidateRecordingLicenseById(licenseId string) (Data, error) {
 	}
 	pub := bigchain.GetTxPublicKey(tx)
 	license := bigchain.GetTxData(tx)
-	if err := spec.ValidRecordingLicense(license); err != nil {
+	if err := spec.ValidReleaseLicense(license); err != nil {
 		return nil, err
 	}
-	return ValidateRecordingLicense(license, pub)
+	return ValidateReleaseLicense(license, pub)
 }
 
-func ValidateRecordingLicense(license Data, pub crypto.PublicKey) (Data, error) {
-	recordingId := spec.GetLicenseRecording(license)
-	recording, err := ValidateRecordingById(recordingId)
+func ValidateReleaseLicense(license Data, pub crypto.PublicKey) (Data, error) {
+	releaseId := spec.GetLicenseReleaseId(license)
+	release, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return nil, err
 	}
 	rightHolder := false
-	rightIds := spec.GetRecordingRights(recording)
+	rightIds := spec.GetReleaseRightIds(release)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
@@ -752,9 +737,9 @@ func ValidateRecordingLicense(license Data, pub crypto.PublicKey) (Data, error) 
 		}
 	}
 	if !rightHolder {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a recording right holder")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a release right holder")
 	}
-	licenserId := spec.GetLicenseLicenser(license)
+	licenserId := spec.GetLicenseLicenserId(license)
 	tx, err := bigchain.GetTx(licenserId)
 	if err != nil {
 		return nil, err
@@ -769,7 +754,7 @@ func ValidateRecordingLicense(license Data, pub crypto.PublicKey) (Data, error) 
 	if err = spec.ValidAgent(licenser); err != nil {
 		return nil, err
 	}
-	licenseeId := spec.GetLicenseLicensee(license)
+	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
 	if err != nil {
 		return nil, err
@@ -784,54 +769,18 @@ func ValidateRecordingLicense(license Data, pub crypto.PublicKey) (Data, error) 
 	return license, nil
 }
 
-func QueryRecordingLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateRecordingLicense(license, pub); err != nil {
+func QueryReleaseLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
+	if _, err := ValidateReleaseLicense(license, pub); err != nil {
 		return nil, err
 	}
 	switch field {
 	case "licensee":
-		return GetRecordingLicenseLicensee(license)
+		return GetLicenseLicensee(license)
 	case "licenser":
-		return GetRecordingLicenseLicenser(license)
-	case "recording":
-		return GetRecordingLicenseRecording(license)
+		return GetLicenseLicenser(license)
+	case "release":
+		return GetLicenseRelease(license)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
-}
-
-func GetRecordingLicenseLicensee(license Data) (Data, error) {
-	licenseeId := spec.GetLicenseLicensee(license)
-	tx, err := bigchain.GetTx(licenseeId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetRecordingLicenseLicenser(license Data) (Data, error) {
-	licenserId := spec.GetLicenseLicenser(license)
-	tx, err := bigchain.GetTx(licenserId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-func GetRecordingLicenseRecording(license Data) (Data, error) {
-	recordingId := spec.GetLicenseRecording(license)
-	tx, err := bigchain.GetTx(recordingId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
 }

@@ -180,11 +180,11 @@ func NewComposition(composerId, publisherId, title string) Data {
 	}
 }
 
-func GetCompositionComposer(composition Data) string {
+func GetCompositionComposerId(composition Data) string {
 	return composition.GetStr("composerId")
 }
 
-func GetCompositionPublisher(composition Data) string {
+func GetCompositionPublisherId(composition Data) string {
 	return composition.GetStr("publisherId")
 }
 
@@ -200,11 +200,11 @@ func ValidComposition(composition Data) error {
 	if !HasType(composition, COMPOSITION) {
 		return ErrorAppend(ErrInvalidType, GetType(composition))
 	}
-	composerId := GetCompositionComposer(composition)
+	composerId := GetCompositionComposerId(composition)
 	if !MatchId(composerId) {
 		return ErrorAppend(ErrInvalidId, "composerId")
 	}
-	publisherId := GetCompositionPublisher(composition)
+	publisherId := GetCompositionPublisherId(composition)
 	if !MatchId(publisherId) {
 		return ErrorAppend(ErrInvalidId, "publisherId")
 	}
@@ -226,12 +226,12 @@ func NewPublication(compositionId string, rightIds []string) Data {
 	}
 }
 
-func GetPublicationRights(publication Data) []string {
-	return publication.GetStrSlice("rightIds")
+func GetPublicationCompositionId(publication Data) string {
+	return publication.GetStr("compositionId")
 }
 
-func GetPublicationComposition(publication Data) string {
-	return publication.GetStr("infoId")
+func GetPublicationRightIds(publication Data) []string {
+	return publication.GetStrSlice("rightIds")
 }
 
 func ValidPublication(publication Data) error {
@@ -242,11 +242,11 @@ func ValidPublication(publication Data) error {
 	if !HasType(publication, PUBLICATION) {
 		return ErrorAppend(ErrInvalidType, GetType(publication))
 	}
-	compositionId := GetPublicationComposition(publication)
+	compositionId := GetPublicationCompositionId(publication)
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, "compositionId")
 	}
-	rightIds := GetPublicationRights(publication)
+	rightIds := GetPublicationRightIds(publication)
 	seen := make(map[string]struct{})
 	for _, rightId := range rightIds {
 		if _, ok := seen[rightId]; ok {
@@ -265,13 +265,13 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(compositionId, labelId, performerId, producerId, publishingLicenseId string) Data {
+func NewRecording(labelId, performerId, producerId, publicationId, publishingLicenseId string) Data {
 	recording := Data{
-		"compositionId": compositionId,
 		"instance":      NewInstance(RECORDING),
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
+		"publicationId": publicationId,
 	}
 	if publishingLicenseId != "" {
 		recording.Set("publishingLicenseId", publishingLicenseId)
@@ -279,23 +279,23 @@ func NewRecording(compositionId, labelId, performerId, producerId, publishingLic
 	return recording
 }
 
-func GetRecordingComposition(recording Data) string {
-	return recording.GetStr("compositionId")
+func GetRecordingPublicationId(recording Data) string {
+	return recording.GetStr("publicationId")
 }
 
-func GetRecordingLabel(recording Data) string {
+func GetRecordingLabelId(recording Data) string {
 	return recording.GetStr("labelId")
 }
 
-func GetRecordingPublishingLicense(recording Data) string {
+func GetRecordingPublishingLicenseId(recording Data) string {
 	return recording.GetStr("publishingLicenseId")
 }
 
-func GetRecordingPerformer(recording Data) string {
+func GetRecordingPerformerId(recording Data) string {
 	return recording.GetStr("performerId")
 }
 
-func GetRecordingProducer(recording Data) string {
+func GetRecordingProducerId(recording Data) string {
 	return recording.GetStr("producerId")
 }
 
@@ -307,23 +307,23 @@ func ValidRecording(recording Data) error {
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
 	}
-	compositionId := GetRecordingComposition(recording)
-	if !MatchId(compositionId) {
-		return ErrorAppend(ErrInvalidId, "compositionId")
-	}
-	labelId := GetRecordingLabel(recording)
+	labelId := GetRecordingLabelId(recording)
 	if !MatchId(labelId) {
 		return ErrorAppend(ErrInvalidId, "labelId")
 	}
-	performerId := GetRecordingPerformer(recording)
+	performerId := GetRecordingPerformerId(recording)
 	if !MatchId(performerId) {
 		return ErrorAppend(ErrInvalidId, "performerId")
 	}
-	producerId := GetRecordingProducer(recording)
+	producerId := GetRecordingProducerId(recording)
 	if !MatchId(producerId) {
 		return ErrorAppend(ErrInvalidId, "performerId")
 	}
-	publishingLicenseId := GetRecordingPublishingLicense(recording)
+	publicationId := GetRecordingPublicationId(recording)
+	if !MatchId(publicationId) {
+		return ErrorAppend(ErrInvalidId, "publicationId")
+	}
+	publishingLicenseId := GetRecordingPublishingLicenseId(recording)
 	if !EmptyStr(publishingLicenseId) {
 		if !MatchId(publishingLicenseId) {
 			return ErrorAppend(ErrInvalidId, "publishingLicenseId")
@@ -347,11 +347,11 @@ func NewRelease(recordingId string, rightIds []string) Data {
 	}
 }
 
-func GetReleaseRecording(release Data) string {
+func GetReleaseRecordingId(release Data) string {
 	return release.GetStr("recordingId")
 }
 
-func GetReleaseRights(release Data) []string {
+func GetReleaseRightIds(release Data) []string {
 	return release.GetStrSlice("rightIds")
 }
 
@@ -363,11 +363,11 @@ func ValidRelease(release Data) error {
 	if !HasType(release, RELEASE) {
 		return ErrorAppend(ErrInvalidType, GetType(release))
 	}
-	recordingId := GetReleaseRecording(release)
+	recordingId := GetReleaseRecordingId(release)
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, "recordingId")
 	}
-	rightIds := GetReleaseRights(release)
+	rightIds := GetReleaseRightIds(release)
 	seen := make(map[string]struct{})
 	for _, rightId := range rightIds {
 		if _, ok := seen[rightId]; ok {
@@ -407,7 +407,7 @@ func NewRecordingRight(percentageShares, recordingId, validFrom, validTo string)
 	return right
 }
 
-func GetRightComposition(right Data) string {
+func GetRightCompositionId(right Data) string {
 	return right.GetStr("compositionId")
 }
 
@@ -415,7 +415,7 @@ func GetRightPercentageShares(right Data) int {
 	return right.GetStrInt("percentageShares")
 }
 
-func GetRightRecording(right Data) string {
+func GetRightRecordingId(right Data) string {
 	return right.GetStr("recordingId")
 }
 
@@ -454,7 +454,7 @@ func ValidCompositionRight(right Data) error {
 	if err := ValidRight(right); err != nil {
 		return err
 	}
-	compositionId := GetRightComposition(right)
+	compositionId := GetRightCompositionId(right)
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, "compositionId")
 	}
@@ -468,7 +468,7 @@ func ValidRecordingRight(right Data) error {
 	if err := ValidRight(right); err != nil {
 		return err
 	}
-	recordingId := GetRightRecording(right)
+	recordingId := GetRightRecordingId(right)
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, "recordingId")
 	}
@@ -491,9 +491,9 @@ func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo s
 	}
 }
 
-func NewPublishingLicense(compositionId, licenseeId, licenserId, licenseType, validFrom, validTo string) Data {
+func NewPublishingLicense(licenseeId, licenserId, licenseType, publicationId, validFrom, validTo string) Data {
 	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_PUBLISHING, validFrom, validTo)
-	license.Set("compositionId", compositionId)
+	license.Set("publicationId", publicationId)
 	return license
 }
 
@@ -502,21 +502,20 @@ func NewReleaseLicense(licenseeId, licenserId, licenseType, releaseId, validFrom
 	license.Set("recordingId", releaseId)
 	return license
 }
-
-func GetLicenseComposition(license Data) string {
-	return license.GetStr("compositionId")
-}
-
-func GetLicenseLicensee(license Data) string {
+func GetLicenseLicenseeId(license Data) string {
 	return license.GetStr("licenseeId")
 }
 
-func GetLicenseLicenser(license Data) string {
+func GetLicenseLicenserId(license Data) string {
 	return license.GetStr("licenserId")
 }
 
-func GetLicenseRelease(license Data) string {
+func GetLicenseReleaseId(license Data) string {
 	return license.GetStr("releaseId")
+}
+
+func GetLicensePublicationId(license Data) string {
+	return license.GetStr("publicationId")
 }
 
 func GetLicenseType(license Data) string {
@@ -539,9 +538,13 @@ func ValidLicense(license Data, _type string) error {
 	if !HasType(license, _type) {
 		return ErrorAppend(ErrInvalidType, _type)
 	}
-	licenseeId := GetLicenseLicensee(license)
+	licenseeId := GetLicenseLicenseeId(license)
 	if !MatchId(licenseeId) {
 		return ErrorAppend(ErrInvalidId, "licenseeId")
+	}
+	licenserId := GetLicenseLicenserId(license)
+	if !MatchId(licenserId) {
+		return ErrorAppend(ErrInvalidId, "licenserId")
 	}
 	licenseType := GetLicenseType(license)
 	switch licenseType {
@@ -568,9 +571,9 @@ func ValidPublishingLicense(license Data) error {
 	if err := ValidLicense(license, LICENSE_PUBLISHING); err != nil {
 		return err
 	}
-	compositionId := GetLicenseComposition(license)
+	compositionId := GetLicensePublicationId(license)
 	if !MatchId(compositionId) {
-		return ErrorAppend(ErrInvalidId, "compositionId")
+		return ErrorAppend(ErrInvalidId, "publicationId")
 	}
 	licenseType := GetLicenseType(license)
 	switch licenseType {
@@ -582,7 +585,7 @@ func ValidPublishingLicense(license Data) error {
 		return ErrorAppend(ErrInvalidType, licenseType)
 	}
 	if len(license) != LICENSE_SIZE {
-		return ErrorAppend(ErrInvalidSize, "license")
+		return ErrorAppend(ErrInvalidSize, LICENSE_PUBLISHING)
 	}
 	return nil
 }
@@ -591,7 +594,7 @@ func ValidReleaseLicense(license Data) error {
 	if err := ValidLicense(license, LICENSE_RELEASE); err != nil {
 		return err
 	}
-	recordingId := GetLicenseRelease(license)
+	recordingId := GetLicenseReleaseId(license)
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, "recordingId")
 	}
@@ -604,7 +607,7 @@ func ValidReleaseLicense(license Data) error {
 		return ErrorAppend(ErrInvalidType, licenseType)
 	}
 	if len(license) != LICENSE_SIZE {
-		return ErrorAppend(ErrInvalidSize, "license")
+		return ErrorAppend(ErrInvalidSize, LICENSE_RELEASE)
 	}
 	return nil
 }

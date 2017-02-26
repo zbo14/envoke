@@ -30,13 +30,12 @@ func NewApi() *Api {
 func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login", api.LoginHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
+	mux.HandleFunc("/compose", api.ComposeHandler)
+	mux.HandleFunc("/record", api.RecordHandler)
 	mux.HandleFunc("/right", api.RightHandler)
-	mux.HandleFunc("/composition", api.CompositionHandler)
-	mux.HandleFunc("/recording", api.RecordingHandler)
 	mux.HandleFunc("/publish", api.PublishHandler)
 	mux.HandleFunc("/release", api.ReleaseHandler)
-	mux.HandleFunc("/publishing_license", api.PublishingLicenseHandler)
-	mux.HandleFunc("/recording_license", api.RecordingLicenseHandler)
+	mux.HandleFunc("/license", api.LicenseHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
 }
 
@@ -95,11 +94,21 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	infoId := values.Get("infoId")
+	var right Data
+	compositionId := values.Get("compositionId")
 	percentageShares := values.Get("percentageShares")
+	recordingId := values.Get("recordingId")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	right, err := api.Right(infoId, percentageShares, validFrom, validTo)
+	switch {
+	case !EmptyStr(compositionId):
+		right, err = api.CompositionRight(compositionId, percentageShares, validFrom, validTo)
+	case !EmptyStr(recordingId):
+		right, err = api.RecordingRight(percentageShares, recordingId, validFrom, validTo)
+	default:
+		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -107,7 +116,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, right)
 }
 
-func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -118,9 +127,11 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	composerId := values.Get("composerId")
+	hfa := values.Get("hfa")
+	iswc := values.Get("iswc")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	info, err := api.Composition(composerId, publisherId, title)
+	info, err := api.Compose(composerId, hfa, iswc, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -128,7 +139,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, info)
 }
 
-func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -138,22 +149,23 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	compositionId := form.Value["compositionId"][0]
 	file, err := form.File["recording"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	isrc := form.Value["isrc"][0]
 	labelId := form.Value["labelId"][0]
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
+	publicationId := form.Value["publicationId"][0]
 	publishingLicenseId := form.Value["publishingLicenseId"][0]
-	info, err := api.Recording(compositionId, file, labelId, performerId, producerId, publishingLicenseId)
+	recording, err := api.Record(file, isrc, labelId, performerId, producerId, publicationId, publishingLicenseId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, info)
+	WriteJSON(w, recording)
 }
 
 func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
@@ -166,9 +178,9 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	infoId := values.Get("infoId")
+	compositionId := values.Get("compositionId")
 	rightIds := SplitStr(values.Get("rightIds"), ",")
-	composition, err := api.Publish(infoId, rightIds)
+	composition, err := api.Publish(compositionId, rightIds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -186,55 +198,42 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	infoId := values.Get("infoId")
-	rightIds := SplitStr(values.Get("rightIds"), ",")
-	recording, err := api.Release(infoId, rightIds)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, recording)
-}
-
-func (api *Api) PublishingLicenseHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	compositionId := values.Get("compositionId")
-	licenseeId := values.Get("licenseeId")
-	licenseType := values.Get("licenseType")
-	validFrom := values.Get("validFrom")
-	validTo := values.Get("validTo")
-	license, err := api.PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, license)
-}
-
-func (api *Api) RecordingLicenseHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	licenseeId := values.Get("licenseeId")
-	licenseType := values.Get("licenseType")
 	recordingId := values.Get("recordingId")
+	rightIds := SplitStr(values.Get("rightIds"), ",")
+	release, err := api.Release(recordingId, rightIds)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, release)
+}
+
+func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var license Data
+	licenseeId := values.Get("licenseeId")
+	licenseType := values.Get("licenseType")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	license, err := api.RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo)
+	switch licenseType {
+	case spec.LICENSE_TYPE_MECHANICAL, spec.LICENSE_TYPE_SYNCHRONIZATION:
+		publicationId := values.Get("publicationId")
+		license, err = api.PublishingLicense(licenseeId, licenseType, publicationId, validFrom, validTo)
+	case spec.LICENSE_TYPE_MASTER:
+		releaseId := values.Get("releaseId")
+		license, err = api.ReleaseLicense(licenseeId, licenseType, releaseId, validFrom, validTo)
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, licenseType).Error(), http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -252,9 +251,33 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	var model interface{}
 	field := values.Get("field")
-	modelId := values.Get("modelId")
-	model, err := ld.QueryModelIdField(field, modelId)
+	publicationId := values.Get("publicationId")
+	releaseId := values.Get("releaseId")
+	switch {
+	case !EmptyStr(publicationId):
+		tx, err := bigchain.GetTx(publicationId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		publication := bigchain.GetTxData(tx)
+		pub := bigchain.GetTxPublicKey(tx)
+		model, err = ld.QueryPublicationField(field, publication, pub)
+	case !EmptyStr(releaseId):
+		tx, err := bigchain.GetTx(releaseId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		release := bigchain.GetTxData(tx)
+		pub := bigchain.GetTxPublicKey(tx)
+		model, err = ld.QueryReleaseField(field, release, pub)
+	default:
+		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -331,44 +354,8 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	}, nil
 }
 
-func (api *Api) Composition(composerId, publisherId, title string) (info Data, err error) {
-	info = spec.NewCompositionInfo(composerId, publisherId, title)
-	if _, err = ld.ValidateCompositionInfo(info, api.pub); err != nil {
-		return nil, err
-	}
-	tx := bigchain.IndividualCreateTx(info, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
-	info["id"], err = bigchain.PostTx(tx)
-	if err != nil {
-		return nil, err
-	}
-	api.logger.Info("SUCCESS sent tx with composition info")
-	return info, nil
-}
-
-func (api *Api) Recording(compositionId string, file io.Reader, labelId, performerId, producerId, publishingLicenseId string) (info Data, err error) {
-	// rs := MustReadSeeker(file)
-	// meta, err := tag.ReadFrom(rs)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// metadata := meta.Raw()
-	info = spec.NewRecordingInfo(compositionId, labelId, performerId, producerId, publishingLicenseId)
-	if _, err = ld.ValidateRecordingInfo(info, api.pub); err != nil {
-		return nil, err
-	}
-	tx := bigchain.IndividualCreateTx(info, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
-	info["id"], err = bigchain.PostTx(tx)
-	if err != nil {
-		return nil, err
-	}
-	api.logger.Info("SUCCESS sent tx with recording info")
-	return info, nil
-}
-
-func (api *Api) Publish(infoId string, rightIds []string) (composition Data, err error) {
-	composition = spec.NewComposition(infoId, rightIds)
+func (api *Api) Compose(composerId, hfa, iswc, publisherId, title string) (composition Data, err error) {
+	composition = spec.NewComposition(composerId, hfa, iswc, publisherId, title)
 	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
@@ -382,8 +369,14 @@ func (api *Api) Publish(infoId string, rightIds []string) (composition Data, err
 	return composition, nil
 }
 
-func (api *Api) Release(infoId string, rightIds []string) (recording Data, err error) {
-	recording = spec.NewRecording(infoId, rightIds)
+func (api *Api) Record(file io.Reader, isrc, labelId, performerId, producerId, publicationId, publishingLicenseId string) (recording Data, err error) {
+	// rs := MustReadSeeker(file)
+	// meta, err := tag.ReadFrom(rs)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// metadata := meta.Raw()
+	recording = spec.NewRecording(isrc, labelId, performerId, producerId, publicationId, publishingLicenseId)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
@@ -397,9 +390,39 @@ func (api *Api) Release(infoId string, rightIds []string) (recording Data, err e
 	return recording, nil
 }
 
-func (api *Api) Right(infoId, percentageShares, validFrom, validTo string) (right Data, err error) {
-	right = spec.NewRight(infoId, percentageShares, validFrom, validTo)
-	if err = spec.ValidRight(right); err != nil {
+func (api *Api) Publish(compositionId string, rightIds []string) (publication Data, err error) {
+	publication = spec.NewPublication(compositionId, rightIds)
+	if _, err = ld.ValidatePublication(publication, api.pub); err != nil {
+		return nil, err
+	}
+	tx := bigchain.IndividualCreateTx(publication, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	publication["id"], err = bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS sent tx with publication")
+	return publication, nil
+}
+
+func (api *Api) Release(recordingId string, rightIds []string) (release Data, err error) {
+	release = spec.NewRelease(recordingId, rightIds)
+	if _, err = ld.ValidateRelease(release, api.pub); err != nil {
+		return nil, err
+	}
+	tx := bigchain.IndividualCreateTx(release, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	release["id"], err = bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS sent tx with release")
+	return release, nil
+}
+
+func (api *Api) CompositionRight(compositionId, percentageShares, validFrom, validTo string) (right Data, err error) {
+	right = spec.NewCompositionRight(compositionId, percentageShares, validFrom, validTo)
+	if err = spec.ValidCompositionRight(right); err != nil {
 		return nil, err
 	}
 	tx := bigchain.IndividualCreateTx(right, api.pub)
@@ -408,12 +431,27 @@ func (api *Api) Right(infoId, percentageShares, validFrom, validTo string) (righ
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS created right")
+	api.logger.Info("SUCCESS created composition right")
 	return right, nil
 }
 
-func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewPublishingLicense(compositionId, licenseeId, api.agentId, licenseType, validFrom, validTo)
+func (api *Api) RecordingRight(percentageShares, recordingId, validFrom, validTo string) (right Data, err error) {
+	right = spec.NewRecordingRight(percentageShares, recordingId, validFrom, validTo)
+	if err = spec.ValidRecordingRight(right); err != nil {
+		return nil, err
+	}
+	tx := bigchain.IndividualCreateTx(right, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	right["id"], err = bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS created recording right")
+	return right, nil
+}
+
+func (api *Api) PublishingLicense(licenseeId, licenseType, publicationId, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewPublishingLicense(licenseeId, api.agentId, licenseType, publicationId, validFrom, validTo)
 	if _, err = ld.ValidatePublishingLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -427,9 +465,9 @@ func (api *Api) PublishingLicense(compositionId, licenseeId, licenseType, validF
 	return license, nil
 }
 
-func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewRecordingLicense(licenseeId, api.agentId, licenseType, recordingId, validFrom, validTo)
-	if _, err = ld.ValidateRecordingLicense(license, api.pub); err != nil {
+func (api *Api) ReleaseLicense(licenseeId, licenseType, releaseId, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewReleaseLicense(licenseeId, api.agentId, licenseType, releaseId, validFrom, validTo)
+	if _, err = ld.ValidateReleaseLicense(license, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.IndividualCreateTx(license, api.pub)
@@ -438,6 +476,6 @@ func (api *Api) RecordingLicense(licenseeId, licenseType, recordingId, validFrom
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with recording license")
+	api.logger.Info("SUCCESS sent tx with release license")
 	return license, nil
 }

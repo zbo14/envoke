@@ -1,0 +1,81 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<header>RECORD</header>
+<form id="record-form" name="record-form" enctype="multipart/form-data">
+    <input type="text" name="isrc" placeholder="ISRC CODE" required /><br>
+    <input type="text" name="performerId" placeholder="PERFORMER ID" required /><br>
+    <input type="text" name="producerId" placeholder="PRODUCER ID" required /><br>
+	<input type="text" name="labelId" placeholder="RECORD LABEL ID" required /><br>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
+    <input type="text" name="publishingLicenseId" placeholder="PUBLISHING LICENSE ID" /><br>
+    <input accept="audio" type="file" name="recording" required /><br>
+    <input type="submit" value="submit" />
+</form>
+<header>RELEASE</header>
+<form id="release-form" name="release-form">
+    <input type="text" name="recordingId" placeholder="RECORDING ID" required /><br>
+    <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
+    <input type="submit" value="release" />
+</form>
+<header>SEARCH</header>
+<form id="search-form" name="search-form">
+    <input type="text" name="releaseId" placeholder="RELEASE ID" required /><br>
+    <select form="search-form" name="field" required>
+        <option value="" disabled selected></option>
+        <option value="performer">PERFORMER</option>
+        <option value="producer">PRODUCER</option>
+		<option value="label">RECORD LABEL</option>
+        <option value="publication">PUBLICATION</option>
+        <option value="publishingLicense">PUBLISHING LICENSE</option>
+        <option value="recording">RECORDING</option>
+        <option value="rights">RIGHTS</option>
+    </select>
+    <input type="submit" value="search" />
+</form>
+<pre id="message"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+window.onload = function() {
+
+	var recordForm = $("#record-form");
+	recordForm.submit(function(event) {
+		event.preventDefault();
+		var formData = new FormData(event.target);
+		httpPostAsync("http://localhost:8888/record", formData, callback);
+	});
+
+	var releaseForm = $("#release-form");
+	releaseForm.submit(function(event){
+		event.preventDefault();
+		var formData = releaseForm.serialize();
+		httpPostAsync("http://localhost:8888/release", formData, callback);
+	});
+
+	var searchForm = $("#search-form");
+ 	searchForm.submit(function(event){
+   		event.preventDefault();
+    	var formData = searchForm.serialize();
+    	formData.set("type", "release");
+    	httpPostAsync("http://localhost:8888/search", formData, callback);
+  	});
+}
+</script>
+{{end}}

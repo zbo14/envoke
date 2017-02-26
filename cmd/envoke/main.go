@@ -9,22 +9,25 @@ import (
 func main() {
 
 	CreatePages(
-		"composition_recording",
-		"license",
+		"compose_publish",
 		"login_register",
+		"right_license",
+		"record_release",
 	)
 
 	RegisterTemplates(
-		"composition_recording.html",
-		"license.html",
+		"compose_publish.html",
 		"login_register.html",
+		"right_license.html",
+		"record_release.html",
 	)
 
 	// Create request multiplexer
 	mux := http.NewServeMux()
-	mux.HandleFunc("/composition_recording", TemplateHandler("composition_recording.html"))
-	mux.HandleFunc("/license", TemplateHandler("license.html"))
+	mux.HandleFunc("/compose_publish", TemplateHandler("compose_publish.html"))
 	mux.HandleFunc("/login_register", TemplateHandler("login_register.html"))
+	mux.HandleFunc("/right_license", TemplateHandler("right_license.html"))
+	mux.HandleFunc("/record_release", TemplateHandler("record_release.html"))
 	fs := http.Dir("static/")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(fs)))
 

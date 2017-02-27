@@ -159,8 +159,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publicationId := form.Value["publicationId"][0]
-	publishingLicenseId := form.Value["publishingLicenseId"][0]
-	recording, err := api.Record(file, isrc, labelId, performerId, producerId, publicationId, publishingLicenseId)
+	recording, err := api.Record(file, isrc, labelId, performerId, producerId, publicationId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -198,9 +197,10 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	publishingLicenseId := values.Get("publishingLicenseId")
 	recordingId := values.Get("recordingId")
 	rightIds := SplitStr(values.Get("rightIds"), ",")
-	release, err := api.Release(recordingId, rightIds)
+	release, err := api.Release(publishingLicenseId, recordingId, rightIds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -220,18 +220,18 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var license Data
 	licenseeId := values.Get("licenseeId")
-	licenseType := values.Get("licenseType")
+	_type := values.Get("type")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	switch licenseType {
-	case spec.LICENSE_TYPE_MECHANICAL, spec.LICENSE_TYPE_SYNCHRONIZATION:
+	switch _type {
+	case spec.LICENSE_MECHANICAL:
 		publicationId := values.Get("publicationId")
-		license, err = api.PublishingLicense(licenseeId, licenseType, publicationId, validFrom, validTo)
-	case spec.LICENSE_TYPE_MASTER:
+		license, err = api.MechanicalLicense(licenseeId, publicationId, validFrom, validTo)
+	case spec.LICENSE_MASTER:
 		releaseId := values.Get("releaseId")
-		license, err = api.ReleaseLicense(licenseeId, licenseType, releaseId, validFrom, validTo)
+		license, err = api.MasterLicense(licenseeId, releaseId, validFrom, validTo)
 	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, licenseType).Error(), http.StatusBadRequest)
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
@@ -369,14 +369,14 @@ func (api *Api) Compose(composerId, hfa, iswc, publisherId, title string) (compo
 	return composition, nil
 }
 
-func (api *Api) Record(file io.Reader, isrc, labelId, performerId, producerId, publicationId, publishingLicenseId string) (recording Data, err error) {
+func (api *Api) Record(file io.Reader, isrc, labelId, performerId, producerId, publicationId string) (recording Data, err error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	// 	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording = spec.NewRecording(isrc, labelId, performerId, producerId, publicationId, publishingLicenseId)
+	recording = spec.NewRecording(isrc, labelId, performerId, producerId, publicationId)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
@@ -405,8 +405,8 @@ func (api *Api) Publish(compositionId string, rightIds []string) (publication Da
 	return publication, nil
 }
 
-func (api *Api) Release(recordingId string, rightIds []string) (release Data, err error) {
-	release = spec.NewRelease(recordingId, rightIds)
+func (api *Api) Release(publishingLicenseId, recordingId string, rightIds []string) (release Data, err error) {
+	release = spec.NewRelease(publishingLicenseId, recordingId, rightIds)
 	if _, err = ld.ValidateRelease(release, api.pub); err != nil {
 		return nil, err
 	}
@@ -450,9 +450,9 @@ func (api *Api) RecordingRight(percentageShares, recordingId, validFrom, validTo
 	return right, nil
 }
 
-func (api *Api) PublishingLicense(licenseeId, licenseType, publicationId, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewPublishingLicense(licenseeId, api.agentId, licenseType, publicationId, validFrom, validTo)
-	if _, err = ld.ValidatePublishingLicense(license, api.pub); err != nil {
+func (api *Api) MechanicalLicense(licenseeId, publicationId, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, publicationId, "", spec.LICENSE_MECHANICAL, validFrom, validTo)
+	if _, err = ld.ValidateMechanicalLicense(license, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.IndividualCreateTx(license, api.pub)
@@ -461,13 +461,13 @@ func (api *Api) PublishingLicense(licenseeId, licenseType, publicationId, validF
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with publishing license")
+	api.logger.Info("SUCCESS sent tx with mechanical license")
 	return license, nil
 }
 
-func (api *Api) ReleaseLicense(licenseeId, licenseType, releaseId, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewReleaseLicense(licenseeId, api.agentId, licenseType, releaseId, validFrom, validTo)
-	if _, err = ld.ValidateReleaseLicense(license, api.pub); err != nil {
+func (api *Api) MasterLicense(licenseeId, releaseId, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, "", releaseId, spec.LICENSE_MASTER, validFrom, validTo)
+	if _, err = ld.ValidateMasterLicense(license, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.IndividualCreateTx(license, api.pub)
@@ -476,6 +476,6 @@ func (api *Api) ReleaseLicense(licenseeId, licenseType, releaseId, validFrom, va
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS sent tx with release license")
+	api.logger.Info("SUCCESS sent tx with master license")
 	return license, nil
 }

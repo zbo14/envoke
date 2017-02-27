@@ -8,35 +8,33 @@ import (
 )
 
 const (
-	AGENT              = "agent"
-	COMPOSITION        = "composition"
-	RECORDING          = "recording"
-	PUBLICATION        = "publication"
-	RELEASE            = "release"
-	RIGHT              = "right"
-	LICENSE_PUBLISHING = "publishing_license"
-	LICENSE_RELEASE    = "release_license"
-	// LICENSE_BLANKET
+	AGENT       = "agent"
+	COMPOSITION = "composition"
+	RECORDING   = "recording"
+	PUBLICATION = "publication"
+	RELEASE     = "release"
+	RIGHT       = "right"
 
-	LICENSE_TYPE_MASTER          = "master_license"
-	LICENSE_TYPE_MECHANICAL      = "mechanical_license"
-	LICENSE_TYPE_SYNCHRONIZATION = "synchronization_license"
+	LICENSE_MASTER     = "master_license"
+	LICENSE_MECHANICAL = "mechanical_license"
+	// LICENSE_SYNCHRONIZATION
+	// LICENSE_BLANKET
 
 	INSTANCE_SIZE    = 2
 	AGENT_SIZE       = 4
-	COMPOSITION_SIZE = 4
-	RECORDING_SIZE   = 5
+	COMPOSITION_SIZE = 6
+	RECORDING_SIZE   = 6
 	PUBLICATION_SIZE = 3
 	RELEASE_SIZE     = 3
 	RIGHT_SIZE       = 5
-	LICENSE_SIZE     = 7
+	LICENSE_SIZE     = 6
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
 	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
 	HFA_REGEX             = `^[A-Z0-9]{6}$`
 	ID_REGEX              = `^[A-Fa-f0-9]{64}$` // hex
-	ISRC_REGEX            = `^[a-z]{2}[a-z0-9]{3}[7890][0-9][0-9]{5}$`
+	ISRC_REGEX            = `^[A-Z]{2}-[A-Z0-9]{3}-[7890][0-9]-[0-9]{5}$`
 	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
 	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
 	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
@@ -107,8 +105,8 @@ func ValidInstance(instance Data) error {
 		PUBLICATION,
 		RELEASE,
 		RIGHT,
-		LICENSE_PUBLISHING,
-		LICENSE_RELEASE:
+		LICENSE_MECHANICAL,
+		LICENSE_MASTER:
 		// Ok..
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
@@ -222,7 +220,7 @@ func ValidComposition(composition Data) error {
 		return Error("Invalid HFA song code")
 	}
 	iswc := GetCompositionISWC(composition)
-	if !MatchStr(HFA_REGEX, iswc) {
+	if !MatchStr(ISWC_REGEX, iswc) {
 		return Error("Invalid ISWC code")
 	}
 	publisherId := GetCompositionPublisherId(composition)
@@ -286,7 +284,7 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(isrc, labelId, performerId, producerId, publicationId, publishingLicenseId string) Data {
+func NewRecording(isrc, labelId, performerId, producerId, publicationId string) Data {
 	recording := Data{
 		"instance":      NewInstance(RECORDING),
 		"isrc":          isrc,
@@ -294,9 +292,6 @@ func NewRecording(isrc, labelId, performerId, producerId, publicationId, publish
 		"performerId":   performerId,
 		"producerId":    producerId,
 		"publicationId": publicationId,
-	}
-	if publishingLicenseId != "" {
-		recording.Set("publishingLicenseId", publishingLicenseId)
 	}
 	return recording
 }
@@ -307,10 +302,6 @@ func GetRecordingISRC(recording Data) string {
 
 func GetRecordingLabelId(recording Data) string {
 	return recording.GetStr("labelId")
-}
-
-func GetRecordingPublishingLicenseId(recording Data) string {
-	return recording.GetStr("publishingLicenseId")
 }
 
 func GetRecordingPerformerId(recording Data) string {
@@ -353,28 +344,27 @@ func ValidRecording(recording Data) error {
 	if !MatchId(publicationId) {
 		return ErrorAppend(ErrInvalidId, "publicationId")
 	}
-	publishingLicenseId := GetRecordingPublishingLicenseId(recording)
-	if !EmptyStr(publishingLicenseId) {
-		if !MatchId(publishingLicenseId) {
-			return ErrorAppend(ErrInvalidId, "publishingLicenseId")
-		}
-		if len(recording) != RECORDING_SIZE+1 {
-			return ErrorAppend(ErrInvalidSize, RECORDING)
-		}
-		return nil
-	}
 	if len(recording) != RECORDING_SIZE {
 		return ErrorAppend(ErrInvalidSize, RECORDING)
 	}
 	return nil
 }
 
-func NewRelease(recordingId string, rightIds []string) Data {
-	return Data{
-		"instance":    NewInstance(RECORDING),
+func NewRelease(licenseId, recordingId string, rightIds []string) Data {
+	release := Data{
+		"instance":    NewInstance(RELEASE),
+		"licenseId":   licenseId,
 		"recordingId": recordingId,
 		"rightIds":    rightIds,
 	}
+	if licenseId != "" {
+		release.Set("licenseId", licenseId)
+	}
+	return release
+}
+
+func GetReleaseLicenseId(release Data) string {
+	return release.GetStr("licenseId")
 }
 
 func GetReleaseRecordingId(release Data) string {
@@ -407,6 +397,16 @@ func ValidRelease(release Data) error {
 			return ErrorAppend(ErrInvalidId, "rightId")
 		}
 		seen[rightId] = struct{}{}
+	}
+	licenseId := GetReleaseLicenseId(release)
+	if !EmptyStr(licenseId) {
+		if !MatchId(licenseId) {
+			return ErrorAppend(ErrInvalidId, "mechanicalLicenseId")
+		}
+		if len(release) != RELEASE_SIZE+1 {
+			return ErrorAppend(ErrInvalidSize, RELEASE)
+		}
+		return nil
 	}
 	if len(release) != RELEASE_SIZE {
 		return ErrorAppend(ErrInvalidSize, RELEASE)
@@ -510,28 +510,25 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, licenseType, _type, validFrom, validTo string) Data {
-	return Data{
-		"instance":    NewInstance(_type),
-		"licenseeId":  licenseeId,
-		"licenserId":  licenserId,
-		"licenseType": licenseType,
-		"validFrom":   validFrom,
-		"validTo":     validTo,
+func NewLicense(licenseeId, licenserId, publicationId, releaseId, _type, validFrom, validTo string) Data {
+	license := Data{
+		"instance":   NewInstance(_type),
+		"licenseeId": licenseeId,
+		"licenserId": licenserId,
+		"validFrom":  validFrom,
+		"validTo":    validTo,
 	}
-}
-
-func NewPublishingLicense(licenseeId, licenserId, licenseType, publicationId, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_PUBLISHING, validFrom, validTo)
-	license.Set("publicationId", publicationId)
+	switch _type {
+	case LICENSE_MECHANICAL:
+		license.Set("publicationId", publicationId)
+	case LICENSE_MASTER:
+		license.Set("releaseId", releaseId)
+	default:
+		panic(ErrorAppend(ErrInvalidType, _type))
+	}
 	return license
 }
 
-func NewReleaseLicense(licenseeId, licenserId, licenseType, releaseId, validFrom, validTo string) Data {
-	license := NewLicense(licenseeId, licenserId, licenseType, LICENSE_RELEASE, validFrom, validTo)
-	license.Set("recordingId", releaseId)
-	return license
-}
 func GetLicenseLicenseeId(license Data) string {
 	return license.GetStr("licenseeId")
 }
@@ -560,12 +557,25 @@ func GetLicenseValidTo(license Data) time.Time {
 	return MustParseDateStr(license.GetStr("validTo"))
 }
 
-func ValidLicense(license Data, _type string) error {
+func ValidLicense(license Data) error {
 	instance := GetInstance(license)
 	if err := ValidInstance(instance); err != nil {
 		return err
 	}
-	if !HasType(license, _type) {
+	_type := GetType(license)
+	switch _type {
+	case
+		LICENSE_MECHANICAL:
+		publicationId := license.GetStr("publicationId")
+		if !MatchId(publicationId) {
+			return ErrorAppend(ErrInvalidId, "publicationId")
+		}
+	case LICENSE_MASTER:
+		releaseId := license.GetStr("releaseId")
+		if !MatchId(releaseId) {
+			return ErrorAppend(ErrInvalidId, "releaseId")
+		}
+	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
 	licenseeId := GetLicenseLicenseeId(license)
@@ -576,68 +586,13 @@ func ValidLicense(license Data, _type string) error {
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, "licenserId")
 	}
-	licenseType := GetLicenseType(license)
-	switch licenseType {
-	case
-		LICENSE_TYPE_MASTER,
-		LICENSE_TYPE_MECHANICAL,
-		LICENSE_TYPE_SYNCHRONIZATION:
-		//..
-	default:
-		return ErrorAppend(ErrInvalidType, licenseType)
-	}
 	validFrom := GetLicenseValidFrom(license)
 	validTo := GetLicenseValidTo(license)
 	if validFrom.After(validTo) {
 		return ErrInvalidTime
 	}
-	// if len(license) != LICENSE_SIZE {
-	//	return ErrorAppend(ErrInvalidSize, "license")
-	// }
-	return nil
-}
-
-func ValidPublishingLicense(license Data) error {
-	if err := ValidLicense(license, LICENSE_PUBLISHING); err != nil {
-		return err
-	}
-	compositionId := GetLicensePublicationId(license)
-	if !MatchId(compositionId) {
-		return ErrorAppend(ErrInvalidId, "publicationId")
-	}
-	licenseType := GetLicenseType(license)
-	switch licenseType {
-	case
-		LICENSE_TYPE_MECHANICAL,
-		LICENSE_TYPE_SYNCHRONIZATION:
-		//..
-	default:
-		return ErrorAppend(ErrInvalidType, licenseType)
-	}
 	if len(license) != LICENSE_SIZE {
-		return ErrorAppend(ErrInvalidSize, LICENSE_PUBLISHING)
-	}
-	return nil
-}
-
-func ValidReleaseLicense(license Data) error {
-	if err := ValidLicense(license, LICENSE_RELEASE); err != nil {
-		return err
-	}
-	recordingId := GetLicenseReleaseId(license)
-	if !MatchId(recordingId) {
-		return ErrorAppend(ErrInvalidId, "recordingId")
-	}
-	licenseType := GetLicenseType(license)
-	switch licenseType {
-	case
-		LICENSE_TYPE_MASTER:
-		//..
-	default:
-		return ErrorAppend(ErrInvalidType, licenseType)
-	}
-	if len(license) != LICENSE_SIZE {
-		return ErrorAppend(ErrInvalidSize, LICENSE_RELEASE)
+		return ErrorAppend(ErrInvalidSize, "license")
 	}
 	return nil
 }

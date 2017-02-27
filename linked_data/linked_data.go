@@ -36,10 +36,10 @@ func ValidateModel(model Data, pub crypto.PublicKey) (Data, error) {
 		model, err = ValidatePublication(model, pub)
 	case spec.RELEASE:
 		model, err = ValidateRelease(model, pub)
-	case spec.LICENSE_PUBLISHING:
-		model, err = ValidatePublishingLicense(model, pub)
-	case spec.LICENSE_RELEASE:
-		model, err = ValidateReleaseLicense(model, pub)
+	case spec.LICENSE_MECHANICAL:
+		model, err = ValidateMechanicalLicense(model, pub)
+	case spec.LICENSE_MASTER:
+		model, err = ValidateMasterLicense(model, pub)
 	default:
 		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
@@ -69,10 +69,10 @@ func QueryModelField(field string, model Data, pub crypto.PublicKey) (interface{
 		return QueryPublicationField(field, model, pub)
 	case spec.RELEASE:
 		return QueryReleaseField(field, model, pub)
-	case spec.LICENSE_PUBLISHING:
-		return QueryPublishingLicenseField(field, model, pub)
-	case spec.LICENSE_RELEASE:
-		return QueryReleaseLicenseField(field, model, pub)
+	case spec.LICENSE_MECHANICAL:
+		return QueryMechanicalLicenseField(field, model, pub)
+	case spec.LICENSE_MASTER:
+		return QueryMasterLicenseField(field, model, pub)
 	default:
 		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
@@ -210,7 +210,7 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) (Data, error) {
 	if percentageShares != 100 {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
-	return composition, nil
+	return publication, nil
 }
 
 func QueryPublicationField(field string, publication Data, pub crypto.PublicKey) (interface{}, error) {
@@ -317,10 +317,8 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 		return nil, err
 	}
 	signed := false
-	var signerId string
 	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
 		signed = true
-		signerId = performerId
 	}
 	producerId := spec.GetRecordingProducerId(recording)
 	tx, err = bigchain.GetTx(producerId)
@@ -334,42 +332,15 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (Data, error) {
 	if err = spec.ValidAgent(producer); err != nil {
 		return nil, err
 	}
-	if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+	if !signed && pub.Equals(bigchain.GetTxPublicKey(tx)) {
 		signed = true
-		signerId = producerId
 	}
 	if !signed {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recording must be signed by performer or producer")
 	}
 	publicationId := spec.GetRecordingPublicationId(recording)
-	publication, err := ValidatePublicationById(publicationId)
-	if err != nil {
+	if _, err := ValidatePublicationById(publicationId); err != nil {
 		return nil, err
-	}
-	rightHolder := false
-	rightIds := spec.GetPublicationRightIds(publication)
-	for _, rightId := range rightIds {
-		tx, err := bigchain.GetTx(rightId)
-		if err != nil {
-			return nil, err
-		}
-		if pub.Equals(bigchain.GetTxPublicKey(tx)) {
-			rightHolder = true
-			break
-		}
-	}
-	if !rightHolder {
-		licenseId := spec.GetRecordingPublishingLicenseId(recording)
-		license, err := ValidatePublishingLicenseById(licenseId)
-		if err != nil {
-			return nil, err
-		}
-		if publicationId != spec.GetLicensePublicationId(license) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "wrong publishing license")
-		}
-		if signerId != spec.GetLicenseLicenseeId(license) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not licensee of publishing license")
-		}
 	}
 	return recording, nil
 }
@@ -421,18 +392,6 @@ func GetRecordingProducer(recording Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetRecordingPublishingLicense(recording Data) (Data, error) {
-	licenseId := spec.GetRecordingPublishingLicenseId(recording)
-	tx, err := bigchain.GetTx(licenseId)
-	if err != nil {
-		return nil, err
-	}
-	if !bigchain.FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
 func ValidateReleaseById(releaseId string) (Data, error) {
 	tx, err := bigchain.GetTx(releaseId)
 	if err != nil {
@@ -466,9 +425,52 @@ func ValidateRelease(release Data, pub crypto.PublicKey) (Data, error) {
 	if !pub.Equals(bigchain.GetTxPublicKey(tx)) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "release must be signed by record label")
 	}
+	performerId := spec.GetRecordingPerformerId(recording)
+	tx, err = bigchain.GetTx(performerId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	performerPub := bigchain.GetTxPublicKey(tx)
+	publicationId := spec.GetRecordingPublicationId(recording)
+	tx, err = bigchain.GetTx(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	publication := bigchain.GetTxData(tx)
+	rightHolder := false
+	rightIds := spec.GetPublicationRightIds(publication)
+	for _, rightId := range rightIds {
+		tx, err := bigchain.GetTx(rightId)
+		if err != nil {
+			return nil, err
+		}
+		if performerPub.Equals(bigchain.GetTxPublicKey(tx)) {
+			rightHolder = true
+			break
+		}
+	}
+	if !rightHolder {
+		licenseId := spec.GetReleaseLicenseId(release)
+		license, err := ValidateMechanicalLicenseById(licenseId)
+		if err != nil {
+			return nil, err
+		}
+		if publicationId != spec.GetLicensePublicationId(license) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "wrong publishing license")
+		}
+		if labelId != spec.GetLicenseLicenseeId(license) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not licensee of publishing license")
+		}
+	}
 	percentageShares := 0
 	rightHolders := make(map[string]struct{})
-	rightIds := spec.GetReleaseRightIds(release)
+	rightIds = spec.GetReleaseRightIds(release)
 	for _, rightId := range rightIds {
 		tx, err = bigchain.GetTx(rightId)
 		if err != nil {
@@ -479,9 +481,12 @@ func ValidateRelease(release Data, pub crypto.PublicKey) (Data, error) {
 		}
 		pubstr := bigchain.GetTxPublicKey(tx).String()
 		if _, ok := rightHolders[pubstr]; ok {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to composition")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to recording")
 		}
 		right := bigchain.GetTxData(tx)
+		if recordingId != spec.GetRightRecordingId(right) {
+			return nil, ErrorAppend(ErrInvalidId, "right recordingId")
+		}
 		if err = spec.ValidRight(right); err != nil {
 			return nil, err
 		}
@@ -526,11 +531,7 @@ func QueryReleaseField(field string, release Data, pub crypto.PublicKey) (interf
 		}
 		return GetRecordingPublication(recording)
 	case "publishingLicense":
-		recording, err := GetReleaseRecording(release)
-		if err != nil {
-			return nil, err
-		}
-		return GetRecordingPublishingLicense(recording)
+		return GetReleaseMechanicalLicense(release)
 	case "recording":
 		return GetReleaseRecording(release)
 	case "rights":
@@ -538,6 +539,18 @@ func QueryReleaseField(field string, release Data, pub crypto.PublicKey) (interf
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
+}
+
+func GetReleaseMechanicalLicense(release Data) (Data, error) {
+	licenseId := spec.GetReleaseLicenseId(release)
+	tx, err := bigchain.GetTx(licenseId)
+	if err != nil {
+		return nil, err
+	}
+	if !bigchain.FulfilledTx(tx) {
+		return nil, ErrInvalidFulfillment
+	}
+	return bigchain.GetTxData(tx), nil
 }
 
 func GetReleaseRecording(release Data) (Data, error) {
@@ -620,7 +633,7 @@ func GetLicenseRelease(license Data) (Data, error) {
 
 // Publishing License
 
-func ValidatePublishingLicenseById(licenseId string) (Data, error) {
+func ValidateMechanicalLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
 	if err != nil {
 		return nil, err
@@ -629,14 +642,14 @@ func ValidatePublishingLicenseById(licenseId string) (Data, error) {
 		return nil, ErrInvalidFulfillment
 	}
 	license := bigchain.GetTxData(tx)
-	if err := spec.ValidPublishingLicense(license); err != nil {
+	if err := spec.ValidLicense(license); err != nil {
 		return nil, err
 	}
 	pub := bigchain.GetTxPublicKey(tx)
-	return ValidatePublishingLicense(license, pub)
+	return ValidateMechanicalLicense(license, pub)
 }
 
-func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error) {
+func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) (Data, error) {
 	publicationId := spec.GetLicensePublicationId(license)
 	publication, err := ValidatePublicationById(publicationId)
 	if err != nil {
@@ -688,8 +701,8 @@ func ValidatePublishingLicense(license Data, pub crypto.PublicKey) (Data, error)
 	return license, nil
 }
 
-func QueryPublishingLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidatePublishingLicense(license, pub); err != nil {
+func QueryMechanicalLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
+	if _, err := ValidateMechanicalLicense(license, pub); err != nil {
 		return nil, err
 	}
 	switch field {
@@ -706,7 +719,7 @@ func QueryPublishingLicenseField(field string, license Data, pub crypto.PublicKe
 
 // Release license
 
-func ValidateReleaseLicenseById(licenseId string) (Data, error) {
+func ValidateMasterLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
 	if err != nil {
 		return nil, err
@@ -715,14 +728,14 @@ func ValidateReleaseLicenseById(licenseId string) (Data, error) {
 		return nil, ErrInvalidFulfillment
 	}
 	license := bigchain.GetTxData(tx)
-	if err := spec.ValidReleaseLicense(license); err != nil {
+	if err := spec.ValidLicense(license); err != nil {
 		return nil, err
 	}
 	pub := bigchain.GetTxPublicKey(tx)
-	return ValidateReleaseLicense(license, pub)
+	return ValidateMasterLicense(license, pub)
 }
 
-func ValidateReleaseLicense(license Data, pub crypto.PublicKey) (Data, error) {
+func ValidateMasterLicense(license Data, pub crypto.PublicKey) (Data, error) {
 	releaseId := spec.GetLicenseReleaseId(license)
 	release, err := ValidateReleaseById(releaseId)
 	if err != nil {
@@ -773,8 +786,8 @@ func ValidateReleaseLicense(license Data, pub crypto.PublicKey) (Data, error) {
 	return license, nil
 }
 
-func QueryReleaseLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
-	if _, err := ValidateReleaseLicense(license, pub); err != nil {
+func QueryMasterLicenseField(field string, license Data, pub crypto.PublicKey) (interface{}, error) {
+	if _, err := ValidateMasterLicense(license, pub); err != nil {
 		return nil, err
 	}
 	switch field {

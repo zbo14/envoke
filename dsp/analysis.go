@@ -19,43 +19,85 @@ var (
 	WINDOW_SIZE       = 4096
 )
 
-func CompareConstellations(c1, c2 [][]byte) float64 {
+func CompareConstellations(c1, c2 [][]byte, eps float64) float64 {
+
 	n, m := len(c1), len(c2)
 	if n == 0 || m == 0 {
 		return 0
 	}
-	lseq := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < m; j++ {
-			if bytes.Equal(c1[i], c2[j]) {
-				a, b := i, j
-				prev, seq := b, 1
-				for {
-					if a++; a == n {
-						break
-					}
+	go func() {
+		lcs := 0
+		for i := 0; i < n; i++ {
+			for j := 0; j < m; j++ {
+				if bytes.Equal(c1[i], c2[j]) {
+					a, b := i, j
+					prev, seq := b, 1
 					for {
-						if b++; b == m {
-							b = prev
+						if a++; a == n {
 							break
 						}
-						if bytes.Equal(c1[a], c2[b]) {
-							prev = b
-							seq++
-							break
+						for {
+							if b++; b == m {
+								b = prev
+								break
+							}
+							if bytes.Equal(c1[a], c2[b]) {
+								prev = b
+								seq++
+								break
+							}
 						}
 					}
-				}
-				if seq > lseq {
-					lseq = seq
+					if seq > lcs {
+						lcs = seq
+					}
 				}
 			}
 		}
-	}
-	if n < m {
-		return float64(lseq) / float64(n)
-	}
-	return float64(lseq) / float64(m)
+		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
+		if math.Abs(ratio1-ratio2) < eps {
+			ch <- math.Max(ratio1, ratio2)
+		} else {
+			ch <- 0
+		}
+	}()
+	go func() {
+		lcs := 0
+		for i := 0; i < m; i++ {
+			for j := 0; j < n; j++ {
+				if bytes.Equal(c2[i], c1[j]) {
+					a, b := i, j
+					prev, seq := b, 1
+					for {
+						if a++; a == n {
+							break
+						}
+						for {
+							if b++; b == m {
+								b = prev
+								break
+							}
+							if bytes.Equal(c2[a], c1[b]) {
+								prev = b
+								seq++
+								break
+							}
+						}
+					}
+					if seq > lcs {
+						lcs = seq
+					}
+				}
+			}
+		}
+		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
+		if math.Abs(ratio1-ratio2) < eps {
+			ch <- math.Max(ratio1, ratio2)
+		} else {
+			ch <- 0
+		}
+	}()
+	return math.Max(<-ch, <-ch)
 }
 
 func DefaultConstellation(peaks [][]float64) [][]byte {
@@ -98,73 +140,106 @@ func Fingerprint(peak1, peak2 float64, tdelta int) []byte {
 }
 
 func CompareDistances(dists1, dists2 []float64, eps float64) float64 {
+	ch := make(chan float64, 2)
 	n, m := len(dists1), len(dists2)
 	if n == 0 || m == 0 {
 		return 0
 	}
-	lseq := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < m; j++ {
-			if math.Abs(dists1[i]-dists2[j]) < eps {
-				a, b := i, j
-				prev, seq := b, 1
-				for {
-					if a++; a == n {
-						break
-					}
+	go func() {
+		lcs := 0
+		for i := 0; i < n; i++ {
+			for j := 0; j < m; j++ {
+				if math.Abs(dists1[i]-dists2[j]) < eps {
+					a, b := i, j
+					prev, seq := b, 1
 					for {
-						if b++; b == m {
-							b = prev
+						if a++; a == n {
 							break
 						}
-						if math.Abs(dists1[a]-dists2[b]) < eps {
-							prev = b
-							seq++
-							break
+						for {
+							if b++; b == m {
+								b = prev
+								break
+							}
+							if math.Abs(dists1[a]-dists2[b]) < eps {
+								prev = b
+								seq++
+								break
+							}
 						}
 					}
-				}
-				if seq > lseq {
-					lseq = seq
+					if seq > lcs {
+						lcs = seq
+					}
 				}
 			}
 		}
-	}
-	if n < m {
-		return float64(lseq) / float64(n)
-	}
-	return float64(lseq) / float64(m)
+		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
+		if math.Abs(ratio1-ratio2) < eps {
+			ch <- math.Max(ratio1, ratio2)
+		} else {
+			ch <- 0
+		}
+	}()
+	go func() {
+		lcs := 0
+		for i := 0; i < m; i++ {
+			for j := 0; j < n; j++ {
+				if math.Abs(dists2[i]-dists1[j]) < eps {
+					a, b := i, j
+					prev, seq := b, 1
+					for {
+						if a++; a == n {
+							break
+						}
+						for {
+							if b++; b == m {
+								b = prev
+								break
+							}
+							if math.Abs(dists2[a]-dists1[b]) < eps {
+								prev = b
+								seq++
+								break
+							}
+						}
+					}
+					if seq > lcs {
+						lcs = seq
+					}
+				}
+			}
+		}
+		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
+		if math.Abs(ratio1-ratio2) < eps {
+			ch <- math.Max(ratio1, ratio2)
+		} else {
+			ch <- 0
+		}
+	}()
+	return math.Max(<-ch, <-ch)
 }
 
 func DefaultFindDistances(peaks [][]float64) []float64 {
 	return FindDistances(FAN_VALUE, peaks, TIME_DELTA)
 }
 
-func FindDistances(fan int, peaks [][]float64, tdelta int) []float64 {
-	dists := make([]float64, 1024)
-	idx, n := 0, len(peaks)
+func FindDistances(fan int, peaks [][]float64, tdelta int) (dists []float64) {
+	n := len(peaks)
 	for i := range peaks {
 		m := len(peaks[i])
 	OUTER:
 		for j := 0; j < m; j++ {
 			rem := fan
 			for k := j + 1; k < m; k++ {
-				if idx == len(dists) {
-					dists = append(dists, make([]float64, 1024)...)
-				}
-				dists[idx] = math.Abs(peaks[i][j] - peaks[i][k])
-				idx++
+				dists = append(dists, math.Abs(peaks[i][j]-peaks[i][k]))
 				if rem--; rem == 0 {
 					continue OUTER
 				}
 			}
 			for a := i + 1; a < n && (tdelta <= 0 || a-i <= tdelta); a++ {
 				for b := 0; b < len(peaks[a]); b++ {
-					if idx == len(dists) {
-						dists = append(dists, make([]float64, 1024)...)
-					}
-					dists[idx] = math.Abs(peaks[i][j] - peaks[a][b])
-					idx++
+					dists = append(dists, math.Abs(peaks[i][j]-peaks[a][b]))
 					if rem--; rem == 0 {
 						continue OUTER
 					}
@@ -172,7 +247,7 @@ func FindDistances(fan int, peaks [][]float64, tdelta int) []float64 {
 			}
 		}
 	}
-	return dists[:idx]
+	return
 }
 
 func DefaultFindPeaks(freqs []float64, sgram [][]float64) [][]float64 {

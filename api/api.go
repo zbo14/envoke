@@ -98,13 +98,14 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	compositionId := values.Get("compositionId")
 	percentageShares := values.Get("percentageShares")
 	recordingId := values.Get("recordingId")
+	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(compositionId):
-		right, err = api.CompositionRight(compositionId, percentageShares, validFrom, validTo)
+		right, err = api.CompositionRight(compositionId, percentageShares, territory, validFrom, validTo)
 	case !EmptyStr(recordingId):
-		right, err = api.RecordingRight(percentageShares, recordingId, validFrom, validTo)
+		right, err = api.RecordingRight(percentageShares, recordingId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
 		return
@@ -220,18 +221,18 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var license Data
 	licenseeId := values.Get("licenseeId")
-	_type := values.Get("type")
+	publicationId := values.Get("publicationId")
+	releaseId := values.Get("releaseId")
+	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	switch _type {
-	case spec.LICENSE_MECHANICAL:
-		publicationId := values.Get("publicationId")
-		license, err = api.MechanicalLicense(licenseeId, publicationId, validFrom, validTo)
-	case spec.LICENSE_MASTER:
-		releaseId := values.Get("releaseId")
-		license, err = api.MasterLicense(licenseeId, releaseId, validFrom, validTo)
+	switch {
+	case !EmptyStr(publicationId):
+		license, err = api.MechanicalLicense(licenseeId, publicationId, territory, validFrom, validTo)
+	case !EmptyStr(releaseId):
+		license, err = api.MasterLicense(licenseeId, releaseId, territory, validFrom, validTo)
 	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
@@ -420,8 +421,8 @@ func (api *Api) Release(publishingLicenseId, recordingId string, rightIds []stri
 	return release, nil
 }
 
-func (api *Api) CompositionRight(compositionId, percentageShares, validFrom, validTo string) (right Data, err error) {
-	right = spec.NewCompositionRight(compositionId, percentageShares, validFrom, validTo)
+func (api *Api) CompositionRight(compositionId, percentageShares string, territory []string, validFrom, validTo string) (right Data, err error) {
+	right = spec.NewCompositionRight(compositionId, percentageShares, territory, validFrom, validTo)
 	if err = spec.ValidCompositionRight(right); err != nil {
 		return nil, err
 	}
@@ -435,8 +436,8 @@ func (api *Api) CompositionRight(compositionId, percentageShares, validFrom, val
 	return right, nil
 }
 
-func (api *Api) RecordingRight(percentageShares, recordingId, validFrom, validTo string) (right Data, err error) {
-	right = spec.NewRecordingRight(percentageShares, recordingId, validFrom, validTo)
+func (api *Api) RecordingRight(percentageShares, recordingId string, territory []string, validFrom, validTo string) (right Data, err error) {
+	right = spec.NewRecordingRight(percentageShares, recordingId, territory, validFrom, validTo)
 	if err = spec.ValidRecordingRight(right); err != nil {
 		return nil, err
 	}
@@ -450,8 +451,8 @@ func (api *Api) RecordingRight(percentageShares, recordingId, validFrom, validTo
 	return right, nil
 }
 
-func (api *Api) MechanicalLicense(licenseeId, publicationId, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewLicense(licenseeId, api.agentId, publicationId, "", spec.LICENSE_MECHANICAL, validFrom, validTo)
+func (api *Api) MechanicalLicense(licenseeId, publicationId string, territory []string, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, publicationId, "", territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
 	if _, err = ld.ValidateMechanicalLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -465,8 +466,8 @@ func (api *Api) MechanicalLicense(licenseeId, publicationId, validFrom, validTo 
 	return license, nil
 }
 
-func (api *Api) MasterLicense(licenseeId, releaseId, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewLicense(licenseeId, api.agentId, "", releaseId, spec.LICENSE_MASTER, validFrom, validTo)
+func (api *Api) MasterLicense(licenseeId, releaseId string, territory []string, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, "", releaseId, territory, spec.LICENSE_MASTER, validFrom, validTo)
 	if _, err = ld.ValidateMasterLicense(license, api.pub); err != nil {
 		return nil, err
 	}

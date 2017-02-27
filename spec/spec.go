@@ -26,8 +26,8 @@ const (
 	RECORDING_SIZE   = 6
 	PUBLICATION_SIZE = 3
 	RELEASE_SIZE     = 3
-	RIGHT_SIZE       = 5
-	LICENSE_SIZE     = 6
+	RIGHT_SIZE       = 6
+	LICENSE_SIZE     = 7
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -416,23 +416,24 @@ func ValidRelease(release Data) error {
 
 // Right
 
-func NewRight(percentageShares, validFrom, validTo string) Data {
+func NewRight(percentageShares string, territory []string, validFrom, validTo string) Data {
 	return Data{
 		"instance":         NewInstance(RIGHT),
 		"percentageShares": percentageShares,
+		"territory":        territory,
 		"validFrom":        validFrom,
 		"validTo":          validTo,
 	}
 }
 
-func NewCompositionRight(compositionId, percentageShares, validFrom, validTo string) Data {
-	right := NewRight(percentageShares, validFrom, validTo)
+func NewCompositionRight(compositionId, percentageShares string, territory []string, validFrom, validTo string) Data {
+	right := NewRight(percentageShares, territory, validFrom, validTo)
 	right.Set("compositionId", compositionId)
 	return right
 }
 
-func NewRecordingRight(percentageShares, recordingId, validFrom, validTo string) Data {
-	right := NewRight(percentageShares, validFrom, validTo)
+func NewRecordingRight(percentageShares, recordingId string, territory []string, validFrom, validTo string) Data {
+	right := NewRight(percentageShares, territory, validFrom, validTo)
 	right.Set("recordingId", recordingId)
 	return right
 }
@@ -447,6 +448,10 @@ func GetRightPercentageShares(right Data) int {
 
 func GetRightRecordingId(right Data) string {
 	return right.GetStr("recordingId")
+}
+
+func GetRightTerritory(right Data) []string {
+	return right.GetStrSlice("territory")
 }
 
 func GetRightValidFrom(right Data) time.Time {
@@ -469,6 +474,7 @@ func ValidRight(right Data) error {
 	if percentageShares <= 0 || percentageShares > 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0 and less than 100")
 	}
+	// TODO: check territory
 	validFrom := GetRightValidFrom(right)
 	validTo := GetRightValidTo(right)
 	if !validFrom.Before(validTo) {
@@ -510,11 +516,12 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, publicationId, releaseId, _type, validFrom, validTo string) Data {
+func NewLicense(licenseeId, licenserId, publicationId, releaseId string, territory []string, _type, validFrom, validTo string) Data {
 	license := Data{
 		"instance":   NewInstance(_type),
 		"licenseeId": licenseeId,
 		"licenserId": licenserId,
+		"territory":  territory,
 		"validFrom":  validFrom,
 		"validTo":    validTo,
 	}
@@ -543,6 +550,10 @@ func GetLicenseReleaseId(license Data) string {
 
 func GetLicensePublicationId(license Data) string {
 	return license.GetStr("publicationId")
+}
+
+func GetLicenseTerritory(license Data) []string {
+	return license.GetStrSlice("territory")
 }
 
 func GetLicenseType(license Data) string {
@@ -586,6 +597,7 @@ func ValidLicense(license Data) error {
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, "licenserId")
 	}
+	// TODO: check territory
 	validFrom := GetLicenseValidFrom(license)
 	validTo := GetLicenseValidTo(license)
 	if validFrom.After(validTo) {

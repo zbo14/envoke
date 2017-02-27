@@ -57,7 +57,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	compositionId := composition.GetStr("id")
-	composerRight, err := api.CompositionRight(compositionId, "20", "2020-01-01", "3000-01-01")
+	composerRight, err := api.CompositionRight(compositionId, "20", []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisher.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	publisherRight, err := api.CompositionRight(compositionId, "80", "2020-01-01", "3000-01-01")
+	publisherRight, err := api.CompositionRight(compositionId, "80", []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	publicationId := publication.GetStr("id")
-	mechanicalLicense, err := api.MechanicalLicense(labelId, publicationId, "2020-01-01", "2025-01-01")
+	mechanicalLicense, err := api.MechanicalLicense(labelId, publicationId, []string{"US"}, "2020-01-01", "2025-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	recordingId := recording.GetStr("id")
-	performerRight, err := api.RecordingRight("20", recordingId, "2020-01-01", "2080-01-01")
+	performerRight, err := api.RecordingRight("20", recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(producerId, producer.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	producerRight, err := api.RecordingRight("10", recordingId, "2020-01-01", "2080-01-01")
+	producerRight, err := api.RecordingRight("10", recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(labelId, label.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	labelRight, err := api.RecordingRight("70", recordingId, "2020-01-01", "2080-01-01")
+	labelRight, err := api.RecordingRight("70", recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseId := release.GetStr("id")
-	releaseLicense, err := api.MasterLicense(radioId, releaseId, "2020-01-01", "2022-01-01")
+	releaseLicense, err := api.MasterLicense(radioId, releaseId, []string{"US"}, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}

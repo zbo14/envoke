@@ -465,7 +465,7 @@ func ValidateRelease(release Data, pub crypto.PublicKey) (Data, error) {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "wrong publishing license")
 		}
 		if labelId != spec.GetLicenseLicenseeId(license) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not licensee of publishing license")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not licensee of mechanical license")
 		}
 	}
 	percentageShares := 0
@@ -657,18 +657,35 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) (Data, error)
 	}
 	rightHolder := false
 	rightIds := spec.GetPublicationRightIds(publication)
+	licenseTerritory := spec.GetLicenseTerritory(license)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
 			return nil, err
 		}
 		if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+			tx, err = bigchain.GetTx(rightId)
+			if err != nil {
+				return nil, err
+			}
+			right := bigchain.GetTxData(tx)
 			rightHolder = true
+			rightTerritory := spec.GetRightTerritory(right)
+		OUTER:
+			for i := range licenseTerritory {
+				for j := range rightTerritory {
+					if licenseTerritory[i] == rightTerritory[j] {
+						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+						continue OUTER
+					}
+				}
+				return nil, ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+			}
 			break
 		}
 	}
 	if !rightHolder {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a publication right holder")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a composition right holder")
 	}
 	licenserId := spec.GetLicenseLicenserId(license)
 	tx, err := bigchain.GetTx(licenserId)
@@ -698,6 +715,7 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) (Data, error)
 	if err = spec.ValidAgent(licensee); err != nil {
 		return nil, err
 	}
+
 	return license, nil
 }
 
@@ -743,18 +761,35 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) (Data, error) {
 	}
 	rightHolder := false
 	rightIds := spec.GetReleaseRightIds(release)
+	licenseTerritory := spec.GetLicenseTerritory(license)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
 			return nil, err
 		}
 		if pub.Equals(bigchain.GetTxPublicKey(tx)) {
+			tx, err = bigchain.GetTx(rightId)
+			if err != nil {
+				return nil, err
+			}
+			right := bigchain.GetTxData(tx)
 			rightHolder = true
+			rightTerritory := spec.GetRightTerritory(right)
+		OUTER:
+			for i := range licenseTerritory {
+				for j := range rightTerritory {
+					if licenseTerritory[i] == rightTerritory[j] {
+						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+						continue OUTER
+					}
+				}
+				return nil, ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+			}
 			break
 		}
 	}
 	if !rightHolder {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a release right holder")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "signer is not a recording right holder")
 	}
 	licenserId := spec.GetLicenseLicenserId(license)
 	tx, err := bigchain.GetTx(licenserId)

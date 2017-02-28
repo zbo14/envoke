@@ -1,41 +1,40 @@
 package bigchain
 
 import (
+	"testing"
+
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/ed25519"
-	"github.com/zbo14/envoke/spec"
-	"testing"
 )
 
-var seedstr = "13jGvCoZsEiqu5kiBLFz8vPVUS5pchjkQFmeP2bNbHae"
+var (
+	Alice = "3Ee5HXoheGJf7DDjYSGPmL1bfZ2K2ZkRZ91jxZ7vtFnf"
+	Bob   = "4oHxCNBADpwoWHGcBueLb36UQecUKLASGj7pWTT1scf6"
+)
 
 func TestBigchain(t *testing.T) {
-	// Keys
-	seed := BytesFromB58(seedstr)
-	priv, pub := ed25519.GenerateKeypairFromSeed(seed)
-	// Data model
-	info := spec.NewCompositionInfo("composerId", "publisherId", "title")
 	// Create tx
-	tx := IndividualCreateTx(info, pub)
-	FulfillTx(tx, priv)
+	privAlice, pubAlice := ed25519.GenerateKeypairFromSeed(BytesFromB58(Alice))
+	tx := IndividualCreateTx(Data{"dummy": "dummy"}, pubAlice)
+	FulfillTx(tx, privAlice)
 	// Check if it's fulfilled
 	if !FulfilledTx(tx) {
-		t.Error("tx is not fulfilled")
+		t.Error(ErrInvalidFulfillment)
 	}
+	// PrintJSON(tx)
 	txId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(txId)
 	// Transfer tx
-	_, pubNew := ed25519.GenerateKeypairFromPassword("password")
-	tx = IndividualTransferTx(txId, 0, pubNew, pub)
-	PrintJSON(tx)
-	FulfillTx(tx, priv)
+	_, pubBob := ed25519.GenerateKeypairFromSeed(BytesFromB58(Bob))
+	tx = IndividualTransferTx(txId, 0, pubBob, pubAlice)
+	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
-		t.Error("tx is not fulfilled")
+		t.Error(ErrInvalidFulfillment)
 	}
-	PrintJSON(tx)
+	// PrintJSON(tx)
 	txId, err = PostTx(tx)
 	if err != nil {
 		t.Fatal(err)

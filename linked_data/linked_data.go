@@ -657,7 +657,7 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) (Data, error)
 	}
 	rightHolder := false
 	rightIds := spec.GetPublicationRightIds(publication)
-	licenseTerritory := spec.GetLicenseTerritory(license)
+	licenseTerritory := spec.GetTerritory(license)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
@@ -670,7 +670,7 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) (Data, error)
 			}
 			right := bigchain.GetTxData(tx)
 			rightHolder = true
-			rightTerritory := spec.GetRightTerritory(right)
+			rightTerritory := spec.GetTerritory(right)
 		OUTER:
 			for i := range licenseTerritory {
 				for j := range rightTerritory {
@@ -761,7 +761,7 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) (Data, error) {
 	}
 	rightHolder := false
 	rightIds := spec.GetReleaseRightIds(release)
-	licenseTerritory := spec.GetLicenseTerritory(license)
+	licenseTerritory := spec.GetTerritory(license)
 	for _, rightId := range rightIds {
 		tx, err := bigchain.GetTx(rightId)
 		if err != nil {
@@ -774,7 +774,7 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) (Data, error) {
 			}
 			right := bigchain.GetTxData(tx)
 			rightHolder = true
-			rightTerritory := spec.GetRightTerritory(right)
+			rightTerritory := spec.GetTerritory(right)
 		OUTER:
 			for i := range licenseTerritory {
 				for j := range rightTerritory {

@@ -38,6 +38,7 @@ const (
 	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
 	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
 	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
+	TERRITORY_REGEX       = `^[A-Z]{2}$`
 )
 
 func MatchEmail(email string) bool {
@@ -50,6 +51,10 @@ func MatchFingerprint(fingerprint string) bool {
 
 func MatchId(id string) bool {
 	return MatchStr(ID_REGEX, id)
+}
+
+func MatchTerritory(territory string) bool {
+	return MatchStr(TERRITORY_REGEX, territory)
 }
 
 // Instance
@@ -450,15 +455,15 @@ func GetRightRecordingId(right Data) string {
 	return right.GetStr("recordingId")
 }
 
-func GetRightTerritory(right Data) []string {
+func GetTerritory(right Data) []string {
 	return right.GetStrSlice("territory")
 }
 
-func GetRightValidFrom(right Data) time.Time {
+func GetValidFrom(right Data) time.Time {
 	return MustParseDateStr(right.GetStr("validFrom"))
 }
 
-func GetRightValidTo(right Data) time.Time {
+func GetValidTo(right Data) time.Time {
 	return MustParseDateStr(right.GetStr("validTo"))
 }
 
@@ -474,9 +479,18 @@ func ValidRight(right Data) error {
 	if percentageShares <= 0 || percentageShares > 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0 and less than 100")
 	}
-	// TODO: check territory
-	validFrom := GetRightValidFrom(right)
-	validTo := GetRightValidTo(right)
+	seen := make(map[string]struct{})
+	for _, territory := range GetTerritory(right) {
+		if !MatchTerritory(territory) {
+			return ErrInvalidTerritory
+		}
+		if _, ok := seen[territory]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
+		}
+		seen[territory] = struct{}{}
+	}
+	validFrom := GetValidFrom(right)
+	validTo := GetValidTo(right)
 	if !validFrom.Before(validTo) {
 		return ErrorAppend(ErrInvalidTime, "range")
 	}
@@ -552,22 +566,6 @@ func GetLicensePublicationId(license Data) string {
 	return license.GetStr("publicationId")
 }
 
-func GetLicenseTerritory(license Data) []string {
-	return license.GetStrSlice("territory")
-}
-
-func GetLicenseType(license Data) string {
-	return license.GetStr("licenseType")
-}
-
-func GetLicenseValidFrom(license Data) time.Time {
-	return MustParseDateStr(license.GetStr("validFrom"))
-}
-
-func GetLicenseValidTo(license Data) time.Time {
-	return MustParseDateStr(license.GetStr("validTo"))
-}
-
 func ValidLicense(license Data) error {
 	instance := GetInstance(license)
 	if err := ValidInstance(instance); err != nil {
@@ -597,9 +595,18 @@ func ValidLicense(license Data) error {
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, "licenserId")
 	}
-	// TODO: check territory
-	validFrom := GetLicenseValidFrom(license)
-	validTo := GetLicenseValidTo(license)
+	seen := make(map[string]struct{})
+	for _, territory := range GetTerritory(license) {
+		if !MatchTerritory(territory) {
+			return ErrInvalidTerritory
+		}
+		if _, ok := seen[territory]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
+		}
+		seen[territory] = struct{}{}
+	}
+	validFrom := GetValidFrom(license)
+	validTo := GetValidTo(license)
 	if validFrom.After(validTo) {
 		return ErrInvalidTime
 	}

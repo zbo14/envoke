@@ -10,7 +10,7 @@ import (
 
 const (
 	BIGCHAIN_ENDPOINT = ""
-	IPDB_ENDPOINT     = "http://cochoa.ipdb.foundation:9984/api/v1/"
+	IPDB_ENDPOINT     = ""
 	ENDPOINT          = IPDB_ENDPOINT
 )
 
@@ -58,32 +58,32 @@ const (
 
 func IndividualCreateTx(data Data, pub crypto.PublicKey) Data {
 	amounts := []int{1}
+	asset := Data{"data": data}
 	fulfills := []Data{nil}
 	pubs := []crypto.PublicKey{pub}
 	owners := [][]crypto.PublicKey{pubs}
-	return CreateTx(amounts, data, fulfills, owners, owners, pubs)
+	return CreateTx(amounts, asset, fulfills, owners, owners, pubs)
 }
 
 func IndividualTransferTx(id string, output int, ownerAfter, ownerBefore crypto.PublicKey) Data {
 	amounts := []int{1}
-	data := Data{"id": id}
+	asset := Data{"id": id}
 	fulfills := []Data{Data{"txid": id, "output": output}}
 	pubs := []crypto.PublicKey{ownerAfter}
 	ownersAfter := [][]crypto.PublicKey{pubs}
 	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
-	return TransferTx(amounts, data, fulfills, ownersAfter, ownersBefore, pubs)
+	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore, pubs)
 }
 
-func CreateTx(amounts []int, data Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
-	return GenerateTx(amounts, data, fulfills, nil, CREATE, ownersAfter, ownersBefore, pubs)
+func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
+	return GenerateTx(amounts, asset, fulfills, nil, CREATE, ownersAfter, ownersBefore, pubs)
 }
 
-func TransferTx(amounts []int, data Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
-	return GenerateTx(amounts, data, fulfills, nil, TRANSFER, ownersAfter, ownersBefore, pubs)
+func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
+	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, ownersAfter, ownersBefore, pubs)
 }
 
-func GenerateTx(amounts []int, data Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
-	asset := NewAsset(data)
+func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
 	inputs := NewInputs(fulfills, ownersBefore)
 	outputs := NewOutputs(amounts, ownersAfter, pubs)
 	return NewTx(asset, inputs, metadata, operation, outputs)
@@ -171,12 +171,6 @@ func GetTxPublicKey(tx Data) crypto.PublicKey {
 	pubstr := AssertMapData(details).GetStr("public_key")
 	pub.FromString(pubstr)
 	return pub
-}
-
-func NewAsset(data Data) Data {
-	return Data{
-		"data": data,
-	}
 }
 
 func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) []Data {

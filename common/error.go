@@ -19,6 +19,7 @@ var (
 	ErrInvalidRequest     = Error("Invalid request")
 	ErrInvalidSignature   = Error("Invalid signature")
 	ErrInvalidSize        = Error("Invalid size")
+	ErrInvalidTerritory   = Error("Invalid territory")
 	ErrInvalidTime        = Error("Invalid time")
 	ErrInvalidType        = Error("Invalid type")
 	ErrInvalidUrl         = Error("Invalid url")

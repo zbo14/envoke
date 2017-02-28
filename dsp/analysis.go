@@ -10,94 +10,146 @@ import (
 )
 
 var (
+	EPSILON           = 0.01
 	FAN_VALUE         = 15
-	TIME_DELTA        = 200
 	NEIGHBORHOOD_SIZE = 20
 	OVERLAP_RATIO     = 0.5
 	SAMPLING_RATE     = 44100
+	TIME_DELTA        = 200
 	WINDOW            = HammingWindow
 	WINDOW_SIZE       = 4096
 )
 
-func CompareConstellations(c1, c2 [][]byte, eps float64) float64 {
+func DefaultCompareDistances(dists1, dists2 []float64) float64 {
+	return CompareDistances(dists1, dists2, EPSILON)
+}
 
+func CompareDistances(dists1, dists2 []float64, eps float64) (score float64) {
+	n, m := len(dists1), len(dists2)
+	if n == 0 || m == 0 {
+		return 0
+	}
+	if n < m {
+		score = float64(n)
+	} else {
+		score = float64(m)
+	}
+	lcs1 := LcsDistances(dists1, dists2, eps)
+	lcs2 := LcsDistances(dists2, dists1, eps)
+	if lcs1 > lcs2 {
+		score = float64(lcs1) / score
+	} else {
+		score = float64(lcs2) / score
+	}
+	return
+}
+
+func LcsDistances(dists1, dists2 []float64, eps float64) int {
+	n, m := len(dists1), len(dists2)
+	if n == 0 || m == 0 {
+		return 0
+	}
+	matrix := make([][]int, n+1)
+	for i := range matrix {
+		matrix[i] = make([]int, m+1)
+	}
+	for i, d1 := range dists1 {
+		for j, d2 := range dists2 {
+			if math.Abs(d1-d2)/math.Min(d1, d2) < eps {
+				if matrix[i][j] > matrix[i+1][j] && matrix[i][j] > matrix[i][j+1] {
+					matrix[i+1][j+1] = matrix[i][j] + 1
+				} else if matrix[i+1][j] > matrix[i][j] && matrix[i+1][j] > matrix[i][j+1] {
+					matrix[i+1][j+1] = matrix[i+1][j] + 1
+				} else {
+					matrix[i+1][j+1] = matrix[i][j+1] + 1
+				}
+			} else if matrix[i+1][j] > matrix[i][j+1] {
+				matrix[i+1][j+1] = matrix[i+1][j]
+			} else {
+				matrix[i+1][j+1] = matrix[i][j+1]
+			}
+		}
+	}
+	return matrix[n][m]
+}
+
+func DefaultFindDistances(peaks [][]float64) []float64 {
+	return FindDistances(FAN_VALUE, peaks, TIME_DELTA)
+}
+
+func FindDistances(fan int, peaks [][]float64, tdelta int) (dists []float64) {
+	n := len(peaks)
+	for i := range peaks {
+		m := len(peaks[i])
+	OUTER:
+		for j := 0; j < m; j++ {
+			rem := fan
+			for k := j + 1; k < m; k++ {
+				dists = append(dists, math.Abs(peaks[i][j]-peaks[i][k]))
+				if rem--; rem == 0 {
+					continue OUTER
+				}
+			}
+			for a := i + 1; a < n && (tdelta <= 0 || a-i <= tdelta); a++ {
+				for b := 0; b < len(peaks[a]); b++ {
+					dists = append(dists, math.Abs(peaks[i][j]-peaks[a][b]))
+					if rem--; rem == 0 {
+						continue OUTER
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
+func CompareConstellations(c1, c2 [][]byte) (score float64) {
 	n, m := len(c1), len(c2)
 	if n == 0 || m == 0 {
 		return 0
 	}
-	go func() {
-		lcs := 0
-		for i := 0; i < n; i++ {
-			for j := 0; j < m; j++ {
-				if bytes.Equal(c1[i], c2[j]) {
-					a, b := i, j
-					prev, seq := b, 1
-					for {
-						if a++; a == n {
-							break
-						}
-						for {
-							if b++; b == m {
-								b = prev
-								break
-							}
-							if bytes.Equal(c1[a], c2[b]) {
-								prev = b
-								seq++
-								break
-							}
-						}
-					}
-					if seq > lcs {
-						lcs = seq
-					}
+	if n < m {
+		score = float64(n)
+	} else {
+		score = float64(m)
+	}
+	lcs1 := LcsConstellations(c1, c2)
+	lcs2 := LcsConstellations(c2, c1)
+	if lcs1 > lcs2 {
+		score = float64(lcs1) / score
+	} else {
+		score = float64(lcs2) / score
+	}
+	return
+}
+
+func LcsConstellations(c1, c2 [][]byte) int {
+	n, m := len(c1), len(c2)
+	if n == 0 || m == 0 {
+		return 0
+	}
+	matrix := make([][]int, n+1)
+	for i := range matrix {
+		matrix[i] = make([]int, m+1)
+	}
+	for i := range c1 {
+		for j := range c2 {
+			if bytes.Equal(c1[i], c2[j]) {
+				if matrix[i][j] > matrix[i+1][j] && matrix[i][j] > matrix[i][j+1] {
+					matrix[i+1][j+1] = matrix[i][j] + 1
+				} else if matrix[i+1][j] > matrix[i][j] && matrix[i+1][j] > matrix[i][j+1] {
+					matrix[i+1][j+1] = matrix[i+1][j] + 1
+				} else {
+					matrix[i+1][j+1] = matrix[i][j+1] + 1
 				}
+			} else if matrix[i+1][j] > matrix[i][j+1] {
+				matrix[i+1][j+1] = matrix[i+1][j]
+			} else {
+				matrix[i+1][j+1] = matrix[i][j+1]
 			}
 		}
-		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
-		if math.Abs(ratio1-ratio2) < eps {
-			ch <- math.Max(ratio1, ratio2)
-		} else {
-			ch <- 0
-		}
-	}()
-	go func() {
-		lcs := 0
-		for i := 0; i < m; i++ {
-			for j := 0; j < n; j++ {
-				if bytes.Equal(c2[i], c1[j]) {
-					a, b := i, j
-					prev, seq := b, 1
-					for {
-						if a++; a == n {
-							break
-						}
-						for {
-							if b++; b == m {
-								b = prev
-								break
-							}
-							if bytes.Equal(c2[a], c1[b]) {
-								prev = b
-								seq++
-								break
-							}
-						}
-					}
-					if seq > lcs {
-						lcs = seq
-					}
-				}
-			}
-		}
-		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
-		if math.Abs(ratio1-ratio2) < eps {
-			ch <- math.Max(ratio1, ratio2)
-		} else {
-			ch <- 0
-		}
-	}()
-	return math.Max(<-ch, <-ch)
+	}
+	return matrix[n][m]
 }
 
 func DefaultConstellation(peaks [][]float64) [][]byte {
@@ -139,119 +191,15 @@ func Fingerprint(peak1, peak2 float64, tdelta int) []byte {
 	return Checksum256(p)
 }
 
-func CompareDistances(dists1, dists2 []float64, eps float64) float64 {
-	ch := make(chan float64, 2)
-	n, m := len(dists1), len(dists2)
-	if n == 0 || m == 0 {
-		return 0
-	}
-	go func() {
-		lcs := 0
-		for i := 0; i < n; i++ {
-			for j := 0; j < m; j++ {
-				if math.Abs(dists1[i]-dists2[j]) < eps {
-					a, b := i, j
-					prev, seq := b, 1
-					for {
-						if a++; a == n {
-							break
-						}
-						for {
-							if b++; b == m {
-								b = prev
-								break
-							}
-							if math.Abs(dists1[a]-dists2[b]) < eps {
-								prev = b
-								seq++
-								break
-							}
-						}
-					}
-					if seq > lcs {
-						lcs = seq
-					}
-				}
-			}
-		}
-		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
-		if math.Abs(ratio1-ratio2) < eps {
-			ch <- math.Max(ratio1, ratio2)
-		} else {
-			ch <- 0
-		}
-	}()
-	go func() {
-		lcs := 0
-		for i := 0; i < m; i++ {
-			for j := 0; j < n; j++ {
-				if math.Abs(dists2[i]-dists1[j]) < eps {
-					a, b := i, j
-					prev, seq := b, 1
-					for {
-						if a++; a == n {
-							break
-						}
-						for {
-							if b++; b == m {
-								b = prev
-								break
-							}
-							if math.Abs(dists2[a]-dists1[b]) < eps {
-								prev = b
-								seq++
-								break
-							}
-						}
-					}
-					if seq > lcs {
-						lcs = seq
-					}
-				}
-			}
-		}
-		ratio1, ratio2 := float64(lcs)/float64(n), float64(lcs)/float64(m)
-		if math.Abs(ratio1-ratio2) < eps {
-			ch <- math.Max(ratio1, ratio2)
-		} else {
-			ch <- 0
-		}
-	}()
-	return math.Max(<-ch, <-ch)
-}
-
-func DefaultFindDistances(peaks [][]float64) []float64 {
-	return FindDistances(FAN_VALUE, peaks, TIME_DELTA)
-}
-
-func FindDistances(fan int, peaks [][]float64, tdelta int) (dists []float64) {
-	n := len(peaks)
-	for i := range peaks {
-		m := len(peaks[i])
-	OUTER:
-		for j := 0; j < m; j++ {
-			rem := fan
-			for k := j + 1; k < m; k++ {
-				dists = append(dists, math.Abs(peaks[i][j]-peaks[i][k]))
-				if rem--; rem == 0 {
-					continue OUTER
-				}
-			}
-			for a := i + 1; a < n && (tdelta <= 0 || a-i <= tdelta); a++ {
-				for b := 0; b < len(peaks[a]); b++ {
-					dists = append(dists, math.Abs(peaks[i][j]-peaks[a][b]))
-					if rem--; rem == 0 {
-						continue OUTER
-					}
-				}
-			}
-		}
-	}
-	return
-}
-
 func DefaultFindPeaks(freqs []float64, sgram [][]float64) [][]float64 {
 	return FindPeaks(freqs, NEIGHBORHOOD_SIZE, sgram)
+}
+
+func SequencePeaks(peaks [][]float64) (seq []float64) {
+	for i := range peaks {
+		seq = append(seq, peaks[i]...)
+	}
+	return
 }
 
 func FindPeaks(freqs []float64, nbr int, sgram [][]float64) [][]float64 {
@@ -301,7 +249,7 @@ func FindPeaks(freqs []float64, nbr int, sgram [][]float64) [][]float64 {
 					}
 				}
 			}
-			peaks[i] = append(peaks[i], x[j])
+			peaks[i] = append(peaks[i], freqs[j])
 		}
 	}
 	return peaks

@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	path1 = "/Users/zach/Desktop/music/rhapsody_1.mp3"
-	path2 = "/Users/zach/Desktop/music/rhapsody_2.mp3"
+	path1 = "/Users/zach/Desktop/music/hey_jude_1.mp3"
+	path2 = "/Users/zach/Desktop/music/hey_jude_2.mp3"
 )
 
 func TestDsp(t *testing.T) {
@@ -48,5 +48,5 @@ func TestDsp(t *testing.T) {
 	peaks = DefaultFindPeaks(freqs, sgram)
 	dists2 := DefaultFindDistances(peaks)
 
-	t.Log(CompareDistances(dists1, dists2, 0.04*float64(SAMPLING_RATE)))
+	t.Log(DefaultCompareDistances(dists1, dists2))
 }

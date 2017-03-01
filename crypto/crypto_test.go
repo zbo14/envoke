@@ -38,14 +38,14 @@ func TestCrypto(t *testing.T) {
 	}
 	// Ed25519
 	msg := []byte("deadbeef")
-	privEd25519, _ := ed25519.GenerateKeypair("password")
-	f3 := conds.NewFulfillmentEd25519(msg, privEd25519, 2)
+	privEd25519, _ := ed25519.GenerateKeypairFromPassword("password")
+	f3 := conds.FulfillmentFromPrivKey(msg, privEd25519, 2)
 	if !f3.Validate(msg) {
 		t.Error("Failed to validate ed25519 fulfillment")
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
-	f4 := conds.NewFulfillmentRSA(anotherMsg, privRSA, 1)
+	f4 := conds.FulfillmentFromPrivKey(anotherMsg, privRSA, 1)
 	if !f4.Validate(anotherMsg) {
 		t.Error("Failed to validate pre-image fulfillment")
 	}
@@ -62,6 +62,7 @@ func TestCrypto(t *testing.T) {
 	if !f5.Validate(buf.Bytes()) {
 		t.Error("Failed to validate threshold fulfillment")
 	}
+	PrintJSON(f5)
 	// Get fulfillment uri
 	uri := f5.String()
 	// Derive new fulfillment from uri, use same weight

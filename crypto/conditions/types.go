@@ -2,12 +2,18 @@ package conditions
 
 import (
 	"bytes"
+	"crypto/sha256"
+
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/crypto/rsa"
 	"sort"
 )
+
+func Sum256(p []byte) []byte {
+	return sha256.Sum256(p)[:]
+}
 
 // SHA256 Pre-Image
 
@@ -24,7 +30,7 @@ func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
 
 func (f *fulfillmentPreImage) Init() {
 	f.bitmask = PREIMAGE_BITMASK
-	f.hash = Checksum256(f.payload)
+	f.hash = Sum256(f.payload)
 	f.size = len(f.payload)
 }
 
@@ -42,7 +48,7 @@ func NewFulfillmentPrefix(prefix []byte, sub Fulfillment, weight int) *fulfillme
 	}
 	f := new(fulfillmentPrefix)
 	p, _ := sub.MarshalBinary()
-	payload := append(VarBytes(prefix), p...)
+	payload := append(VarOctet(prefix), p...)
 	f.fulfillment = NewFulfillment(PREFIX_ID, f, payload, weight)
 	f.prefix = prefix
 	f.sub = sub
@@ -54,7 +60,7 @@ func (f *fulfillmentPrefix) Init() {
 	if f.prefix == nil && f.sub == nil {
 		buf := new(bytes.Buffer)
 		buf.Write(f.payload)
-		f.prefix = MustReadVarBytes(buf)
+		f.prefix = MustReadVarOctet(buf)
 		var err error
 		f.sub, err = UnmarshalBinary(buf.Bytes(), f.weight)
 		Check(err)
@@ -65,7 +71,7 @@ func (f *fulfillmentPrefix) Init() {
 	if f.prefix != nil && f.sub != nil {
 		f.bitmask = PREFIX_BITMASK
 		p, _ := GetCondition(f.sub).MarshalBinary()
-		f.hash = Checksum256(append(f.prefix, p...))
+		f.hash = Sum256(append(f.prefix, p...))
 		f.size = len(f.payload)
 		return
 	}
@@ -111,6 +117,35 @@ func (f *fulfillmentEd25519) Init() {
 	f.bitmask = ED25519_BITMASK
 	f.hash = f.pub.Bytes()
 	f.size = ED25519_SIZE
+}
+
+func (f *fulfillmentEd25519) MarshalJSON() ([]byte, error) {
+	// TODO: validate
+	return MustMarshalJSON(struct {
+		Details struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature interface{}      `json:"signature"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		} `json:"details"`
+		URI string `json:"uri"`
+	}{
+		Details: struct {
+			Bitmask   int              `json:"bitmask"`
+			PubKey    crypto.PublicKey `json:"public_key"`
+			Signature interface{}      `json:"signature"`
+			Type      string           `json:"type"`
+			TypeId    int              `json:"type_id"`
+		}{
+			Bitmask:   f.bitmask,
+			PubKey:    f.pub,
+			Signature: nil,
+			Type:      FULFILLMENT_TYPE,
+			TypeId:    f.id,
+		},
+		URI: GetCondition(f).String(),
+	}), nil
 }
 
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
@@ -164,7 +199,7 @@ func (f *fulfillmentRSA) Init() {
 		Check(err)
 	}
 	f.bitmask = RSA_BITMASK
-	f.hash = Checksum256(f.pub.Bytes())
+	f.hash = Sum256(f.pub.Bytes())
 	f.size = RSA_SIZE
 }
 
@@ -228,6 +263,67 @@ func (f *fulfillmentThreshold) Init() {
 	f.size = ThresholdSize(f.subs, f.threshold)
 }
 
+func DefaultFulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey) *fulfillmentThreshold {
+	subs := DefaultFulfillmentsFromPubKeys(pubs)
+	return NewFulfillmentThreshold(subs, len(pubs), 1)
+}
+
+func FulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey, threshold, weight int, weights []int) *fulfillmentThreshold {
+	subs := FulfillmentsFromPubKeys(pubs, weights)
+	return NewFulfillmentThreshold(subs, threshold, weight)
+}
+
+func (f *fulfillmentThreshold) MarshalJSON() ([]byte, error) {
+	// TODO: validate
+	subs := make([]interface{}, len(f.subs))
+	for i, sub := range f.subs {
+		if sub.PublicKey() != nil {
+			subs[i] = struct {
+				Bitmask   int              `json:"bitmask"`
+				PubKey    crypto.PublicKey `json:"public_key"`
+				Signature interface{}      `json:"signature"`
+				Type      string           `json:"type"`
+				TypeId    int              `json:"type_id"`
+				Weight    int              `json:"weight"`
+			}{
+				Bitmask:   sub.Bitmask(),
+				PubKey:    sub.PublicKey(),
+				Signature: nil,
+				Type:      FULFILLMENT_TYPE,
+				TypeId:    sub.Id(),
+				Weight:    sub.Weight(),
+			}
+		} else {
+			//..
+		}
+	}
+	return MustMarshalJSON(struct {
+		Details struct {
+			Bitmask   int           `json:"bitmask"`
+			Subs      []interface{} `json:"subfulfillments"`
+			Threshold int           `json:"threshold"`
+			Type      string        `json:"type"`
+			TypeId    int           `json:"type_id"`
+		} `json:"details"`
+		URI string `json:"uri"`
+	}{
+		Details: struct {
+			Bitmask   int           `json:"bitmask"`
+			Subs      []interface{} `json:"subfulfillments"`
+			Threshold int           `json:"threshold"`
+			Type      string        `json:"type"`
+			TypeId    int           `json:"type_id"`
+		}{
+			Bitmask:   f.bitmask,
+			Subs:      subs,
+			Threshold: f.threshold,
+			Type:      FULFILLMENT_TYPE,
+			TypeId:    f.id,
+		},
+		URI: GetCondition(f).String(),
+	}), nil
+}
+
 func ThresholdBitmask(subs Fulfillments) int {
 	bitmask := THRESHOLD_BITMASK
 	for _, sub := range subs {
@@ -249,6 +345,8 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 	for _, sub := range subs {
 		j >>= 1
 		with := true
+		p, _ := GetCondition(sub).MarshalBinary()
+		conditionLen := len(p)
 		for i, _ = range sums {
 			if thresholds[i] > 0 {
 				if with {
@@ -256,7 +354,7 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 					sets[i] = append(sets[i], sub)
 					thresholds[i] -= sub.Weight()
 				} else if !with {
-					sums[i] += CONDITION_SIZE
+					sums[i] += conditionLen
 				}
 			}
 			if (i+1)%j == 0 {
@@ -288,12 +386,12 @@ OUTER:
 		//..
 	}
 	buf := new(bytes.Buffer)
-	buf.Write(UvarintBytes(threshold))
-	buf.Write(UvarintBytes(numSubs))
+	buf.Write(VarUintBytes(threshold))
+	buf.Write(VarUintBytes(numSubs))
 	for _, sub := range set {
-		buf.Write(UvarintBytes(sub.Weight()))
+		buf.Write(VarUintBytes(sub.Weight()))
 		p, _ := sub.MarshalBinary()
-		MustWriteVarBytes(p, buf)
+		WriteVarOctet(p, buf)
 	}
 	return buf.Bytes()
 }
@@ -317,21 +415,21 @@ func ThresholdSubs(p []byte) (Fulfillments, int, error) {
 	}
 	buf := new(bytes.Buffer)
 	buf.Write(p)
-	threshold, err := ReadUvarint(buf)
+	threshold, err := ReadVarUint(buf)
 	if err != nil {
 		return nil, 0, err
 	}
-	numSubs, err := ReadUvarint(buf)
+	numSubs, err := ReadVarUint(buf)
 	if err != nil {
 		return nil, 0, err
 	}
 	subs := make(Fulfillments, numSubs)
 	for i := 0; i < numSubs; i++ {
-		weight, err := ReadUvarint(buf)
+		weight, err := ReadVarUint(buf)
 		if err != nil {
 			return nil, 0, err
 		}
-		p, err := ReadVarBytes(buf)
+		p, err := ReadVarOctet(buf)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -352,22 +450,22 @@ func ThresholdHash(subs Fulfillments, threshold int) []byte {
 		conds[i] = GetCondition(sub)
 	}
 	sort.Sort(conds)
-	hash := NewSha256()
+	hash := sha256.New()
 	hash.Write(Uint32Bytes(threshold))
-	hash.Write(UvarintBytes(numSubs))
+	hash.Write(VarUintBytes(numSubs))
 	for _, c := range conds {
-		hash.Write(UvarintBytes(c.Weight()))
+		hash.Write(VarUintBytes(c.Weight()))
 		p, err := c.MarshalBinary()
 		Check(err)
-		hash.Write(p)
+		hash.Write(VarOctet(p))
 	}
-	return hash.Sum(nil)
+	return hash.Sum(nil)[:]
 }
 
 func ThresholdSize(subs Fulfillments, threshold int) int {
 	var i, j int
 	numSubs := subs.Len()
-	total := 4 + UvarintSize(numSubs) + numSubs
+	total := 4 + VarUintSize(numSubs) + numSubs
 	j = Exp2(numSubs)
 	extras := make([]int, j)
 	thresholds := make([]int, j)
@@ -375,13 +473,16 @@ func ThresholdSize(subs Fulfillments, threshold int) int {
 		thresholds[i] = threshold
 	}
 	for _, sub := range subs {
-		total += CONDITION_SIZE
+		p, _ := GetCondition(sub).MarshalBinary()
+		conditionLen := len(p)
+		total += conditionLen
 		if weight := sub.Weight(); weight > 1 {
-			total += UvarintSize(weight)
+			total += VarUintSize(weight)
 		}
 		j >>= 1
 		add := true
-		extra := sub.Size() - CONDITION_SIZE
+		p = make([]byte, sub.Size())
+		extra := 2 + VarOctetLength(p) - conditionLen
 		for i, _ = range extras {
 			if add && thresholds[i] > 0 {
 				extras[i] += extra
@@ -432,7 +533,7 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	buf := new(bytes.Buffer)
 	buf.Write(p)
 	for _, f := range subf {
-		p, err := ReadVarBytes(buf)
+		p, err := ReadVarOctet(buf)
 		if err != nil {
 			return false
 		}
@@ -463,7 +564,7 @@ func (f *fulfillmentTimeout) Init() {
 		f.expires = TimestampFromBytes(f.payload)
 	}
 	f.bitmask = TIMEOUT_BITMASK
-	f.hash = Checksum256(f.payload)
+	f.hash = Sum256(f.payload)
 	f.size = len(f.payload)
 }
 

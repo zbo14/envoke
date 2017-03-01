@@ -12,8 +12,7 @@ import (
 
 const (
 	// Params
-	HASH_LENGTH       = 32
-	CONDITION_SIZE    = 10 + HASH_LENGTH
+	HASH_SIZE         = 32
 	MAX_PAYLOAD_SIZE  = 0xfff
 	SUPPORTED_BITMASK = 0x3f
 
@@ -70,6 +69,18 @@ type Fulfillment interface {
 
 // Fufillment from key
 
+func FulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey, weights []int) []Fulfillment {
+	n := len(privs)
+	if n != len(msgs) || n != len(weights) {
+		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+	}
+	fulfillments := make([]Fulfillment, n)
+	for i, priv := range privs {
+		fulfillments[i] = FulfillmentFromPrivKey(msgs[i], priv, weights[i])
+	}
+	return fulfillments
+}
+
 func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
 	switch priv.(type) {
 	case *ed25519.PrivateKey:
@@ -83,7 +94,27 @@ func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulf
 		sigRSA := privRSA.Sign(msg).(*rsa.Signature)
 		return NewFulfillmentRSA(pubRSA, sigRSA, weight)
 	}
-	panic(ErrInvalidKey.Error())
+	panic(ErrInvalidKey)
+}
+
+func DefaultFulfillmentsFromPubKeys(pubs []crypto.PublicKey) []Fulfillment {
+	weights := make([]int, len(pubs))
+	for i := range weights {
+		weights[i] = 1
+	}
+	return FulfillmentsFromPubKeys(pubs, weights)
+}
+
+func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) []Fulfillment {
+	n := len(pubs)
+	if n != len(weights) {
+		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+	}
+	fulfillments := make([]Fulfillment, n)
+	for i, pub := range pubs {
+		fulfillments[i] = FulfillmentFromPubKey(pub, weights[i])
+	}
+	return fulfillments
 }
 
 func FulfillmentFromPubKey(pub crypto.PublicKey, weight int) Fulfillment {
@@ -95,13 +126,13 @@ func FulfillmentFromPubKey(pub crypto.PublicKey, weight int) Fulfillment {
 		pubRSA := pub.(*rsa.PublicKey)
 		return NewFulfillmentRSA(pubRSA, nil, weight)
 	}
-	panic(ErrInvalidKey.Error())
+	panic(ErrInvalidKey)
 }
 
 func FulfillWithPrivKey(f Fulfillment, msg []byte, priv crypto.PrivateKey) {
 	sig := priv.Sign(msg)
 	if !f.PublicKey().Verify(msg, sig) {
-		panic(ErrInvalidSignature.Error())
+		panic(ErrInvalidSignature)
 	}
 	switch sig.(type) {
 	case *ed25519.Signature:
@@ -113,7 +144,7 @@ func FulfillWithPrivKey(f Fulfillment, msg []byte, priv crypto.PrivateKey) {
 		ful.payload = append(ful.payload, sig.Bytes()...)
 		ful.sig = sig.(*rsa.Signature)
 	default:
-		panic(ErrInvalidSignature.Error())
+		panic(ErrInvalidSignature)
 	}
 }
 
@@ -157,13 +188,24 @@ func FulfillmentURI(p []byte) (string, error) {
 }
 
 func ConditionURI(p []byte) (string, error) {
-	if len(p) != CONDITION_SIZE {
-		return "", ErrInvalidSize
+	buf := bytes.NewBuffer(p)
+	id, err := ReadUint16(buf)
+	if err != nil {
+		return "", err
 	}
-	id := MustUint16(p[:2])
-	bitmask := MustUint32(p[2:6])
-	hash64 := Base64UrlEncode(p[6 : 6+HASH_LENGTH])
-	size := MustUint16(p[6+HASH_LENGTH : CONDITION_SIZE])
+	bitmask, err := ReadVarUint(buf)
+	if err != nil {
+		return "", err
+	}
+	hash, err := ReadN(buf, HASH_SIZE)
+	if err != nil {
+		return "", err
+	}
+	hash64 := Base64UrlEncode(hash)
+	size, err := ReadVarUint(buf)
+	if err != nil {
+		return "", err
+	}
 	return Sprintf("cc:%x:%x:%s:%d", id, bitmask, hash64, size), nil
 }
 
@@ -356,27 +398,8 @@ func (f *fulfillment) MarshalJSON() ([]byte, error) {
 		return nil, nil
 	}
 	if !f.Validate(nil) {
-		panic(ErrInvalidFulfillment.Error())
+		panic(ErrInvalidFulfillment)
 	}
-	/*
-		if f.outer.PublicKey() != nil {
-			if f.outer.Signature() == nil {
-				return MustMarshalJSON(struct {
-					Bitmask   int              `json:"bitmask"`
-					PubKey    crypto.PublicKey `json:"public_key"`
-					Signature crypto.Signature `json:"signature"`
-					Type      string           `json:"type"`
-					TypeId    int              `json:"type_id"`
-				}{
-					Bitmask:   f.bitmask,
-					PubKey:    f.outer.PublicKey(),
-					Signature: nil,
-					Type:      FULFILLMENT_TYPE,
-					TypeId:    f.id,
-				}), nil
-			}
-		}
-	*/
 	return MustMarshalJSON(f.String()), nil
 }
 
@@ -437,7 +460,7 @@ func (f *fulfillment) Validate(p []byte) bool {
 	}
 	switch {
 	case
-		len(f.hash) != HASH_LENGTH,
+		// len(f.hash) != HASH_LENGTH,
 		f.size > MAX_PAYLOAD_SIZE:
 		// f.weight < 1
 		return false
@@ -462,7 +485,36 @@ func NilCondition() *Condition {
 	}
 }
 
-func NewConditionWithPubKey(pub crypto.PublicKey, weight int) *Condition {
+func DefaultConditionWithPubKeys(pubs []crypto.PublicKey) *Condition {
+	n := len(pubs)
+	weights := make([]int, n)
+	for i := range weights {
+		weights[i] = 1
+	}
+	return ConditionWithPubKeys(pubs, n, 1, weights)
+}
+
+func ConditionWithPubKeys(pubs []crypto.PublicKey, threshold, weight int, weights []int) *Condition {
+	n := len(pubs)
+	if n != len(weights) {
+		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+	}
+	if threshold > n {
+		panic(ErrorAppend(ErrCriteriaNotMet, "threshold cannot be larger than number of pubkeys"))
+	}
+	subs := make([]Fulfillment, n)
+	for i, pub := range pubs {
+		subs[i] = ConditionWithPubKey(pub, weights[i])
+	}
+	f := NewFulfillmentThreshold(subs, threshold, weight)
+	return GetCondition(f)
+}
+
+func DefaultConditionWithPubKey(pub crypto.PublicKey) *Condition {
+	return ConditionWithPubKey(pub, 1)
+}
+
+func ConditionWithPubKey(pub crypto.PublicKey, weight int) *Condition {
 	switch pub.(type) {
 	case *ed25519.PublicKey:
 		return NewCondition(
@@ -481,7 +533,7 @@ func NewConditionWithPubKey(pub crypto.PublicKey, weight int) *Condition {
 			RSA_SIZE,
 			weight)
 	}
-	panic(ErrInvalidKey.Error())
+	panic(ErrInvalidKey)
 }
 
 func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, weight int) *Condition {
@@ -495,7 +547,7 @@ func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, 
 		}, pub,
 	}
 	if !c.Validate(nil) {
-		panic(ErrInvalidCondition.Error())
+		panic(ErrInvalidCondition)
 	}
 	return c
 }
@@ -530,48 +582,49 @@ func (c *Condition) FromString(uri string) (err error) {
 func (c *Condition) IsCondition() bool { return true }
 
 func (c *Condition) MarshalBinary() ([]byte, error) {
-	p := make([]byte, CONDITION_SIZE)
-	copy(p[:2], Uint16Bytes(c.id))
-	copy(p[2:6], Uint32Bytes(c.bitmask))
-	copy(p[6:6+HASH_LENGTH], c.hash)
-	copy(p[6+HASH_LENGTH:CONDITION_SIZE], Uint16Bytes(c.size))
-	return p, nil
+	buf := new(bytes.Buffer)
+	buf.Write(Uint16Bytes(c.id))
+	buf.Write(VarUintBytes(c.bitmask))
+	buf.Write(VarOctet(c.hash))
+	buf.Write(VarUintBytes(c.size))
+	return buf.Bytes(), nil
 }
 
-// For bigchain txs..
-// Get JSON-serializable details of condition
 func (c *Condition) MarshalJSON() ([]byte, error) {
 	if c == nil {
 		return nil, nil
 	}
 	if !c.Validate(nil) {
-		panic(ErrInvalidCondition.Error())
+		panic(ErrInvalidCondition)
 	}
-	return MustMarshalJSON(struct {
-		Details struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature interface{}      `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
-		} `json:"details"`
-		URI string `json:"uri"`
-	}{
-		Details: struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature interface{}      `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
+	/*
+		return MustMarshalJSON(struct {
+			Details struct {
+				Bitmask   int              `json:"bitmask"`
+				PubKey    crypto.PublicKey `json:"public_key"`
+				Signature interface{}      `json:"signature"`
+				Type      string           `json:"type"`
+				TypeId    int              `json:"type_id"`
+			} `json:"details"`
+			URI string `json:"uri"`
 		}{
-			Bitmask:   c.bitmask,
-			PubKey:    c.pub,
-			Signature: nil,
-			Type:      FULFILLMENT_TYPE,
-			TypeId:    c.id,
-		},
-		URI: c.String(),
-	}), nil
+			Details: struct {
+				Bitmask   int              `json:"bitmask"`
+				PubKey    crypto.PublicKey `json:"public_key"`
+				Signature interface{}      `json:"signature"`
+				Type      string           `json:"type"`
+				TypeId    int              `json:"type_id"`
+			}{
+				Bitmask:   c.bitmask,
+				PubKey:    c.pub,
+				Signature: nil,
+				Type:      FULFILLMENT_TYPE,
+				TypeId:    c.id,
+			},
+			URI: c.String(),
+		}), nil
+	*/
+	return MustMarshalJSON(c.String()), nil
 }
 
 func (c *Condition) String() string {
@@ -580,16 +633,18 @@ func (c *Condition) String() string {
 }
 
 func (c *Condition) UnmarshalBinary(p []byte) error {
-	if len(p) != CONDITION_SIZE {
-		return ErrInvalidSize
-	}
-	c.id = MustUint16(p[:2])
-	c.bitmask = MustUint32(p[2:6])
-	c.hash = p[6 : 6+HASH_LENGTH]
-	c.size = MustUint16(p[6+HASH_LENGTH:])
-	if !c.Validate(nil) {
-		return ErrInvalidCondition
-	}
+	/*
+		if len(p) != CONDITION_SIZE {
+			return ErrInvalidSize
+		}
+		c.id = MustUint16(p[:2])
+		c.bitmask = MustUint32(p[2:6])
+		c.hash = p[6 : 6+HASH_LENGTH]
+		c.size = MustUint16(p[6+HASH_LENGTH:])
+		if !c.Validate(nil) {
+			return ErrInvalidCondition
+		}
+	*/
 	return nil
 }
 

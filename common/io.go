@@ -65,6 +65,20 @@ func MustReadFull(r io.Reader, buf []byte) {
 	Check(err)
 }
 
+func MustPeek(r io.Reader) byte {
+	b, err := Peek(r)
+	Check(err)
+	return b
+}
+
+func Peek(r io.Reader) (byte, error) {
+	p, err := ReadN(r, 1)
+	if err != nil {
+		return 0, err
+	}
+	return p[0], nil
+}
+
 func ReadN(r io.Reader, n int) ([]byte, error) {
 	buf := make([]byte, n)
 	read, err := io.ReadAtLeast(r, buf, n)

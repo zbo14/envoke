@@ -56,36 +56,42 @@ const (
 	VERSION  = "0.9"
 )
 
-func IndividualCreateTx(data Data, pub crypto.PublicKey) Data {
+func IndividualCreateTx(data Data, owner crypto.PublicKey) Data {
 	amounts := []int{1}
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
-	pubs := []crypto.PublicKey{pub}
-	owners := [][]crypto.PublicKey{pubs}
-	return CreateTx(amounts, asset, fulfills, owners, owners, pubs)
+	owners := [][]crypto.PublicKey{[]crypto.PublicKey{owner}}
+	return CreateTx(amounts, asset, fulfills, owners, owners)
+}
+
+func MultipleOwnersCreateTx(data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+	amounts := []int{1}
+	asset := Data{"data": data}
+	fulfills := []Data{nil}
+	ownersBefore := []crypto.PublicKey{ownerBefore}
+	return CreateTx(amounts, asset, fulfills, [][]crypto.PublicKey{ownersAfter}, [][]crypto.PublicKey{ownersBefore})
 }
 
 func IndividualTransferTx(id string, output int, ownerAfter, ownerBefore crypto.PublicKey) Data {
 	amounts := []int{1}
 	asset := Data{"id": id}
 	fulfills := []Data{Data{"txid": id, "output": output}}
-	pubs := []crypto.PublicKey{ownerAfter}
-	ownersAfter := [][]crypto.PublicKey{pubs}
+	ownersAfter := [][]crypto.PublicKey{[]crypto.PublicKey{ownerAfter}}
 	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
-	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore, pubs)
+	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
-func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
-	return GenerateTx(amounts, asset, fulfills, nil, CREATE, ownersAfter, ownersBefore, pubs)
+func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
+	return GenerateTx(amounts, asset, fulfills, nil, CREATE, ownersAfter, ownersBefore)
 }
 
-func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
-	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, ownersAfter, ownersBefore, pubs)
+func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
+	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, ownersAfter, ownersBefore)
 }
 
-func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey, pubs []crypto.PublicKey) Data {
+func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
 	inputs := NewInputs(fulfills, ownersBefore)
-	outputs := NewOutputs(amounts, ownersAfter, pubs)
+	outputs := NewOutputs(amounts, ownersAfter)
 	return NewTx(asset, inputs, metadata, operation, outputs)
 }
 
@@ -194,22 +200,33 @@ func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
 	}
 }
 
-func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey, pubs []crypto.PublicKey) []Data {
+func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) []Data {
 	n := len(amounts)
-	if n != len(ownersAfter) || n != len(pubs) {
+	if n != len(ownersAfter) {
 		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
 	}
 	outputs := make([]Data, n)
-	for i := range outputs {
-		outputs[i] = NewOutput(amounts[i], ownersAfter[i], pubs[i])
+	for i, owner := range ownersAfter {
+		outputs[i] = NewOutput(amounts[i], owner)
 	}
 	return outputs
 }
 
-func NewOutput(amount int, ownersAfter []crypto.PublicKey, pub crypto.PublicKey) Data {
+func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {
+	n := len(ownersAfter)
+	if n == 0 {
+		return nil
+	}
+	if n == 1 {
+		return Data{
+			"amount":      amount,
+			"condition":   conds.DefaultConditionWithPubKey(ownersAfter[0]),
+			"public_keys": ownersAfter,
+		}
+	}
 	return Data{
 		"amount":      amount,
-		"condition":   conds.NewConditionWithPubKey(pub, 1),
+		"condition":   conds.DefaultFulfillmentThresholdFromPubKeys(ownersAfter),
 		"public_keys": ownersAfter,
 	}
 }

@@ -464,38 +464,48 @@ func MustReadUint64(r Reader) int {
 	return int(x)
 }
 
-// Uvarint
+// VarUint
 
-func UvarintBytes(x int) []byte {
-	p := make([]byte, 12)
-	n := binary.PutUvarint(p, uint64(x))
-	return p[:n]
+func VarUintBytes(x int) []byte {
+	return VarOctet([]byte{uint8(x)})
 }
 
-func UvarintSize(x int) int {
-	p := make([]byte, 12)
-	return binary.PutUvarint(p, uint64(x))
-}
-
-func MustUvarint(p []byte) int {
-	x, _ := binary.Uvarint(p)
-	return int(x)
-}
-
-func ReadUvarint(r ByteReader) (int, error) {
-	x, err := binary.ReadUvarint(r)
+func VarUint(octet []byte) (int, error) {
+	p, err := VarOctetBytes(octet)
 	if err != nil {
 		return 0, err
 	}
-	return int(x), nil
+	if len(p) == 0 {
+		return 0, ErrInvalidSize
+	}
+	return int(p[0]), nil
 }
 
-func MustReadUvarint(r ByteReader) int {
-	x, err := ReadUvarint(r)
+func VarUintSize(x int) int {
+	return len(VarUintBytes(x))
+}
+
+func MustVarUint(octet []byte) int {
+	x, err := VarUint(octet)
 	Check(err)
-	return int(x)
+	return x
 }
 
+func ReadVarUint(r io.Reader) (int, error) {
+	octet, err := ReadVarOctet(r)
+	if err != nil {
+		return 0, err
+	}
+	return VarUint(octet)
+}
+
+func MustReadVarUint(r io.Reader) int {
+	x, err := ReadVarUint(r)
+	Check(err)
+	return x
+}
+
+/*
 // VarBytes
 
 func VarBytes(p []byte) []byte {
@@ -526,50 +536,84 @@ func MustWriteVarBytes(p []byte, w Writer) {
 	err := WriteVarBytes(p, w)
 	Check(err)
 }
-
-/*
+*/
 
 // Octet
 
-func FromVarOctet(octet []byte) (p []byte) {
-	if j := int(octet[0]); j < 128 {
-		p = octet[1:]
-	} else {
-		j -= 128
-		size := int(octet[j])
-		fmt.Println(size)
-		p = octet[j : j+size]
+const MSB = 0x80
+
+func MustReadVarOctet(r io.Reader) []byte {
+	octet, err := ReadVarOctet(r)
+	Check(err)
+	return octet
+}
+
+func ReadVarOctet(r io.Reader) ([]byte, error) {
+	b, err := Peek(r)
+	if err != nil {
+		return nil, err
 	}
+	if b > MSB {
+		b, err = Peek(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ReadN(r, int(b))
+}
+
+func WriteVarOctet(p []byte, w io.Writer) {
+	w.Write(VarOctet(p))
+}
+
+func MustVarOctetBytes(octet []byte) []byte {
+	p, err := VarOctetBytes(octet)
+	Check(err)
+	return p
+}
+
+func VarOctetBytes(octet []byte) ([]byte, error) {
+	if len(octet) == 0 {
+		return nil, ErrInvalidSize
+	}
+	i := int(octet[0])
+	if i < MSB {
+		if i+1 >= len(octet) {
+			return nil, ErrInvalidSize
+		}
+		return octet[1 : i+1], nil
+	}
+	i -= MSB
+	if i >= len(octet) {
+		return nil, ErrInvalidSize
+	}
+	n := int(octet[i])
+	if i+n >= len(octet) {
+		return nil, ErrInvalidSize
+	}
+	return octet[i : i+n], nil
+}
+
+func VarOctet(p []byte) (octet []byte) {
+	if n := len(p); n < MSB {
+		octet = []byte{uint8(n)}
+	} else {
+		for i := 1; ; i++ {
+			if n < 1<<uint(i*8) {
+				octet = []byte{uint8(MSB | uint(i))}
+				octet = append(octet, make([]byte, i)...)
+				octet[i] = uint8(n)
+				break
+			}
+		}
+	}
+	octet = append(octet, p...)
 	return
 }
 
-func ReadVarOctet(r Reader) []byte {
-
+func VarOctetLength(p []byte) int {
+	return len(VarOctet(p))
 }
-
-func ToVarOctet(p []byte) []byte {
-	buf := new(bytes.Buffer)
-	if size := len(p); size < 128 {
-		buf.Write([]byte{uint8(size)})
-	} else {
-		var i, j int
-		var p []byte
-		for ; size > 1<<uint(i); i++ {
-			p = append([]byte{}, p...)
-		}
-		if j = i / 8; j*8 != i {
-			j++
-		}
-		buf.Write([]byte{uint8(0x80 | uint(j))})
-		bz := make([]byte, j)
-		bz[j-1] = uint8(size)
-		buf.Write(bz)
-	}
-	buf.Write(p)
-	fmt.Println(buf.Bytes())
-	return puf.Bytes()
-}
-*/
 
 // CBOR
 

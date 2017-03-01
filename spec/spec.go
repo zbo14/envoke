@@ -26,8 +26,8 @@ const (
 	RECORDING_SIZE   = 6
 	PUBLICATION_SIZE = 3
 	RELEASE_SIZE     = 3
-	RIGHT_SIZE       = 6
-	LICENSE_SIZE     = 7
+	RIGHT_SIZE       = 5
+	LICENSE_SIZE     = 8
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -254,7 +254,7 @@ func GetPublicationCompositionId(publication Data) string {
 	return publication.GetStr("compositionId")
 }
 
-func GetPublicationRightIds(publication Data) []string {
+func GetCompositionRightIds(publication Data) []string {
 	return publication.GetStrSlice("rightIds")
 }
 
@@ -270,7 +270,7 @@ func ValidPublication(publication Data) error {
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, "compositionId")
 	}
-	rightIds := GetPublicationRightIds(publication)
+	rightIds := GetCompositionRightIds(publication)
 	seen := make(map[string]struct{})
 	for _, rightId := range rightIds {
 		if _, ok := seen[rightId]; ok {
@@ -289,7 +289,7 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(isrc, labelId, performerId, producerId, publicationId string) Data {
+func NewRecording(compositionRightId, isrc, labelId, performerId, producerId, publicationId string) Data {
 	recording := Data{
 		"instance":      NewInstance(RECORDING),
 		"isrc":          isrc,
@@ -298,7 +298,14 @@ func NewRecording(isrc, labelId, performerId, producerId, publicationId string) 
 		"producerId":    producerId,
 		"publicationId": publicationId,
 	}
+	if !EmptyStr(compositionRightId) {
+		recording["compositionRightId"] = compositionRightId
+	}
 	return recording
+}
+
+func GetRecordingCompositionRightId(recording Data) string {
+	return recording.GetStr("compositionRightId")
 }
 
 func GetRecordingISRC(recording Data) string {
@@ -328,6 +335,16 @@ func ValidRecording(recording Data) error {
 	}
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
+	}
+	compositionRightId := GetRecordingCompositionRightId(recording)
+	if !EmptyStr(compositionRightId) {
+		if !MatchId(compositionRightId) {
+			return ErrorAppend(ErrInvalidId, "compositionRightId")
+		}
+		if len(recording) != RECORDING_SIZE+1 {
+			return ErrorAppend(ErrInvalidSize, RECORDING)
+		}
+		return nil
 	}
 	isrc := GetRecordingISRC(recording)
 	if !MatchStr(ISRC_REGEX, isrc) {
@@ -376,7 +393,7 @@ func GetReleaseRecordingId(release Data) string {
 	return release.GetStr("recordingId")
 }
 
-func GetReleaseRightIds(release Data) []string {
+func GetRecordingRightIds(release Data) []string {
 	return release.GetStrSlice("rightIds")
 }
 
@@ -392,7 +409,7 @@ func ValidRelease(release Data) error {
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, "recordingId")
 	}
-	rightIds := GetReleaseRightIds(release)
+	rightIds := GetRecordingRightIds(release)
 	seen := make(map[string]struct{})
 	for _, rightId := range rightIds {
 		if _, ok := seen[rightId]; ok {
@@ -421,34 +438,29 @@ func ValidRelease(release Data) error {
 
 // Right
 
-func NewRight(percentageShares string, territory []string, validFrom, validTo string) Data {
+func NewRight(territory []string, validFrom, validTo string) Data {
 	return Data{
-		"instance":         NewInstance(RIGHT),
-		"percentageShares": percentageShares,
-		"territory":        territory,
-		"validFrom":        validFrom,
-		"validTo":          validTo,
+		"instance":  NewInstance(RIGHT),
+		"territory": territory,
+		"validFrom": validFrom,
+		"validTo":   validTo,
 	}
 }
 
-func NewCompositionRight(compositionId, percentageShares string, territory []string, validFrom, validTo string) Data {
-	right := NewRight(percentageShares, territory, validFrom, validTo)
+func NewCompositionRight(compositionId string, territory []string, validFrom, validTo string) Data {
+	right := NewRight(territory, validFrom, validTo)
 	right.Set("compositionId", compositionId)
 	return right
 }
 
-func NewRecordingRight(percentageShares, recordingId string, territory []string, validFrom, validTo string) Data {
-	right := NewRight(percentageShares, territory, validFrom, validTo)
+func NewRecordingRight(recordingId string, territory []string, validFrom, validTo string) Data {
+	right := NewRight(territory, validFrom, validTo)
 	right.Set("recordingId", recordingId)
 	return right
 }
 
 func GetRightCompositionId(right Data) string {
 	return right.GetStr("compositionId")
-}
-
-func GetRightPercentageShares(right Data) int {
-	return right.GetStrInt("percentageShares")
 }
 
 func GetRightRecordingId(right Data) string {
@@ -474,10 +486,6 @@ func ValidRight(right Data) error {
 	}
 	if !HasType(right, RIGHT) {
 		return ErrorAppend(ErrInvalidType, GetType(right))
-	}
-	percentageShares := GetRightPercentageShares(right)
-	if percentageShares <= 0 || percentageShares > 100 {
-		return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0 and less than 100")
 	}
 	seen := make(map[string]struct{})
 	for _, territory := range GetTerritory(right) {
@@ -530,11 +538,12 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, publicationId, releaseId string, territory []string, _type, validFrom, validTo string) Data {
+func NewLicense(licenseeId, licenserId, publicationId, releaseId, rightId string, territory []string, _type, validFrom, validTo string) Data {
 	license := Data{
 		"instance":   NewInstance(_type),
 		"licenseeId": licenseeId,
 		"licenserId": licenserId,
+		"rightId":    rightId,
 		"territory":  territory,
 		"validFrom":  validFrom,
 		"validTo":    validTo,
@@ -562,6 +571,10 @@ func GetLicenseReleaseId(license Data) string {
 	return license.GetStr("releaseId")
 }
 
+func GetLicenseRightId(license Data) string {
+	return license.GetStr("rightId")
+}
+
 func GetLicensePublicationId(license Data) string {
 	return license.GetStr("publicationId")
 }
@@ -575,11 +588,19 @@ func ValidLicense(license Data) error {
 	switch _type {
 	case
 		LICENSE_MECHANICAL:
+		compositionRightId := license.GetStr("compositionRightId")
+		if !MatchId(compositionRightId) {
+			return ErrorAppend(ErrInvalidId, "compositionRightId")
+		}
 		publicationId := license.GetStr("publicationId")
 		if !MatchId(publicationId) {
 			return ErrorAppend(ErrInvalidId, "publicationId")
 		}
 	case LICENSE_MASTER:
+		recordingRightId := license.GetStr("recordingRightId")
+		if !MatchId(recordingRightId) {
+			return ErrorAppend(ErrInvalidId, "recordingRightId")
+		}
 		releaseId := license.GetStr("releaseId")
 		if !MatchId(releaseId) {
 			return ErrorAppend(ErrInvalidId, "releaseId")

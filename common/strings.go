@@ -29,6 +29,12 @@ func Atoi(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
+func MustAtoi(s string) int {
+	i, err := Atoi(s)
+	Check(err)
+	return i
+}
+
 func Itoa(x int) string {
 	return strconv.Itoa(x)
 }

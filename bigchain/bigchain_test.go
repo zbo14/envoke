@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	. "github.com/zbo14/envoke/common"
-	conds "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 )
@@ -17,52 +16,66 @@ var (
 func TestBigchain(t *testing.T) {
 	// Keys
 	privAlice, pubAlice := ed25519.GenerateKeypairFromSeed(BytesFromB58(Alice))
-	_, pubBob := ed25519.GenerateKeypairFromSeed(BytesFromB58(Bob))
+	privBob, pubBob := ed25519.GenerateKeypairFromSeed(BytesFromB58(Bob))
 	// Data
 	data := Data{"dummy": "dummy"}
 	// Individual create tx
-	tx := IndividualCreateTx(data, pubAlice)
+	tx := DefaultIndividualCreateTx(data, pubAlice)
 	FulfillTx(tx, privAlice)
 	// Check if it's fulfilled
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
 	}
 	// PrintJSON(tx)
-	txId, err := PostTx(tx)
+	createTxId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(txId)
+	t.Log(createTxId)
 	// Individual transfer tx
-	tx = IndividualTransferTx(txId, 0, pubBob, pubAlice)
+	tx = DefaultIndividualTransferTx(createTxId, createTxId, 0, pubBob, pubAlice)
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
 	}
 	PrintJSON(tx)
-	txId, err = PostTx(tx)
+	transferTxId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(txId)
+	t.Log(transferTxId)
+	// Transfer the transfer tx
+	tx = DefaultIndividualTransferTx(createTxId, transferTxId, 0, pubAlice, pubBob)
+	FulfillTx(tx, privBob)
+	if !FulfilledTx(tx) {
+		t.Error(ErrInvalidFulfillment)
+	}
+	transfer2TxId, err := PostTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(transfer2TxId)
 	// Multiple owners create tx
-	fulfillmentThreshold := conds.DefaultFulfillmentThresholdFromPubKeys([]crypto.PublicKey{pubAlice, pubBob})
-	tx = MultipleOwnersCreateTx(data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	tx = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
 	}
 	PrintJSON(tx)
-	PrintJSON(fulfillmentThreshold)
 	// PrintJSON(tx)
-	txId, err = PostTx(tx)
+	multipleOwnersTxId, err := PostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(txId)
-	tx, err = GetTx(txId)
+	t.Log(multipleOwnersTxId)
+	tx, err = GetTx(multipleOwnersTxId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(GetTxPublicKeys(tx))
+	outputs := GetTxOutputs(tx)
+	pubs := GetOutputsPublicKeys(outputs)
+	t.Log(pubs)
+	inputs := GetTxInputs(tx)
+	pubs = GetInputsPublicKeys(inputs)
+	t.Log(pubs)
 }

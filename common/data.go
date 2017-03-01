@@ -19,6 +19,7 @@ func (d Data) GetInt32Slice(key string) []int32           { return AssertInt32Sl
 func (d Data) GetInt64(key string) int64                  { return AssertInt64(d.Get(key)) }
 func (d Data) GetInterfaceSlice(key string) []interface{} { return AssertInterfaceSlice(d.Get(key)) }
 func (d Data) GetMap(key string) map[string]interface{}   { return AssertMap(d.Get(key)) }
+func (d Data) GetMapData(key string) Data                 { return AssertMapData(d.Get(key)) }
 func (d Data) GetStr(key string) string                   { return AssertStr(d.Get(key)) }
 
 func (d Data) GetStrInt(key string) int {

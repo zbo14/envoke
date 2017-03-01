@@ -96,16 +96,17 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var right Data
 	compositionId := values.Get("compositionId")
-	percentageShares := values.Get("percentageShares")
+	percentageShares := MustAtoi(values.Get("percentageShares"))
 	recordingId := values.Get("recordingId")
+	rightHolderId := values.Get("rightHolderId")
 	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(compositionId):
-		right, err = api.CompositionRight(compositionId, percentageShares, territory, validFrom, validTo)
+		right, err = api.CompositionRight(compositionId, percentageShares, rightHolderId, territory, validFrom, validTo)
 	case !EmptyStr(recordingId):
-		right, err = api.RecordingRight(percentageShares, recordingId, territory, validFrom, validTo)
+		right, err = api.RecordingRight(percentageShares, recordingId, rightHolderId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
 		return
@@ -150,6 +151,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	compositionRightId := form.Value["compositionRightId"][0]
 	file, err := form.File["recording"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -160,7 +162,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publicationId := form.Value["publicationId"][0]
-	recording, err := api.Record(file, isrc, labelId, performerId, producerId, publicationId)
+	recording, err := api.Record(compositionRightId, file, isrc, labelId, performerId, producerId, publicationId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -223,14 +225,15 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	licenseeId := values.Get("licenseeId")
 	publicationId := values.Get("publicationId")
 	releaseId := values.Get("releaseId")
+	rightId := values.Get("rightId")
 	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(publicationId):
-		license, err = api.MechanicalLicense(licenseeId, publicationId, territory, validFrom, validTo)
+		license, err = api.MechanicalLicense(licenseeId, publicationId, rightId, territory, validFrom, validTo)
 	case !EmptyStr(releaseId):
-		license, err = api.MasterLicense(licenseeId, releaseId, territory, validFrom, validTo)
+		license, err = api.MasterLicense(licenseeId, releaseId, rightId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
 		return
@@ -264,7 +267,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		publication := bigchain.GetTxData(tx)
-		pub := bigchain.GetTxPublicKey(tx)
+		pub := bigchain.GetTxSigner(tx)
 		model, err = ld.QueryPublicationField(field, publication, pub)
 	case !EmptyStr(releaseId):
 		tx, err := bigchain.GetTx(releaseId)
@@ -273,7 +276,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		release := bigchain.GetTxData(tx)
-		pub := bigchain.GetTxPublicKey(tx)
+		pub := bigchain.GetTxSigner(tx)
 		model, err = ld.QueryReleaseField(field, release, pub)
 	default:
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
@@ -316,7 +319,7 @@ func (api *Api) Login(agentId, privstr string) error {
 	if err = spec.ValidAgent(agent); err != nil {
 		return err
 	}
-	pub := bigchain.GetTxPublicKey(tx)
+	pub := bigchain.GetTxSigner(tx)
 	if !pub.Equals(priv.Public()) {
 		return ErrInvalidKey
 	}
@@ -341,7 +344,7 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	if err := spec.ValidAgent(agent); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(agent, pub)
+	tx := bigchain.DefaultIndividualCreateTx(agent, pub)
 	bigchain.FulfillTx(tx, priv)
 	agentId, err := bigchain.PostTx(tx)
 	if err != nil {
@@ -360,7 +363,7 @@ func (api *Api) Compose(composerId, hfa, iswc, publisherId, title string) (compo
 	if _, err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(composition, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	composition["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -370,18 +373,18 @@ func (api *Api) Compose(composerId, hfa, iswc, publisherId, title string) (compo
 	return composition, nil
 }
 
-func (api *Api) Record(file io.Reader, isrc, labelId, performerId, producerId, publicationId string) (recording Data, err error) {
+func (api *Api) Record(compositionRightId string, file io.Reader, isrc, labelId, performerId, producerId, publicationId string) (recording Data, err error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	// 	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording = spec.NewRecording(isrc, labelId, performerId, producerId, publicationId)
+	recording = spec.NewRecording(compositionRightId, isrc, labelId, performerId, producerId, publicationId)
 	if _, err = ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(recording, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	recording["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -396,7 +399,7 @@ func (api *Api) Publish(compositionId string, rightIds []string) (publication Da
 	if _, err = ld.ValidatePublication(publication, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(publication, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	publication["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -411,7 +414,7 @@ func (api *Api) Release(publishingLicenseId, recordingId string, rightIds []stri
 	if _, err = ld.ValidateRelease(release, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(release, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	release["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -421,12 +424,17 @@ func (api *Api) Release(publishingLicenseId, recordingId string, rightIds []stri
 	return release, nil
 }
 
-func (api *Api) CompositionRight(compositionId, percentageShares string, territory []string, validFrom, validTo string) (right Data, err error) {
-	right = spec.NewCompositionRight(compositionId, percentageShares, territory, validFrom, validTo)
+func (api *Api) CompositionRight(compositionId string, percentageShares int, rightHolderId string, territory []string, validFrom, validTo string) (right Data, err error) {
+	tx, err := bigchain.GetTx(rightHolderId)
+	if err != nil {
+		return nil, err
+	}
+	pub := bigchain.GetTxSigner(tx)
+	right = spec.NewCompositionRight(compositionId, territory, validFrom, validTo)
 	if err = spec.ValidCompositionRight(right); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(right, api.pub)
+	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	right["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -436,12 +444,17 @@ func (api *Api) CompositionRight(compositionId, percentageShares string, territo
 	return right, nil
 }
 
-func (api *Api) RecordingRight(percentageShares, recordingId string, territory []string, validFrom, validTo string) (right Data, err error) {
-	right = spec.NewRecordingRight(percentageShares, recordingId, territory, validFrom, validTo)
+func (api *Api) RecordingRight(percentageShares int, recordingId, rightHolderId string, territory []string, validFrom, validTo string) (right Data, err error) {
+	tx, err := bigchain.GetTx(rightHolderId)
+	if err != nil {
+		return nil, err
+	}
+	pub := bigchain.GetTxSigner(tx)
+	right = spec.NewRecordingRight(recordingId, territory, validFrom, validTo)
 	if err = spec.ValidRecordingRight(right); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(right, api.pub)
+	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	right["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -451,12 +464,12 @@ func (api *Api) RecordingRight(percentageShares, recordingId string, territory [
 	return right, nil
 }
 
-func (api *Api) MechanicalLicense(licenseeId, publicationId string, territory []string, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewLicense(licenseeId, api.agentId, publicationId, "", territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
+func (api *Api) MechanicalLicense(licenseeId, publicationId, rightId string, territory []string, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, publicationId, "", rightId, territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
 	if _, err = ld.ValidateMechanicalLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(license, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(license, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {
@@ -466,12 +479,12 @@ func (api *Api) MechanicalLicense(licenseeId, publicationId string, territory []
 	return license, nil
 }
 
-func (api *Api) MasterLicense(licenseeId, releaseId string, territory []string, validFrom, validTo string) (license Data, err error) {
-	license = spec.NewLicense(licenseeId, api.agentId, "", releaseId, territory, spec.LICENSE_MASTER, validFrom, validTo)
+func (api *Api) MasterLicense(licenseeId, releaseId, rightId string, territory []string, validFrom, validTo string) (license Data, err error) {
+	license = spec.NewLicense(licenseeId, api.agentId, "", releaseId, rightId, territory, spec.LICENSE_MASTER, validFrom, validTo)
 	if _, err = ld.ValidateMasterLicense(license, api.pub); err != nil {
 		return nil, err
 	}
-	tx := bigchain.IndividualCreateTx(license, api.pub)
+	tx := bigchain.DefaultIndividualCreateTx(license, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	license["id"], err = bigchain.PostTx(tx)
 	if err != nil {

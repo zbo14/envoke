@@ -12,7 +12,8 @@ import (
 )
 
 func Sum256(p []byte) []byte {
-	return sha256.Sum256(p)[:]
+	h := sha256.Sum256(p)
+	return h[:]
 }
 
 // SHA256 Pre-Image
@@ -457,7 +458,7 @@ func ThresholdHash(subs Fulfillments, threshold int) []byte {
 		hash.Write(VarUintBytes(c.Weight()))
 		p, err := c.MarshalBinary()
 		Check(err)
-		hash.Write(VarOctet(p))
+		hash.Write(p)
 	}
 	return hash.Sum(nil)[:]
 }

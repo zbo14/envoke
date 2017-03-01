@@ -10,7 +10,7 @@ import (
 
 const (
 	BIGCHAIN_ENDPOINT = ""
-	IPDB_ENDPOINT     = ""
+	IPDB_ENDPOINT     = "http://cochoa.ipdb.foundation:9984/api/v1/"
 	ENDPOINT          = IPDB_ENDPOINT
 )
 
@@ -113,8 +113,7 @@ func FulfillTx(tx Data, priv crypto.PrivateKey) {
 	json := MustMarshalJSON(tx)
 	inputs := tx.Get("inputs").([]Data)
 	for _, input := range inputs {
-		f := conds.FulfillmentFromPrivKey(json, priv, 1)
-		input.Set("fulfillment", f)
+		input.Set("fulfillment", conds.DefaultFulfillmentFromPrivKey(json, priv).String())
 	}
 }
 
@@ -157,13 +156,14 @@ func GetTxId(tx Data) string {
 }
 
 func GetTxPublicKeys(tx Data) []crypto.PublicKey {
-	outputs := tx.GetInterfaceSlice("outputs")
-	pubs := make([]crypto.PublicKey, len(outputs))
-	for i, output := range outputs {
+	output := tx.GetInterfaceSlice("outputs")[0]
+	condition := AssertMap(output)["condition"]
+	details := AssertMap(condition)["details"]
+	subs := AssertMapData(details).GetInterfaceSlice("subfulfillments")
+	pubs := make([]crypto.PublicKey, len(subs))
+	for i, sub := range subs {
+		pubstr := AssertMapData(sub).GetStr("public_key")
 		pubs[i] = new(ed25519.PublicKey)
-		condition := AssertMap(output)["condition"]
-		details := AssertMap(condition)["details"]
-		pubstr := AssertMapData(details).GetStr("public_key")
 		pubs[i].FromString(pubstr)
 	}
 	return pubs
@@ -182,7 +182,6 @@ func GetTxPublicKey(tx Data) crypto.PublicKey {
 func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) []Data {
 	n := len(fulfills)
 	if n != len(ownersBefore) {
-		Println(n, len(ownersBefore))
 		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
 	}
 	inputs := make([]Data, n)
@@ -220,7 +219,7 @@ func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {
 	if n == 1 {
 		return Data{
 			"amount":      amount,
-			"condition":   conds.DefaultConditionWithPubKey(ownersAfter[0]),
+			"condition":   conds.DefaultFulfillmentFromPubKey(ownersAfter[0]),
 			"public_keys": ownersAfter,
 		}
 	}
@@ -230,144 +229,3 @@ func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {
 		"public_keys": ownersAfter,
 	}
 }
-
-/*
-func GetInnerData(data Data, keys ...string) Data {
-	return GetData(GetInnerValue(data, keys...))
-}
-func GetTxValue(tx Data, key string) interface{} {
-	return GetInnerValue(tx, "asset", "data", key)
-}
-func SetTxValue(tx Data, key string, value interface{}) {
-	SetInnerValue(tx, value, "asset", "data", key)
-}
-*/
-
-/*
-func GenerateTx(data interface{}, metadata Data, operation string, pub crypto.PublicKey) *Tx {
-	asset := NewAsset(data)
-	input := NewInput(pub)
-	output := NewOutput(1, pub, pub)
-	return NewTx(
-		asset,
-		Inputs{input},
-		metadata,
-		operation,
-		Outputs{output})
-}
-func NewTx(asset *Asset, inputs Inputs, metadata Data, operation string, outputs Outputs) *Tx {
-	tx := &Tx{
-		Asset:     asset,
-		Inputs:    inputs,
-		Metadata:  metadata,
-		Operation: operation,
-		Outputs:   outputs,
-		Version:   VERSION,
-	}
-	json := string(MustMarshalJSON(tx))
-	sum := Checksum256([]byte(json))
-	tx.Id = BytesToHex(sum)
-	return tx
-}
-func BlankTx() *Tx {
-	return &Tx{
-		Outputs: Outputs{&Output{Condition: conds.NilCondition()}},
-	}
-}
-type Tx struct {
-	Asset     *Asset                 `json:"asset,"`
-	Id        string                 `json:"id,omitempty"`
-	Inputs    Inputs                 `json:"inputs"`
-	Metadata  Data `json:"metadata"`
-	Operation string                 `json:"operation"`
-	Outputs   Outputs                `json:"outputs"`
-	Version   string                 `json:"version"`
-}
-func (tx *Tx) Post() (string, error) {
-	url := ENDPOINT + "transactions/"
-	buf := new(bytes.Buffer)
-	buf.WriteString(string(MustMarshalJSON(tx)))
-	response, err := HttpPost(url, "application/json", buf)
-	if err != nil {
-		return "", err
-	}
-	rd, err := ReadAll(response.Body)
-	if err != nil {
-		return "", err
-	}
-	id := tx.Id
-	if err = UnmarshalJSON(rd, tx); err != nil {
-		return "", err
-	}
-	if id != tx.Id {
-		return "", ErrInvalidRequest
-	}
-	return id, nil
-}
-func (tx *Tx) Fulfill(priv crypto.PrivateKey) {
-	json := MustMarshalJSON(tx)
-	for _, input := range tx.Inputs {
-		input.Fulfillment = conds.FulfillmentFromPrivKey(json, priv, 1)
-	}
-}
-func (tx *Tx) Fulfilled() bool {
-	fulfillments := make([]conds.Fulfillment, len(tx.Inputs))
-	for i, input := range tx.Inputs {
-		fulfillments[i] = input.Fulfillment.(conds.Fulfillment)
-		input.Fulfillment = nil
-	}
-	json := MustMarshalJSON(tx)
-	fulfilled := true
-	for _, f := range fulfillments {
-		if !f.Validate(json) {
-			fulfilled = false
-			break
-		}
-	}
-	for i, input := range tx.Inputs {
-		input.Fulfillment = fulfillments[i]
-	}
-	return fulfilled
-}
-// For convenience..
-func (tx *Tx) GetData() interface{} {
-	return tx.Asset.Data
-}
-func (tx *Tx) SetData(data interface{}) {
-	tx.Asset.Data = data
-}
-type Asset struct {
-	Data interface{} `json:"data"`
-}
-// Divisible  bool      `json:"divisible"`
-// Id         string    `json:"id,omitempty"`
-// Refillable bool      `json:"refillable"`
-// Updatable  bool      `json:"updatable"`
-func NewAsset(data interface{}) *Asset {
-	return &Asset{data}
-}
-type Input struct {
-	Fulfillment  interface{} `json:"fulfillment"`
-	Fulfills     interface{} `json:"fulfills"`
-	OwnersBefore []crypto.PublicKey
-}
-type Inputs []*Input
-func NewInput(ownersBefore ...crypto.PublicKey) *Input {
-	return &Input{
-		OwnersBefore: ownersBefore,
-	}
-}
-type Output struct {
-	Amount    int              `json:"amount"`
-	Condition *conds.Condition `json:"condition"`
-	PubKeys   []crypto.PublicKey
-}
-type Outputs []*Output
-func NewOutput(amount int, pub crypto.PublicKey, pubs ...crypto.PublicKey) *Output {
-	return &Output{
-		Amount:    amount,
-		Condition: conds.NewConditionWithPubKey(pub, 1),
-		PubKeys:   pubs,
-	}
-}
-*/

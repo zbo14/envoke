@@ -81,6 +81,10 @@ func FulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey, weights 
 	return fulfillments
 }
 
+func DefaultFulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey) Fulfillment {
+	return FulfillmentFromPrivKey(msg, priv, 1)
+}
+
 func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
 	switch priv.(type) {
 	case *ed25519.PrivateKey:
@@ -98,11 +102,11 @@ func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulf
 }
 
 func DefaultFulfillmentsFromPubKeys(pubs []crypto.PublicKey) []Fulfillment {
-	weights := make([]int, len(pubs))
-	for i := range weights {
-		weights[i] = 1
+	fulfillments := make([]Fulfillment, len(pubs))
+	for i, pub := range pubs {
+		fulfillments[i] = DefaultFulfillmentFromPubKey(pub)
 	}
-	return FulfillmentsFromPubKeys(pubs, weights)
+	return fulfillments
 }
 
 func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) []Fulfillment {
@@ -115,6 +119,10 @@ func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) []Fulfillme
 		fulfillments[i] = FulfillmentFromPubKey(pub, weights[i])
 	}
 	return fulfillments
+}
+
+func DefaultFulfillmentFromPubKey(pub crypto.PublicKey) Fulfillment {
+	return FulfillmentFromPubKey(pub, 1)
 }
 
 func FulfillmentFromPubKey(pub crypto.PublicKey, weight int) Fulfillment {
@@ -162,7 +170,7 @@ func (fs Fulfillments) Less(i, j int) bool {
 	if fs[i].Weight() == fs[j].Weight() {
 		pi, _ := fs[i].MarshalBinary()
 		pj, _ := fs[j].MarshalBinary()
-		return bytes.Compare(pi, pj) == 1
+		return bytes.Compare(pi, pj) == -1
 	}
 	return false
 }
@@ -473,6 +481,8 @@ func (f *fulfillment) Weight() int {
 }
 
 // Condition
+
+// TODO: cleanup
 
 type Condition struct {
 	*fulfillment

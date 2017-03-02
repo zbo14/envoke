@@ -21,7 +21,7 @@
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
     <input type="submit" value="release" />
 </form>
-<header>SEARCH</header>
+<header>RELEASE DETAILS</header>
 <form id="search-form" name="search-form">
     <input type="text" name="releaseId" placeholder="RELEASE ID" required /><br>
     <select form="search-form" name="field" required>
@@ -53,6 +53,14 @@ function httpPostAsync(addr, data, callback) {
     };
     xhr.open("POST", addr, true); 
     xhr.send(data);
+};
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
 };
 
 window.onload = function() {

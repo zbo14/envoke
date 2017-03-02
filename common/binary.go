@@ -505,39 +505,6 @@ func MustReadVarUint(r io.Reader) int {
 	return x
 }
 
-/*
-// VarBytes
-
-func VarBytes(p []byte) []byte {
-	size := UvarintBytes(len(p))
-	return append(size, p...)
-}
-
-func ReadVarBytes(r MyReader) ([]byte, error) {
-	n, err := ReadUvarint(r)
-	if err != nil {
-		return nil, err
-	}
-	return ReadN(r, n)
-}
-
-func MustReadVarBytes(r MyReader) []byte {
-	p, err := ReadVarBytes(r)
-	Check(err)
-	return p
-}
-
-func WriteVarBytes(p []byte, w Writer) error {
-	v := VarBytes(p)
-	return Write(v, w)
-}
-
-func MustWriteVarBytes(p []byte, w Writer) {
-	err := WriteVarBytes(p, w)
-	Check(err)
-}
-*/
-
 // Octet
 
 const MSB = 0x80

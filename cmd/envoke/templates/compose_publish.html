@@ -5,7 +5,7 @@
 {{define "body"}}
 <header>COMPOSE</header>
 <form id="compose-form" name="compose-form">
-    <input type="text" name="composerId" placeholder="COMPOSER ID" required /><br>
+    <!--<input type="text" name="composerId" placeholder="COMPOSER ID" required /><br>-->
     <input type="text" name="hfa" placeholder="HFA SONG CODE" required /><br>
     <input type="text" name="iswc" placeholder="ISWC CODE" required /><br>
     <input type="text" name="publisherId" placeholder="PUBLISHER ID" required /><br>
@@ -18,16 +18,15 @@
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
     <input type="submit" value="publish" />
 </form>
-<header>SEARCH</header>
+<header>PUBLICATION DETAILS</header>
 <form id="search-form" name="search-form">
-    <input type="text" name="publication" placeholder="PUBLICATION ID" required /><br>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
         <option value="composer">COMPOSER</option>
         <option value="composition">COMPOSITION</option>
         <option value="publisher">PUBLISHER</option>
         <option value="rights">RIGHTS</option>
-        <option value="title">TITLE</option>
     </select>
     <input type="submit" value="search" />
 </form>

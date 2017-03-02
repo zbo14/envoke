@@ -195,7 +195,7 @@ func GetPublicKey(data Data) crypto.PublicKey {
 }
 
 func GetTxAsset(tx Data) Data {
-	return tx.GetData("asset")
+	return tx.GetMapData("asset")
 }
 
 func GetTxAssetId(tx Data) string {
@@ -210,16 +210,32 @@ func SetTxData(tx, data Data) {
 	tx.SetInnerValue(data, "asset", "data")
 }
 
-func GetTxSigner(tx Data) crypto.PublicKey {
+func GetTxSigners(tx Data) [][]crypto.PublicKey {
 	inputs := GetTxInputs(tx)
-	pubs := GetInputsPublicKeys(inputs)
-	return pubs[0][0]
+	return GetInputsPublicKeys(inputs)
 }
 
-func GetTxRecipient(tx Data) crypto.PublicKey {
+func DefaultGetTxSigner(tx Data) crypto.PublicKey {
+	return GetTxSigner(tx, 0)
+}
+
+func GetTxSigner(tx Data, n int) crypto.PublicKey {
+	pubs := GetTxSigners(tx)
+	return pubs[n][0]
+}
+
+func GetTxRecipients(tx Data) [][]crypto.PublicKey {
 	outputs := GetTxOutputs(tx)
-	pubs := GetOutputsPublicKeys(outputs)
-	return pubs[0][0]
+	return GetOutputsPublicKeys(outputs)
+}
+
+func DefaultGetTxRecipient(tx Data) crypto.PublicKey {
+	return GetTxRecipient(tx, 0)
+}
+
+func GetTxRecipient(tx Data, n int) crypto.PublicKey {
+	pubs := GetTxRecipients(tx)
+	return pubs[n][0]
 }
 
 func GetTxShares(tx Data) int {

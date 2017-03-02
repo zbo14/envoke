@@ -15,7 +15,7 @@ func ValidateModelById(modelId string) (Data, error) {
 		return nil, err
 	}
 	model := bigchain.GetTxData(tx)
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err := ValidateModel(model, pub); err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func QueryModelIdField(field, modelId string) (interface{}, error) {
 		return nil, err
 	}
 	model := bigchain.GetTxData(tx)
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	result, err := QueryModelField(field, model, pub)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func ValidateCompositionById(compositionId string) (Data, error) {
 	if err = spec.ValidComposition(composition); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidateComposition(composition, pub); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func ValidateComposition(composition Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "composition must be signed by composer")
 	}
 	composer := bigchain.GetTxData(tx)
@@ -144,7 +144,7 @@ func ValidatePublicationById(publicationId string) (Data, error) {
 	if err = spec.ValidPublication(publication); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidatePublication(publication, pub); err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "publication must be signed by publisher")
 	}
 	percentageShares := 0
@@ -180,7 +180,7 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) error {
 		if compositionId != spec.GetRightCompositionId(right) {
 			return ErrorAppend(ErrInvalidId, "wrong compositionId")
 		}
-		if _, ok := rightHolders[bigchain.GetTxRecipient(tx).String()]; ok {
+		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
 			return ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to composition")
 		}
 		percentageShares += bigchain.GetTxShares(tx)
@@ -215,12 +215,6 @@ func QueryPublicationField(field string, publication Data, pub crypto.PublicKey)
 		return GetCompositionPublisher(composition)
 	case "rights":
 		return GetPublicationRights(publication)
-	case "title":
-		composition, err := GetPublicationComposition(publication)
-		if err != nil {
-			return nil, err
-		}
-		return spec.GetCompositionTitle(composition), nil
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
@@ -259,7 +253,7 @@ func ValidateRecordingById(recordingId string) (Data, error) {
 	if err := spec.ValidRecording(recording); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err := ValidateRecording(recording, pub); err != nil {
 		return nil, err
 	}
@@ -286,7 +280,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) error {
 		return err
 	}
 	signed := false
-	if pub.Equals(bigchain.GetTxSigner(tx)) {
+	if pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		signed = true
 	}
 	producerId := spec.GetRecordingProducerId(recording)
@@ -298,7 +292,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) error {
 	if err = spec.ValidAgent(producer); err != nil {
 		return err
 	}
-	if !signed && pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !signed && pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		signed = true
 	}
 	if !signed {
@@ -315,7 +309,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) error {
 		rightIds := spec.GetCompositionRightIds(publication)
 		for i := range rightIds {
 			if rightId == rightIds[i] {
-				if !pub.Equals(bigchain.GetTxRecipient(tx)) {
+				if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
 					return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not rightHolder")
 				}
 				rightHolder = true
@@ -383,7 +377,7 @@ func ValidateReleaseById(releaseId string) (Data, error) {
 	if err = spec.ValidRelease(release); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidateRelease(release, pub); err != nil {
 		return nil, err
 	}
@@ -401,7 +395,7 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "release must be signed by record label")
 	}
 	publicationId := spec.GetRecordingPublicationId(recording)
@@ -434,7 +428,7 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 		if recordingId != spec.GetRightRecordingId(right) {
 			return ErrorAppend(ErrInvalidId, "wrong recordingId")
 		}
-		if _, ok := rightHolders[bigchain.GetTxRecipient(tx).String()]; ok {
+		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
 			return ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to recording")
 		}
 		shares := bigchain.GetTxShares(tx)
@@ -577,7 +571,7 @@ func GetLicenseRight(license Data) (Data, error) {
 
 // Right Holders
 
-func ValidateCompositionRightHolder(publicationId, rightHolderId, rightId string) (Data, string, error) {
+func ValidateCompositionRightHolder(output int, publicationId, rightHolderId, rightId string) (Data, string, error) {
 	publication, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return nil, "", err
@@ -590,16 +584,17 @@ func ValidateCompositionRightHolder(publicationId, rightHolderId, rightId string
 	if err = spec.ValidAgent(rightHolder); err != nil {
 		return nil, "", err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	tx, err = bigchain.GetTx(rightId)
 	if err != nil {
 		return nil, "", err
 	}
 	rightTx := tx
-	if !pub.Equals(bigchain.GetTxRecipient(tx)) {
+	if !pub.Equals(bigchain.GetTxRecipient(tx, output)) {
 		return nil, "", ErrorAppend(ErrCriteriaNotMet, "agent does not hold this composition right")
 	}
-	if id := bigchain.GetTxAssetId(tx); spec.MatchId(id) {
+	id := bigchain.GetTxAssetId(tx)
+	if spec.MatchId(id) {
 		tx, err = bigchain.GetTx(id)
 		if err != nil {
 			return nil, "", err
@@ -607,7 +602,7 @@ func ValidateCompositionRightHolder(publicationId, rightHolderId, rightId string
 		rightId = id
 	}
 	found := false
-	for _, id := range spec.GetCompositionRightIds(publication) {
+	for _, id = range spec.GetCompositionRightIds(publication) {
 		if rightId == id {
 			found = true
 			break
@@ -619,7 +614,7 @@ func ValidateCompositionRightHolder(publicationId, rightHolderId, rightId string
 	return rightTx, rightId, nil
 }
 
-func ValidateRecordingRightHolder(releaseId, rightHolderId, rightId string) (Data, string, error) {
+func ValidateRecordingRightHolder(output int, releaseId, rightHolderId, rightId string) (Data, string, error) {
 	release, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return nil, "", err
@@ -632,13 +627,13 @@ func ValidateRecordingRightHolder(releaseId, rightHolderId, rightId string) (Dat
 	if err = spec.ValidAgent(rightHolder); err != nil {
 		return nil, "", err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	tx, err = bigchain.GetTx(rightId)
 	if err != nil {
 		return nil, "", err
 	}
 	rightTx := tx
-	if !pub.Equals(bigchain.GetTxRecipient(tx)) {
+	if !pub.Equals(bigchain.GetTxRecipient(tx, output)) {
 		return nil, "", ErrorAppend(ErrCriteriaNotMet, "agent does not hold this recording right")
 	}
 	if id := bigchain.GetTxAssetId(tx); spec.MatchId(id) {
@@ -672,7 +667,7 @@ func ValidateMechanicalLicenseById(licenseId string) (Data, error) {
 	if err = spec.ValidLicense(license); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidateMechanicalLicense(license, pub); err != nil {
 		return nil, err
 	}
@@ -685,7 +680,7 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "signer must be licenser")
 	}
 	licenser := bigchain.GetTxData(tx)
@@ -707,7 +702,7 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) error {
 			if err != nil {
 				return err
 			}
-			if !pub.Equals(bigchain.GetTxRecipient(tx)) {
+			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
 				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold this composition right")
 			}
 			right := bigchain.GetTxData(tx)
@@ -770,7 +765,7 @@ func ValidateMasterLicenseById(licenseId string) (Data, error) {
 	if err = spec.ValidLicense(license); err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidateMasterLicense(license, pub); err != nil {
 		return nil, err
 	}
@@ -783,7 +778,7 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.GetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "signer must be licenser")
 	}
 	licenser := bigchain.GetTxData(tx)
@@ -805,7 +800,7 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) error {
 			if err != nil {
 				return err
 			}
-			if !pub.Equals(bigchain.GetTxRecipient(tx)) {
+			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
 				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold this recording right")
 			}
 			right := bigchain.GetTxData(tx)

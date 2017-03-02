@@ -41,6 +41,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
+	Println(req.Method)
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
@@ -133,12 +134,12 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	composerId := values.Get("composerId")
+	// composerId := values.Get("composerId")
 	hfa := values.Get("hfa")
 	iswc := values.Get("iswc")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	info, err := api.Compose(composerId, hfa, iswc, publisherId, title)
+	info, err := api.Compose(hfa, iswc, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -292,7 +293,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		publication := bigchain.GetTxData(tx)
-		pub := bigchain.GetTxSigner(tx)
+		pub := bigchain.DefaultGetTxSigner(tx)
 		model, err = ld.QueryPublicationField(field, publication, pub)
 	case !EmptyStr(releaseId):
 		tx, err := bigchain.GetTx(releaseId)
@@ -301,7 +302,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		release := bigchain.GetTxData(tx)
-		pub := bigchain.GetTxSigner(tx)
+		pub := bigchain.DefaultGetTxSigner(tx)
 		model, err = ld.QueryReleaseField(field, release, pub)
 	default:
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
@@ -329,12 +330,15 @@ func (api *Api) TransferHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var transfer Data
-	output := MustAtoi(values.Get("output"))
 	percentageShares := MustAtoi(values.Get("percentageShares"))
 	publicationId := values.Get("publicationId")
 	recipientId := values.Get("recipientId")
 	releaseId := values.Get("releaseId")
 	rightId := values.Get("rightId")
+	var output int
+	if values.Get("rightReceived") == "yes" {
+		output = 1
+	}
 	switch {
 	case !EmptyStr(publicationId):
 		transfer, err = api.TransferCompositionRight(output, percentageShares, publicationId, recipientId, rightId)
@@ -380,7 +384,7 @@ func (api *Api) Login(agentId, privstr string) error {
 	if err = spec.ValidAgent(agent); err != nil {
 		return err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	if !pub.Equals(priv.Public()) {
 		return ErrInvalidKey
 	}
@@ -419,8 +423,8 @@ func (api *Api) Register(email, name, password, socialMedia string) (*RegisterMe
 	}, nil
 }
 
-func (api *Api) Compose(composerId, hfa, iswc, publisherId, title string) (composition Data, err error) {
-	composition = spec.NewComposition(composerId, hfa, iswc, publisherId, title)
+func (api *Api) Compose(hfa, iswc, publisherId, title string) (composition Data, err error) {
+	composition = spec.NewComposition(api.agentId, hfa, iswc, publisherId, title)
 	if err = ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}
@@ -491,7 +495,7 @@ func (api *Api) CompositionRight(compositionId string, percentageShares int, rig
 	if err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	right = spec.NewCompositionRight(compositionId, territory, validFrom, validTo)
 	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
@@ -508,7 +512,7 @@ func (api *Api) RecordingRight(percentageShares int, recordingId, rightHolderId 
 	if err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	right = spec.NewRecordingRight(recordingId, territory, validFrom, validTo)
 	if err = spec.ValidRecordingRight(right); err != nil {
 		return nil, err
@@ -554,10 +558,10 @@ func (api *Api) MasterLicense(licenseeId, releaseId, rightId string, territory [
 }
 
 // At the moment, only supports transfers between one party and another
-// Output should be 0 if it's an original right or right was self-assigned; 1 if we received right
+// Output should be 0 if it's an original right/right was self-assigned; 1 if we received right from another party
 
 func (api *Api) TransferCompositionRight(output, percentageShares int, publicationId, recipientId, rightId string) (Data, error) {
-	rightTx, originalRightId, err := ld.ValidateCompositionRightHolder(publicationId, api.agentId, rightId)
+	rightTx, originalRightId, err := ld.ValidateCompositionRightHolder(output, publicationId, api.agentId, rightId)
 	if err != nil {
 		return nil, err
 	}
@@ -565,11 +569,11 @@ func (api *Api) TransferCompositionRight(output, percentageShares int, publicati
 	if err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	totalShares := bigchain.GetOutputAmount(bigchain.GetTxOutput(rightTx, output))
 	keepShares := totalShares - percentageShares
 	if keepShares < 0 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "agent cannot transfer this many shares")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "cannot transfer this many shares")
 	}
 	if keepShares == 0 {
 		tx = bigchain.IndividualTransferTx(percentageShares, originalRightId, rightId, output, pub, api.pub)
@@ -585,7 +589,7 @@ func (api *Api) TransferCompositionRight(output, percentageShares int, publicati
 }
 
 func (api *Api) TransferRecordingRight(output, percentageShares int, recipientId, releaseId, rightId string) (Data, error) {
-	rightTx, originalRightId, err := ld.ValidateRecordingRightHolder(releaseId, api.agentId, rightId)
+	rightTx, originalRightId, err := ld.ValidateRecordingRightHolder(output, releaseId, api.agentId, rightId)
 	if err != nil {
 		return nil, err
 	}
@@ -593,16 +597,16 @@ func (api *Api) TransferRecordingRight(output, percentageShares int, recipientId
 	if err != nil {
 		return nil, err
 	}
-	pub := bigchain.GetTxSigner(tx)
+	pub := bigchain.DefaultGetTxSigner(tx)
 	totalShares := bigchain.GetOutputAmount(bigchain.GetTxOutput(rightTx, output))
 	keepShares := totalShares - percentageShares
 	if keepShares < 0 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "agent cannot transfer this many shares")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "cannot transfer this many shares")
 	}
 	if keepShares == 0 {
 		tx = bigchain.IndividualTransferTx(percentageShares, originalRightId, rightId, output, pub, api.pub)
 	} else {
-		tx = bigchain.DivisibleTransferTx([]int{percentageShares, keepShares}, originalRightId, rightId, output, []crypto.PublicKey{pub, api.pub}, api.pub)
+		tx = bigchain.DivisibleTransferTx([]int{keepShares, percentageShares}, originalRightId, rightId, output, []crypto.PublicKey{api.pub, pub}, api.pub)
 	}
 	bigchain.FulfillTx(tx, api.priv)
 	if _, err = bigchain.PostTx(tx); err != nil {

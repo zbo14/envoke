@@ -123,25 +123,38 @@ func TestApi(t *testing.T) {
 	}
 	releaseLicenseId := bigchain.GetId(releaseLicense)
 	t.Log(releaseLicenseId)
-	otherPublisher, err := api.Register("other_publisher@email.com", "other_publisher", "other_password", "www.other_publisher.com")
+	if err = api.Login(composerId, composer.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	compositionRightTransfer1, err := api.TransferCompositionRight(0, 10, publicationId, publisherId, composerRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, publisher)
-	otherPublisherId := otherPublisher.AgentId
-	if err := api.Login(publisherId, publisher.PrivKey); err != nil {
+	compositionRightTransfer1Id := bigchain.GetId(compositionRightTransfer1)
+	if err = api.Login(publisherId, publisher.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	transfer, err := api.TransferCompositionRight(0, 40, publicationId, otherPublisherId, publisherRightId)
-	t.Log(transfer)
-	if err := api.Login(labelId, label.PrivKey); err != nil {
-		t.Fatal(err)
-	}
-	otherLabel, err := api.Register("other_label@email.com", "other_label", "woot woot", "www.the_other_record_label.com")
+	compositionRightTransfer2, err := api.TransferCompositionRight(1, 5, publicationId, composerId, compositionRightTransfer1Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, label)
-	otherLabelId := otherLabel.AgentId
-	transfer, err = api.TransferRecordingRight(0, 20, recipientId, releaseId, rightId)
+	compositionRightTransfer2Id := bigchain.GetId(compositionRightTransfer2)
+	t.Log(compositionRightTransfer2Id)
+	if err = api.Login(performerId, performer.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	recordingRightTransfer1, err := api.TransferRecordingRight(0, 10, labelId, releaseId, performerRightId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordingRightTransfer1Id := bigchain.GetId(recordingRightTransfer1)
+	if err = api.Login(labelId, label.PrivKey); err != nil {
+		t.Fatal(err)
+	}
+	recordingRightTransfer2, err := api.TransferRecordingRight(1, 5, performerId, releaseId, recordingRightTransfer1Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordingRightTransfer2Id := bigchain.GetId(recordingRightTransfer2)
+	t.Log(recordingRightTransfer2Id)
 }

@@ -5,17 +5,18 @@
 {{define "body"}}
 <header>RECORD</header>
 <form id="record-form" name="record-form" enctype="multipart/form-data">
+    <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" /><br>
     <input type="text" name="isrc" placeholder="ISRC CODE" required /><br>
+    <input type="text" name="labelId" placeholder="LABEL ID" required /><br>
     <input type="text" name="performerId" placeholder="PERFORMER ID" required /><br>
     <input type="text" name="producerId" placeholder="PRODUCER ID" required /><br>
-	<input type="text" name="labelId" placeholder="RECORD LABEL ID" required /><br>
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
-    <input type="text" name="publishingLicenseId" placeholder="PUBLISHING LICENSE ID" /><br>
     <input accept="audio" type="file" name="recording" required /><br>
     <input type="submit" value="submit" />
 </form>
 <header>RELEASE</header>
 <form id="release-form" name="release-form">
+    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" /><br>
     <input type="text" name="recordingId" placeholder="RECORDING ID" required /><br>
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
     <input type="submit" value="release" />
@@ -25,11 +26,12 @@
     <input type="text" name="releaseId" placeholder="RELEASE ID" required /><br>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
+        <option value="composition_right">COMPOSITION RIGHT</option>
+        <option value="mechanical_license">MECHANICAL LICENSE</option>
         <option value="performer">PERFORMER</option>
         <option value="producer">PRODUCER</option>
 		<option value="label">RECORD LABEL</option>
         <option value="publication">PUBLICATION</option>
-        <option value="publishingLicense">PUBLISHING LICENSE</option>
         <option value="recording">RECORDING</option>
         <option value="rights">RIGHTS</option>
     </select>

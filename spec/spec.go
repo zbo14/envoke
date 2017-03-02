@@ -375,7 +375,6 @@ func ValidRecording(recording Data) error {
 func NewRelease(licenseId, recordingId string, rightIds []string) Data {
 	release := Data{
 		"instance":    NewInstance(RELEASE),
-		"licenseId":   licenseId,
 		"recordingId": recordingId,
 		"rightIds":    rightIds,
 	}
@@ -586,21 +585,12 @@ func ValidLicense(license Data) error {
 	}
 	_type := GetType(license)
 	switch _type {
-	case
-		LICENSE_MECHANICAL:
-		compositionRightId := license.GetStr("compositionRightId")
-		if !MatchId(compositionRightId) {
-			return ErrorAppend(ErrInvalidId, "compositionRightId")
-		}
+	case LICENSE_MECHANICAL:
 		publicationId := license.GetStr("publicationId")
 		if !MatchId(publicationId) {
 			return ErrorAppend(ErrInvalidId, "publicationId")
 		}
 	case LICENSE_MASTER:
-		recordingRightId := license.GetStr("recordingRightId")
-		if !MatchId(recordingRightId) {
-			return ErrorAppend(ErrInvalidId, "recordingRightId")
-		}
 		releaseId := license.GetStr("releaseId")
 		if !MatchId(releaseId) {
 			return ErrorAppend(ErrInvalidId, "releaseId")
@@ -615,6 +605,10 @@ func ValidLicense(license Data) error {
 	licenserId := GetLicenseLicenserId(license)
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, "licenserId")
+	}
+	rightId := GetLicenseRightId(license)
+	if !MatchId(rightId) {
+		return ErrorAppend(ErrInvalidId, "rightId")
 	}
 	seen := make(map[string]struct{})
 	for _, territory := range GetTerritory(license) {

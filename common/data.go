@@ -13,6 +13,7 @@ func (d Data) Clear(key string)                  { d[key] = nil }
 func (d Data) GetBool(key string) bool                    { return MustAssertBool(d.Get(key)) }
 func (d Data) GetData(key string) Data                    { return AssertData(d.Get(key)) }
 func (d Data) GetDataSlice(key string) []Data             { return AssertDataSlice(d.Get(key)) }
+func (d Data) GetFloat64(key string) float64              { return AssertFloat64(d.Get(key)) }
 func (d Data) GetInt(key string) int                      { return AssertInt(d.Get(key)) }
 func (d Data) GetInt32(key string) int32                  { return AssertInt32(d.Get(key)) }
 func (d Data) GetInt32Slice(key string) []int32           { return AssertInt32Slice(d.Get(key)) }

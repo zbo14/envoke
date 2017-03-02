@@ -10,7 +10,7 @@ import (
 
 const (
 	BIGCHAIN_ENDPOINT = ""
-	IPDB_ENDPOINT     = "http://cochoa.ipdb.foundation:9984/api/v1/"
+	IPDB_ENDPOINT     = ""
 	ENDPOINT          = IPDB_ENDPOINT
 )
 
@@ -105,6 +105,21 @@ func IndividualTransferTx(amount int, assetId, consumeId string, output int, own
 	ownersAfter := [][]crypto.PublicKey{[]crypto.PublicKey{ownerAfter}}
 	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
 	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
+}
+
+func DivisibleTransferTx(amounts []int, assetId, consumeId string, output int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+	n := len(amounts)
+	if n <= 1 || n != len(ownersAfter) {
+		panic(ErrInvalidSize)
+	}
+	asset := Data{"id": assetId}
+	fulfills := []Data{Data{"txid": consumeId, "output": output}}
+	owners := make([][]crypto.PublicKey, len(ownersAfter))
+	for i, owner := range ownersAfter {
+		owners[i] = []crypto.PublicKey{owner}
+	}
+	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
+	return TransferTx(amounts, asset, fulfills, owners, ownersBefore)
 }
 
 func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
@@ -248,8 +263,13 @@ func GetTxOutputs(tx Data) []Data {
 	return datas
 }
 
+func GetTxOutput(tx Data, n int) Data {
+	outputs := GetTxOutputs(tx)
+	return outputs[n]
+}
+
 func GetOutputAmount(output Data) int {
-	return output.GetInt("amount")
+	return int(output.GetFloat64("amount"))
 }
 
 func GetOutputCondition(output Data) Data {

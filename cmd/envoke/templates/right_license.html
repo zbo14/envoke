@@ -6,8 +6,9 @@
 <header>RIGHT</header>
 <form id="right-form" name="right-form">
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" /><br>
-    <input type="text" name="recordingId" placeholder="RECORDING ID" /><br>
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required /><br>
+    <input type="text" name="recordingId" placeholder="RECORDING ID" /><br>
+    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" /><br>
     <input type="text" name="territory" placeholder="TERRITORY" /><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" required /><br>
@@ -17,9 +18,9 @@
 </form>
 <header>LICENSE</header>
 <form id="license-form" name="license-form">
+    <input type="text" name="licenseeId" placeholder="LICENSEE ID" required /><br>
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
     <input type="text" name="releaseId" placeholder="RELEASE ID" required /><br>
-    <input type="text" name="licenseeId" placeholder="LICENSEE ID" required /><br>
     <input type="text" name="territory" placeholder="TERRITORY" /><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" required /><br>

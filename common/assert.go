@@ -20,6 +20,13 @@ func AssertDataSlice(v interface{}) []Data {
 	return nil
 }
 
+func AssertFloat64(v interface{}) float64 {
+	if n, ok := v.(float64); ok {
+		return n
+	}
+	return 0
+}
+
 func AssertInt(v interface{}) int {
 	if n, ok := v.(int); ok {
 		return n

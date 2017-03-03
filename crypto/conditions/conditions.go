@@ -222,7 +222,7 @@ func ConditionURI(p []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash, err := ReadN(buf, HASH_SIZE)
+	hash, err := ReadVarOctet(buf)
 	if err != nil {
 		return "", err
 	}
@@ -235,51 +235,41 @@ func ConditionURI(p []byte) (string, error) {
 }
 
 func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
-	if uri, err := ConditionURI(p); err == nil {
-		if MatchStr(CONDITION_REGEX, uri) {
-			c := NilCondition()
-			c.weight = weight
-			if err := c.UnmarshalBinary(p); err != nil {
-				return nil, err
-			}
-			return c, nil
+	c := NilCondition()
+	if err := c.UnmarshalBinary(p); err == nil {
+		c.weight = weight
+		return c, nil
+	}
+	ful := new(fulfillment)
+	if err := ful.UnmarshalBinary(p); err != nil {
+		return nil, err
+	}
+	ful.weight = weight
+	switch ful.id {
+	case PREIMAGE_ID:
+		f = &fulfillmentPreImage{ful}
+	case PREFIX_ID:
+		f = &fulfillmentPrefix{
+			fulfillment: ful,
+		}
+	case ED25519_ID:
+		f = &fulfillmentEd25519{
+			fulfillment: ful,
+		}
+	case RSA_ID:
+		f = &fulfillmentRSA{
+			fulfillment: ful,
+		}
+	case THRESHOLD_ID:
+		f = &fulfillmentThreshold{
+			fulfillment: ful,
 		}
 	}
-	if uri, err := FulfillmentURI(p); err == nil {
-		if MatchStr(FULFILLMENT_REGEX, uri) {
-			ful := new(fulfillment)
-			if err := ful.UnmarshalBinary(p); err != nil {
-				return nil, err
-			}
-			ful.weight = weight
-			switch ful.id {
-			case PREIMAGE_ID:
-				f = &fulfillmentPreImage{ful}
-			case PREFIX_ID:
-				f = &fulfillmentPrefix{
-					fulfillment: ful,
-				}
-			case ED25519_ID:
-				f = &fulfillmentEd25519{
-					fulfillment: ful,
-				}
-			case RSA_ID:
-				f = &fulfillmentRSA{
-					fulfillment: ful,
-				}
-			case THRESHOLD_ID:
-				f = &fulfillmentThreshold{
-					fulfillment: ful,
-				}
-			}
-			f.Init()
-			if !ful.Validate(nil) {
-				return nil, ErrInvalidFulfillment
-			}
-			return f, nil
-		}
+	f.Init()
+	if !ful.Validate(nil) {
+		return nil, ErrInvalidFulfillment
 	}
-	return nil, ErrInvalidFulfillment
+	return f, nil
 }
 
 func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
@@ -443,6 +433,8 @@ func (f *fulfillment) String() string {
 }
 
 func (f *fulfillment) UnmarshalBinary(p []byte) (err error) {
+	c := NilCondition()
+	c.UnmarshalBinary(p)
 	buf := bytes.NewBuffer(p)
 	f.id, err = ReadUint16(buf)
 	if err != nil {
@@ -490,11 +482,10 @@ func (f *fulfillment) Validate(p []byte) bool {
 	default:
 		return false
 	}
-	switch {
-	case
-		len(f.hash) != HASH_SIZE,
-		f.size > MAX_PAYLOAD_SIZE,
-		f.weight < 1:
+	if f.size > MAX_PAYLOAD_SIZE {
+		return false
+	}
+	if len(f.hash) != HASH_SIZE {
 		return false
 	}
 	return true
@@ -567,7 +558,7 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	WriteUint16(buf, c.id)
 	WriteVarUint(buf, c.bitmask)
 	WriteVarOctet(buf, c.hash)
-	WriteVarUint(buf, c.size)
+	WriteUint16(buf, c.size)
 	return buf.Bytes(), nil
 }
 
@@ -600,7 +591,7 @@ func (c *Condition) UnmarshalBinary(p []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	c.size, err = ReadVarUint(buf)
+	c.size, err = ReadUint16(buf)
 	if err != nil {
 		return err
 	}

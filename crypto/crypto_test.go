@@ -55,20 +55,19 @@ func TestCrypto(t *testing.T) {
 	threshold := 4
 	f5 := conds.NewFulfillmentThreshold(subs, threshold, 1)
 	buf := new(bytes.Buffer)
-	MustWriteVarBytes(msg, buf)
-	MustWriteVarBytes(preimage, buf)
-	MustWriteVarBytes(suffix, buf)
-	MustWriteVarBytes(anotherMsg, buf)
+	WriteVarOctet(buf, msg)
+	WriteVarOctet(buf, preimage)
+	WriteVarOctet(buf, suffix)
+	WriteVarOctet(buf, anotherMsg)
 	if !f5.Validate(buf.Bytes()) {
 		t.Error("Failed to validate threshold fulfillment")
 	}
-	PrintJSON(f5)
 	// Get fulfillment uri
 	uri := f5.String()
 	// Derive new fulfillment from uri, use same weight
 	f6, err := conds.UnmarshalURI(uri, 1)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Error(err.Error())
 	}
 	// Check whether hashes are the same
 	if !bytes.Equal(f5.Hash(), f6.Hash()) {
@@ -78,11 +77,11 @@ func TestCrypto(t *testing.T) {
 	subs = conds.Fulfillments{f1, f2, f3, f4, f5}
 	sort.Sort(subs)
 	buf2 := new(bytes.Buffer)
-	MustWriteVarBytes(msg, buf2)
-	MustWriteVarBytes(preimage, buf2)
-	MustWriteVarBytes(suffix, buf2)
-	MustWriteVarBytes(buf.Bytes(), buf2)
-	MustWriteVarBytes(anotherMsg, buf2)
+	WriteVarOctet(buf2, msg)
+	WriteVarOctet(buf2, preimage)
+	WriteVarOctet(buf2, suffix)
+	WriteVarOctet(buf2, buf.Bytes())
+	WriteVarOctet(buf2, anotherMsg)
 	threshold = 4
 	f7 := conds.NewFulfillmentThreshold(subs, threshold, 1)
 	if !f7.Validate(buf2.Bytes()) {

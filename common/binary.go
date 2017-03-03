@@ -507,11 +507,15 @@ func MustVarUint(octet []byte) int {
 }
 
 func ReadVarUint(r io.Reader) (int, error) {
-	octet, err := ReadVarOctet(r)
+	b, err := Peek(r)
 	if err != nil {
 		return 0, err
 	}
-	return VarUint(octet)
+	p, err := ReadN(r, int(b))
+	if err != nil {
+		return 0, err
+	}
+	return VarUint(append([]byte{b}, p...))
 }
 
 func MustReadVarUint(r io.Reader) int {
@@ -535,7 +539,7 @@ func MustReadVarOctet(r io.Reader) []byte {
 	return octet
 }
 
-func ReadVarOctet(r io.Reader) ([]byte, error) {
+func ReadVarOctet(r io.Reader) (octet []byte, err error) {
 	b, err := Peek(r)
 	if err != nil {
 		return nil, err
@@ -565,7 +569,7 @@ func VarOctetBytes(octet []byte) ([]byte, error) {
 	}
 	i := int(octet[0])
 	if i < MSB {
-		if i+1 >= len(octet) {
+		if i+1 > len(octet) {
 			return nil, ErrInvalidSize
 		}
 		return octet[1 : i+1], nil
@@ -575,7 +579,7 @@ func VarOctetBytes(octet []byte) ([]byte, error) {
 		return nil, ErrInvalidSize
 	}
 	n := int(octet[i])
-	if i+n >= len(octet) {
+	if i+n > len(octet) {
 		return nil, ErrInvalidSize
 	}
 	return octet[i : i+n], nil

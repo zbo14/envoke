@@ -348,7 +348,7 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 		with := true
 		p, _ := GetCondition(sub).MarshalBinary()
 		conditionLen := len(p)
-		for i, _ = range sums {
+		for i = range sums {
 			if thresholds[i] > 0 {
 				if with {
 					sums[i] += sub.Size()
@@ -365,7 +365,7 @@ func ThresholdPayload(subs Fulfillments, threshold int) []byte {
 	}
 	sum := 0
 	var set Fulfillments
-	for i, _ = range sets {
+	for i = range sets {
 		if thresholds[i] <= 0 {
 			if sums[i] < sum || sum == 0 {
 				set = sets[i]
@@ -387,10 +387,10 @@ OUTER:
 		//..
 	}
 	buf := new(bytes.Buffer)
-	buf.Write(VarUintBytes(threshold))
-	buf.Write(VarUintBytes(numSubs))
+	WriteVarUint(buf, threshold)
+	WriteVarUint(buf, numSubs)
 	for _, sub := range set {
-		buf.Write(VarUintBytes(sub.Weight()))
+		WriteVarUint(buf, sub.Weight())
 		p, _ := sub.MarshalBinary()
 		WriteVarOctet(buf, p)
 	}
@@ -411,11 +411,7 @@ func (f *fulfillmentThreshold) ThresholdSubs() {
 }
 
 func ThresholdSubs(p []byte) (Fulfillments, int, error) {
-	if p == nil {
-		//..
-	}
-	buf := new(bytes.Buffer)
-	buf.Write(p)
+	buf := bytes.NewBuffer(p)
 	threshold, err := ReadVarUint(buf)
 	if err != nil {
 		return nil, 0, err
@@ -452,12 +448,11 @@ func ThresholdHash(subs Fulfillments, threshold int) []byte {
 	}
 	sort.Sort(conds)
 	hash := sha256.New()
-	hash.Write(Uint32Bytes(threshold))
-	hash.Write(VarUintBytes(numSubs))
+	WriteUint32(hash, threshold)
+	WriteVarUint(hash, numSubs)
 	for _, c := range conds {
-		hash.Write(VarUintBytes(c.Weight()))
-		p, err := c.MarshalBinary()
-		Check(err)
+		WriteVarUint(hash, c.Weight())
+		p, _ := c.MarshalBinary()
 		hash.Write(p)
 	}
 	return hash.Sum(nil)[:]
@@ -531,8 +526,7 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 		return false
 	}
 	valid := 0
-	buf := new(bytes.Buffer)
-	buf.Write(p)
+	buf := bytes.NewBuffer(p)
 	for _, f := range subf {
 		p, err := ReadVarOctet(buf)
 		if err != nil {

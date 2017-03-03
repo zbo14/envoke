@@ -33,7 +33,7 @@ type Signature struct {
 
 func NewPrivateKey(inner rsa.PrivateKey) *PrivateKey {
 	if len(inner.N.Bytes()) != KEY_SIZE {
-		panic(ErrInvalidSize.Error())
+		panic(ErrInvalidSize)
 	}
 	// TODO: check private exponent?
 	inner.E = E
@@ -42,7 +42,7 @@ func NewPrivateKey(inner rsa.PrivateKey) *PrivateKey {
 
 func NewPublicKey(inner rsa.PublicKey) *PublicKey {
 	if len(inner.N.Bytes()) != KEY_SIZE {
-		panic(ErrInvalidSize.Error())
+		panic(ErrInvalidSize)
 	}
 	inner.E = E
 	return &PublicKey{inner}
@@ -50,7 +50,7 @@ func NewPublicKey(inner rsa.PublicKey) *PublicKey {
 
 func NewSignature(inner []byte) *Signature {
 	if len(inner) != SIGNATURE_SIZE {
-		panic(ErrInvalidSize.Error())
+		panic(ErrInvalidSize)
 	}
 	return &Signature{inner}
 }
@@ -93,7 +93,7 @@ func (priv *PrivateKey) MarshalPEM() []byte {
 func (priv *PrivateKey) UnmarshalPEM(pem []byte) error {
 	b, _ := DecodePEM(pem)
 	if b.Type != PRIVKEY {
-		panic(ErrInvalidType.Error())
+		panic(ErrInvalidType)
 	}
 	inner, err := x509.ParsePKCS1PrivateKey(b.Bytes)
 	Check(err)
@@ -129,7 +129,7 @@ func (pub *PublicKey) MarshalPEM() []byte {
 func (pub *PublicKey) UnmarshalPEM(pem []byte) error {
 	b, _ := DecodePEM(pem)
 	if b.Type != PUBKEY {
-		panic(ErrInvalidType.Error())
+		panic(ErrInvalidType)
 	}
 	inner, err := x509.ParsePKIXPublicKey(b.Bytes)
 	Check(err)
@@ -147,15 +147,6 @@ func (pub *PublicKey) Bytes() []byte {
 
 func (pub *PublicKey) Equals(other crypto.PublicKey) bool {
 	return bytes.Equal(pub.Bytes(), other.Bytes())
-}
-
-func (pub *PublicKey) EqualsAny(others ...crypto.PublicKey) bool {
-	for _, other := range others {
-		if pub.Equals(other) {
-			return true
-		}
-	}
-	return false
 }
 
 func (pub *PublicKey) FromBytes(p []byte) error {
@@ -209,15 +200,6 @@ func (sig *Signature) Bytes() []byte {
 
 func (sig *Signature) Equals(other crypto.Signature) bool {
 	return bytes.Equal(sig.Bytes(), other.Bytes())
-}
-
-func (sig *Signature) EqualsAny(others ...crypto.Signature) bool {
-	for _, other := range others {
-		if sig.Equals(other) {
-			return true
-		}
-	}
-	return false
 }
 
 func (sig *Signature) FromBytes(p []byte) error {

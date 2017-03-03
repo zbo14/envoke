@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"github.com/jbenet/go-base58"
+	"io"
 )
 
 // Base64
@@ -87,22 +88,22 @@ func MustUnmarshalJSON(p []byte, v interface{}) {
 	Check(err)
 }
 
-func ReadJSON(r Reader, v interface{}) error {
+func ReadJSON(r io.Reader, v interface{}) error {
 	dec := json.NewDecoder(r)
 	return dec.Decode(v)
 }
 
-func MustReadJSON(r Reader, v interface{}) {
+func MustReadJSON(r io.Reader, v interface{}) {
 	err := ReadJSON(r, v)
 	Check(err)
 }
 
-func WriteJSON(w Writer, v interface{}) error {
+func WriteJSON(w io.Writer, v interface{}) error {
 	enc := json.NewEncoder(w)
 	return enc.Encode(v)
 }
 
-func MustWriteJSON(w Writer, v interface{}) {
+func MustWriteJSON(w io.Writer, v interface{}) {
 	err := WriteJSON(w, v)
 	Check(err)
 }

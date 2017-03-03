@@ -392,7 +392,7 @@ OUTER:
 	for _, sub := range set {
 		buf.Write(VarUintBytes(sub.Weight()))
 		p, _ := sub.MarshalBinary()
-		WriteVarOctet(p, buf)
+		WriteVarOctet(buf, p)
 	}
 	return buf.Bytes()
 }

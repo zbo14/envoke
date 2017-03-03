@@ -26,25 +26,25 @@ type Signature struct {
 	p []byte
 }
 
-func NewPrivateKey(inner ed25519.PrivateKey) (*PrivateKey, error) {
+func NewPrivateKey(inner ed25519.PrivateKey) *PrivateKey {
 	if len(inner) != PRIVKEY_SIZE {
-		return nil, ErrInvalidSize
+		panic(ErrInvalidSize)
 	}
-	return &PrivateKey{inner}, nil
+	return &PrivateKey{inner}
 }
 
-func NewPublicKey(inner ed25519.PublicKey) (*PublicKey, error) {
+func NewPublicKey(inner ed25519.PublicKey) *PublicKey {
 	if len(inner) != PUBKEY_SIZE {
-		return nil, ErrInvalidSize
+		panic(ErrInvalidSize)
 	}
-	return &PublicKey{inner}, nil
+	return &PublicKey{inner}
 }
 
-func NewSignature(inner []byte) (*Signature, error) {
+func NewSignature(inner []byte) *Signature {
 	if len(inner) != SIGNATURE_SIZE {
-		return nil, ErrInvalidSize
+		panic(ErrInvalidSize)
 	}
-	return &Signature{inner}, nil
+	return &Signature{inner}
 }
 
 func GenerateKeypairFromPassword(password string) (*PrivateKey, *PublicKey) {
@@ -53,25 +53,20 @@ func GenerateKeypairFromPassword(password string) (*PrivateKey, *PublicKey) {
 	buf.Write(secret)
 	pubInner, privInner, err := ed25519.GenerateKey(buf)
 	Check(err)
-	priv, err := NewPrivateKey(privInner)
-	Check(err)
-	pub, err := NewPublicKey(pubInner)
-	Check(err)
+	priv := NewPrivateKey(privInner)
+	pub := NewPublicKey(pubInner)
 	return priv, pub
 }
 
 func GenerateKeypairFromSeed(seed []byte) (*PrivateKey, *PublicKey) {
 	if len(seed) != SEED_SIZE {
-		panic(ErrInvalidSize.Error())
+		panic(ErrInvalidSize)
 	}
-	buf := new(bytes.Buffer)
-	buf.Write(seed)
+	buf := bytes.NewBuffer(seed)
 	pubInner, privInner, err := ed25519.GenerateKey(buf)
 	Check(err)
-	priv, err := NewPrivateKey(privInner)
-	Check(err)
-	pub, err := NewPublicKey(pubInner)
-	Check(err)
+	priv := NewPrivateKey(privInner)
+	pub := NewPublicKey(pubInner)
 	return priv, pub
 }
 
@@ -110,16 +105,12 @@ func (priv *PrivateKey) MarshalJSON() ([]byte, error) {
 
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	p := priv.inner.Public().(ed25519.PublicKey)
-	pub, err := NewPublicKey(p)
-	Check(err)
-	return pub
+	return NewPublicKey(p)
 }
 
 func (priv *PrivateKey) Sign(message []byte) crypto.Signature {
 	p := ed25519.Sign(priv.inner, message)
-	sig, err := NewSignature(p)
-	Check(err)
-	return sig
+	return NewSignature(p)
 }
 
 func (priv *PrivateKey) String() string {
@@ -142,15 +133,6 @@ func (pub *PublicKey) Bytes() []byte {
 
 func (pub *PublicKey) Equals(other crypto.PublicKey) bool {
 	return bytes.Equal(pub.Bytes(), other.Bytes())
-}
-
-func (pub *PublicKey) EqualsAny(others ...crypto.PublicKey) bool {
-	for _, other := range others {
-		if pub.Equals(other) {
-			return true
-		}
-	}
-	return false
 }
 
 func (pub *PublicKey) FromBytes(p []byte) error {
@@ -200,15 +182,6 @@ func (sig *Signature) Bytes() []byte {
 
 func (sig *Signature) Equals(other crypto.Signature) bool {
 	return bytes.Equal(sig.Bytes(), other.Bytes())
-}
-
-func (sig *Signature) EqualsAny(others ...crypto.Signature) bool {
-	for _, other := range others {
-		if sig.Equals(other) {
-			return true
-		}
-	}
-	return false
 }
 
 func (sig *Signature) FromBytes(p []byte) error {

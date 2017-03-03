@@ -69,12 +69,24 @@ type Fulfillment interface {
 
 // Fufillment from key
 
-func FulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey, weights []int) []Fulfillment {
+func DefaultFulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey) Fulfillments {
+	n := len(privs)
+	if n != len(msgs) {
+		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+	}
+	fulfillments := make(Fulfillments, n)
+	for i, priv := range privs {
+		fulfillments[i] = DefaultFulfillmentFromPrivKey(msgs[i], priv)
+	}
+	return fulfillments
+}
+
+func FulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey, weights []int) Fulfillments {
 	n := len(privs)
 	if n != len(msgs) || n != len(weights) {
 		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
 	}
-	fulfillments := make([]Fulfillment, n)
+	fulfillments := make(Fulfillments, n)
 	for i, priv := range privs {
 		fulfillments[i] = FulfillmentFromPrivKey(msgs[i], priv, weights[i])
 	}
@@ -101,20 +113,20 @@ func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulf
 	panic(ErrInvalidKey)
 }
 
-func DefaultFulfillmentsFromPubKeys(pubs []crypto.PublicKey) []Fulfillment {
-	fulfillments := make([]Fulfillment, len(pubs))
+func DefaultFulfillmentsFromPubKeys(pubs []crypto.PublicKey) Fulfillments {
+	fulfillments := make(Fulfillments, len(pubs))
 	for i, pub := range pubs {
 		fulfillments[i] = DefaultFulfillmentFromPubKey(pub)
 	}
 	return fulfillments
 }
 
-func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) []Fulfillment {
+func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) Fulfillments {
 	n := len(pubs)
 	if n != len(weights) {
 		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
 	}
-	fulfillments := make([]Fulfillment, n)
+	fulfillments := make(Fulfillments, n)
 	for i, pub := range pubs {
 		fulfillments[i] = FulfillmentFromPubKey(pub, weights[i])
 	}
@@ -187,11 +199,16 @@ func GetCondition(f Fulfillment) *Condition {
 }
 
 func FulfillmentURI(p []byte) (string, error) {
-	if len(p) <= 2 {
-		return "", ErrInvalidSize
+	buf := bytes.NewBuffer(p)
+	id, err := ReadUint16(buf)
+	if err != nil {
+		return "", err
 	}
-	id := MustUint16(p[:2])
-	payload64 := Base64UrlEncode(p[2:])
+	hash, err := ReadVarOctet(buf)
+	if err != nil {
+		return "", err
+	}
+	payload64 := Base64UrlEncode(hash)
 	return Sprintf("cf:%x:%s", id, payload64), nil
 }
 
@@ -347,7 +364,7 @@ type fulfillment struct {
 func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulfillment {
 	switch id {
 	case PREIMAGE_ID, PREFIX_ID, ED25519_ID, RSA_ID, THRESHOLD_ID:
-		// Ok..
+		//..
 	default:
 		Panicf("Unexpected id=%d\n", id)
 	}
@@ -398,7 +415,10 @@ func (f *fulfillment) Init() { /* no op */ }
 func (f *fulfillment) IsCondition() bool { return false }
 
 func (f *fulfillment) MarshalBinary() ([]byte, error) {
-	return append(Uint16Bytes(f.id), f.payload...), nil
+	buf := new(bytes.Buffer)
+	WriteUint16(buf, f.id)
+	WriteVarOctet(buf, f.payload)
+	return buf.Bytes(), nil
 }
 
 func (f *fulfillment) MarshalJSON() ([]byte, error) {
@@ -422,12 +442,16 @@ func (f *fulfillment) String() string {
 	return Sprintf("cf:%x:%s", f.id, payload64)
 }
 
-func (f *fulfillment) UnmarshalBinary(p []byte) error {
-	if len(p) <= 2 {
-		return ErrInvalidSize
+func (f *fulfillment) UnmarshalBinary(p []byte) (err error) {
+	buf := bytes.NewBuffer(p)
+	f.id, err = ReadUint16(buf)
+	if err != nil {
+		return err
 	}
-	f.id = MustUint16(p[:2])
-	f.payload = p[2:]
+	f.payload, err = ReadVarOctet(buf)
+	if err != nil {
+		return err
+	}
 	if f.outer != nil {
 		f.outer.Init()
 		if !f.Validate(nil) {
@@ -454,7 +478,7 @@ func (f *fulfillment) Validate(p []byte) bool {
 		f.id == PREIMAGE_ID && f.bitmask == PREIMAGE_BITMASK,
 		f.id == PREFIX_ID && f.bitmask == PREFIX_BITMASK,
 		f.id == THRESHOLD_ID && f.bitmask >= THRESHOLD_BITMASK:
-		// Ok..
+		//..
 	case f.id == ED25519_ID && f.bitmask == ED25519_BITMASK:
 		if f.size != ED25519_SIZE {
 			return false
@@ -468,9 +492,9 @@ func (f *fulfillment) Validate(p []byte) bool {
 	}
 	switch {
 	case
-		// len(f.hash) != HASH_LENGTH,
-		f.size > MAX_PAYLOAD_SIZE:
-		// f.weight < 1
+		len(f.hash) != HASH_SIZE,
+		f.size > MAX_PAYLOAD_SIZE,
+		f.weight < 1:
 		return false
 	}
 	return true
@@ -482,8 +506,6 @@ func (f *fulfillment) Weight() int {
 
 // Condition
 
-// TODO: cleanup
-
 type Condition struct {
 	*fulfillment
 	pub crypto.PublicKey
@@ -493,57 +515,6 @@ func NilCondition() *Condition {
 	return &Condition{
 		fulfillment: &fulfillment{},
 	}
-}
-
-func DefaultConditionWithPubKeys(pubs []crypto.PublicKey) *Condition {
-	n := len(pubs)
-	weights := make([]int, n)
-	for i := range weights {
-		weights[i] = 1
-	}
-	return ConditionWithPubKeys(pubs, n, 1, weights)
-}
-
-func ConditionWithPubKeys(pubs []crypto.PublicKey, threshold, weight int, weights []int) *Condition {
-	n := len(pubs)
-	if n != len(weights) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
-	}
-	if threshold > n {
-		panic(ErrorAppend(ErrCriteriaNotMet, "threshold cannot be larger than number of pubkeys"))
-	}
-	subs := make([]Fulfillment, n)
-	for i, pub := range pubs {
-		subs[i] = ConditionWithPubKey(pub, weights[i])
-	}
-	f := NewFulfillmentThreshold(subs, threshold, weight)
-	return GetCondition(f)
-}
-
-func DefaultConditionWithPubKey(pub crypto.PublicKey) *Condition {
-	return ConditionWithPubKey(pub, 1)
-}
-
-func ConditionWithPubKey(pub crypto.PublicKey, weight int) *Condition {
-	switch pub.(type) {
-	case *ed25519.PublicKey:
-		return NewCondition(
-			ED25519_BITMASK,
-			pub.Bytes(),
-			ED25519_ID,
-			pub,
-			ED25519_SIZE,
-			weight)
-	case *rsa.PublicKey:
-		return NewCondition(
-			RSA_BITMASK,
-			Checksum256(pub.Bytes()),
-			RSA_ID,
-			pub,
-			RSA_SIZE,
-			weight)
-	}
-	panic(ErrInvalidKey)
 }
 
 func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, weight int) *Condition {
@@ -593,10 +564,10 @@ func (c *Condition) IsCondition() bool { return true }
 
 func (c *Condition) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	buf.Write(Uint16Bytes(c.id))
-	buf.Write(VarUintBytes(c.bitmask))
-	buf.Write(VarOctet(c.hash))
-	buf.Write(VarUintBytes(c.size))
+	WriteUint16(buf, c.id)
+	WriteVarUint(buf, c.bitmask)
+	WriteVarOctet(buf, c.hash)
+	WriteVarUint(buf, c.size)
 	return buf.Bytes(), nil
 }
 
@@ -607,33 +578,6 @@ func (c *Condition) MarshalJSON() ([]byte, error) {
 	if !c.Validate(nil) {
 		panic(ErrInvalidCondition)
 	}
-	/*
-		return MustMarshalJSON(struct {
-			Details struct {
-				Bitmask   int              `json:"bitmask"`
-				PubKey    crypto.PublicKey `json:"public_key"`
-				Signature interface{}      `json:"signature"`
-				Type      string           `json:"type"`
-				TypeId    int              `json:"type_id"`
-			} `json:"details"`
-			URI string `json:"uri"`
-		}{
-			Details: struct {
-				Bitmask   int              `json:"bitmask"`
-				PubKey    crypto.PublicKey `json:"public_key"`
-				Signature interface{}      `json:"signature"`
-				Type      string           `json:"type"`
-				TypeId    int              `json:"type_id"`
-			}{
-				Bitmask:   c.bitmask,
-				PubKey:    c.pub,
-				Signature: nil,
-				Type:      FULFILLMENT_TYPE,
-				TypeId:    c.id,
-			},
-			URI: c.String(),
-		}), nil
-	*/
 	return MustMarshalJSON(c.String()), nil
 }
 
@@ -642,38 +586,34 @@ func (c *Condition) String() string {
 	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, hash64, c.size)
 }
 
-func (c *Condition) UnmarshalBinary(p []byte) error {
-	/*
-		if len(p) != CONDITION_SIZE {
-			return ErrInvalidSize
-		}
-		c.id = MustUint16(p[:2])
-		c.bitmask = MustUint32(p[2:6])
-		c.hash = p[6 : 6+HASH_LENGTH]
-		c.size = MustUint16(p[6+HASH_LENGTH:])
-		if !c.Validate(nil) {
-			return ErrInvalidCondition
-		}
-	*/
+func (c *Condition) UnmarshalBinary(p []byte) (err error) {
+	buf := bytes.NewBuffer(p)
+	c.id, err = ReadUint16(buf)
+	if err != nil {
+		return err
+	}
+	c.bitmask, err = ReadVarUint(buf)
+	if err != nil {
+		return err
+	}
+	c.hash, err = ReadVarOctet(buf)
+	if err != nil {
+		return err
+	}
+	c.size, err = ReadVarUint(buf)
+	if err != nil {
+		return err
+	}
+	if !c.Validate(nil) {
+		return ErrInvalidCondition
+	}
 	return nil
 }
 
 func (c *Condition) UnmarshalJSON(p []byte) error {
-	v := struct {
-		Details struct {
-			Bitmask   int    `json:"bitmask"`
-			PubKey    string `json:"public_key"`
-			Signature string `json:"signature"`
-			Type      string `json:"type"`
-			TypeId    int    `json:"type_id"`
-		} `json:"details"`
-		URI string `json:"uri"`
-	}{}
-	if err := UnmarshalJSON(p, &v); err != nil {
+	var uri string
+	if err := UnmarshalJSON(p, &uri); err != nil {
 		return err
 	}
-	if err := c.FromString(v.URI); err != nil {
-		return err
-	}
-	return nil
+	return c.FromString(uri)
 }

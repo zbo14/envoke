@@ -379,7 +379,7 @@ func MustUint16(p []byte) int {
 
 }
 
-func ReadUint16(r Reader) (int, error) {
+func ReadUint16(r io.Reader) (int, error) {
 	p, err := ReadN(r, 2)
 	if err != nil {
 		return 0, err
@@ -388,10 +388,15 @@ func ReadUint16(r Reader) (int, error) {
 	return int(x), nil
 }
 
-func MustReadUint16(r Reader) int {
+func MustReadUint16(r io.Reader) int {
 	p := MustReadN(r, 2)
 	x := binary.BigEndian.Uint16(p)
 	return int(x)
+}
+
+func WriteUint16(w io.Writer, x int) {
+	p := Uint16Bytes(x)
+	w.Write(p)
 }
 
 // Uint32
@@ -414,7 +419,7 @@ func MustUint32(p []byte) int {
 	return int(binary.BigEndian.Uint32(p))
 }
 
-func ReadUint32(r Reader) (int, error) {
+func ReadUint32(r io.Reader) (int, error) {
 	p, err := ReadN(r, 4)
 	if err != nil {
 		return 0, err
@@ -423,10 +428,15 @@ func ReadUint32(r Reader) (int, error) {
 	return int(x), nil
 }
 
-func MustReadUint32(r Reader) int {
+func MustReadUint32(r io.Reader) int {
 	p := MustReadN(r, 4)
 	x := binary.BigEndian.Uint32(p)
 	return int(x)
+}
+
+func WriteUint32(w io.Writer, x int) {
+	p := Uint32Bytes(x)
+	w.Write(p)
 }
 
 // Uint64
@@ -449,7 +459,7 @@ func MustUint64(p []byte) int {
 	return int(binary.BigEndian.Uint64(p))
 }
 
-func ReadUint64(r Reader) (int, error) {
+func ReadUint64(r io.Reader) (int, error) {
 	p, err := ReadN(r, 8)
 	if err != nil {
 		return 0, err
@@ -458,10 +468,15 @@ func ReadUint64(r Reader) (int, error) {
 	return int(x), nil
 }
 
-func MustReadUint64(r Reader) int {
+func MustReadUint64(r io.Reader) int {
 	p := MustReadN(r, 8)
 	x := binary.BigEndian.Uint64(p)
 	return int(x)
+}
+
+func WriteUint64(w io.Writer, x int) {
+	p := Uint64Bytes(x)
+	w.Write(p)
 }
 
 // VarUint
@@ -505,6 +520,11 @@ func MustReadVarUint(r io.Reader) int {
 	return x
 }
 
+func WriteVarUint(w io.Writer, x int) {
+	p := VarUintBytes(x)
+	w.Write(p)
+}
+
 // Octet
 
 const MSB = 0x80
@@ -529,7 +549,7 @@ func ReadVarOctet(r io.Reader) ([]byte, error) {
 	return ReadN(r, int(b))
 }
 
-func WriteVarOctet(p []byte, w io.Writer) {
+func WriteVarOctet(w io.Writer, p []byte) {
 	w.Write(VarOctet(p))
 }
 

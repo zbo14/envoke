@@ -12,49 +12,47 @@ var path = "/Users/zach/Desktop/music/Allegro from Duet in C Major.mp3"
 
 func TestApi(t *testing.T) {
 	api := NewApi()
-	output := MustOpenWriteFile("output.json")
+	// output := MustOpenWriteFile("output.json")
 	composer, err := api.Register("composer@email.com", "composer", "itsasecret", "www.composer.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteJSON(output, composer); err != nil {
-		panic(err)
-	}
+	// WriteJSON(output, composer)
 	composerId := composer.AgentId
 	label, err := api.Register("label@email.com", "label", "shhh", "www.record_label.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, label)
+	// WriteJSON(output, label)
 	labelId := label.AgentId
 	performer, err := api.Register("performer@email.com", "performer", "canyouguess", "www.bandcamp_page.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, performer)
+	// WriteJSON(output, performer)
 	performerId := performer.AgentId
 	producer, err := api.Register("producer@email.com", "producer", "1234", "www.soundcloud_page.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, producer)
+	// WriteJSON(output, producer)
 	producerId := producer.AgentId
 	publisher, err := api.Register("publisher@email.com", "publisher", "password", "www.publisher.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, publisher)
+	// WriteJSON(output, publisher)
 	publisherId := publisher.AgentId
 	radio, err := api.Register("radio@email.com", "radio", "waves", "www.radio_station.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, radio)
+	// WriteJSON(output, radio)
 	radioId := radio.AgentId
 	if err = api.Login(composerId, composer.PrivKey); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(composerId, "B3107S", "T-034.524.680-1", publisherId, "untitled")
+	composition, err := api.Compose("B3107S", "T-034.524.680-1", publisherId, "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}

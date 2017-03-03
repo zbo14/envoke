@@ -17,7 +17,6 @@ type PublicKey interface {
 	IsPublicKey()
 	Bytes() []byte
 	Equals(PublicKey) bool
-	EqualsAny(...PublicKey) bool
 	FromBytes([]byte) error
 	FromString(string) error
 	MarshalJSON() ([]byte, error)
@@ -30,7 +29,6 @@ type Signature interface {
 	IsSignature()
 	Bytes() []byte
 	Equals(Signature) bool
-	EqualsAny(...Signature) bool
 	FromBytes([]byte) error
 	FromString(string) error
 	MarshalJSON() ([]byte, error)

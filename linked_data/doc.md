@@ -2,7 +2,7 @@
 
 This module defines a linked-data validation for data models in envoke. When a model contains the ids of other models, those models are queried and validated to determine its validity. For instance, a publication contains a composition id, and a composition contains a composer id. To validate the publication, we must check that the composer of the linked composition is a valid agent in the database. We can think of this as a graph and the validation process a traversal of the graph; we follow edges to nodes (data models) and check whether they have certain properties. The following sections summarize the core validation processes. For details on data models and field validation, check out the `spec`.
 
-[linked_data](https://github.com/zbo14/envoke/blob/master/linked_data/images/linked_data.png?raw=true)
+![linked_data](https://github.com/zbo14/envoke/blob/master/linked_data/images/linked_data.png?raw=true)
 
 ### Composition
 

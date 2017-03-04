@@ -3,24 +3,24 @@
 {{end}}
 
 {{define "body"}}
-<header>COMPOSE</header>
+<br><br>
 <form id="compose-form" name="compose-form">
-    <!--<input type="text" name="composerId" placeholder="COMPOSER ID" required /><br>-->
-    <input type="text" name="hfa" placeholder="HFA SONG CODE" required /><br>
-    <input type="text" name="iswc" placeholder="ISWC CODE" required /><br>
-    <input type="text" name="publisherId" placeholder="PUBLISHER ID" required /><br>
-    <input type="text" name="title" placeholder="TITLE" required /><br>
+    <header>COMPOSE</header>
+    <input type="text" name="hfa" placeholder="HFA SONG CODE" required />
+    <input type="text" name="iswc" placeholder="ISWC CODE" required />
+    <input type="text" name="publisherId" placeholder="PUBLISHER ID" required />
+    <input type="text" name="title" placeholder="TITLE" required />
     <input type="submit" value="submit" />
 </form>
-<header>PUBLISH</header>
-<form id="publish-form" name="publish-form">
-    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required /><br>
-    <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
+<form id="publish-form" name="publish-form" >
+    <header>PUBLISH</header>
+    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
     <input type="submit" value="publish" />
 </form>
-<header>PUBLICATION DETAILS</header>
 <form id="search-form" name="search-form">
-    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
+    <header>PUBLICATION DETAILS</header>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
         <option value="composer">COMPOSER</option>
@@ -30,7 +30,9 @@
     </select>
     <input type="submit" value="search" />
 </form>
-<pre id="message"></pre>
+<pre id="compose-message"></pre>
+<pre id="publish-message"></pre>
+<pre id="details-message"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -48,11 +50,13 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(responseText) {
-    if (responseText != null) {
-        var json = JSON.parse(responseText);
-        var str = JSON.stringify(json,null,2);
-        $("#message").text(str);
+var callback = function(id) {
+    return function(responseText) {
+        if (responseText != null) {
+            var json = JSON.parse(responseText);
+            var str = JSON.stringify(json,null,2);
+            $("#"+id).text(str);
+        };
     };
 };
 
@@ -62,21 +66,21 @@ window.onload = function() {
   composeForm.submit(function(event) {
     event.preventDefault();
     var formData = composeForm.serialize();
-    httpPostAsync("http://localhost:8888/compose", formData, callback);
+    httpPostAsync("http://localhost:8888/compose", formData, callback("compose-message"));
   });
 
   var publishForm = $("#publish-form");
   publishForm.submit(function(event){
     event.preventDefault();
     var formData = publishForm.serialize();
-    httpPostAsync("http://localhost:8888/publish", formData, callback);
+    httpPostAsync("http://localhost:8888/publish", formData, callback("publish-message"));
   });
 
   var searchForm = $("#search-form");
   searchForm.submit(function(event){
     event.preventDefault();
     var formData = searchForm.serialize();
-    httpPostAsync("http://localhost:8888/search", formData, callback);
+    httpPostAsync("http://localhost:8888/search", formData, callback("details-message"));
   });
 }
 </script>

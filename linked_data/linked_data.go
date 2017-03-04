@@ -158,14 +158,14 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) error {
 		return err
 	}
 	publisherId := spec.GetCompositionPublisherId(composition)
-	tx, err = bigchain.GetTx(publisherId)
+	tx, err := bigchain.GetTx(publisherId)
 	if err != nil {
 		return err
 	}
 	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "publication must be signed by publisher")
 	}
-	percentageShares := 0
+	totalShares := 0
 	rightHolders := make(map[string]struct{})
 	rightIds := spec.GetCompositionRightIds(publication)
 	for _, rightId := range rightIds {
@@ -180,18 +180,21 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) error {
 		if compositionId != spec.GetRightCompositionId(right) {
 			return ErrorAppend(ErrInvalidId, "wrong compositionId")
 		}
-		if !composerPub.Equals(bigchain.GetTxSigner(tx)) {
-			return ErrorAppend(ErrCriteriaNotMet, "composition right must be signed by composer")
+		if !composerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+			return ErrorAppend(ErrCriteriaNotMet, "composition right must be signed by composer signer")
 		}
 		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to composition")
+			return ErrorAppend(ErrCriteriaNotMet, "right-holder cannot have multiple rights to composition")
 		}
-		percentageShares += bigchain.GetTxShares(tx)
-		if percentageShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares cannot exceed 100")
+		shares := bigchain.GetTxShares(tx)
+		if shares <= 0 {
+			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
+		}
+		if totalShares += shares; totalShares > 100 {
+			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
 	}
-	if percentageShares != 100 {
+	if totalShares != 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
 	return nil
@@ -247,7 +250,7 @@ func GetPublicationRights(publication Data) ([]Data, error) {
 
 // Recording
 
-func ValidateRecordingById(recordingId string) (Data, error) {
+func ValidateRecordingById(recordingId string) (Data, crypto.PublicKey, error) {
 	tx, err := bigchain.GetTx(recordingId)
 	if err != nil {
 		return nil, nil, err
@@ -416,7 +419,7 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 			return ErrorAppend(ErrCriteriaNotMet, "label is not licensee of mechanical license")
 		}
 	}
-	percentageShares := 0
+	totalShares := 0
 	rightHolders := make(map[string]struct{})
 	rightIds := spec.GetRecordingRightIds(release)
 	for _, rightId := range rightIds {
@@ -431,7 +434,7 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 		if recordingId != spec.GetRightRecordingId(right) {
 			return ErrorAppend(ErrInvalidId, "wrong recordingId")
 		}
-		if !recorderPub.Equals(bigchain.GetTxSigner(tx)) {
+		if !recorderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 			return ErrorAppend(ErrCriteriaNotMet, "recording right must be signed by recording signer")
 		}
 		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
@@ -441,11 +444,11 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 		if shares <= 0 {
 			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
 		}
-		if percentageShares += shares; percentageShares > 100 {
+		if totalShares += shares; totalShares > 100 {
 			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
 	}
-	if percentageShares != 100 {
+	if totalShares != 100 {
 		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
 	return nil
@@ -573,93 +576,6 @@ func GetLicenseRight(license Data) (Data, error) {
 		return nil, err
 	}
 	return bigchain.GetTxData(tx), nil
-}
-
-// Right Holders
-
-func ValidateCompositionRightHolder(output int, publicationId, rightHolderId, rightId string) (Data, string, error) {
-	publication, err := ValidatePublicationById(publicationId)
-	if err != nil {
-		return nil, "", err
-	}
-	tx, err := bigchain.GetTx(rightHolderId)
-	if err != nil {
-		return nil, "", err
-	}
-	rightHolder := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(rightHolder); err != nil {
-		return nil, "", err
-	}
-	pub := bigchain.DefaultGetTxSigner(tx)
-	tx, err = bigchain.GetTx(rightId)
-	if err != nil {
-		return nil, "", err
-	}
-	rightTx := tx
-	if !pub.Equals(bigchain.GetTxRecipient(tx, output)) {
-		return nil, "", ErrorAppend(ErrCriteriaNotMet, "agent does not hold this composition right")
-	}
-	id := bigchain.GetTxAssetId(tx)
-	if spec.MatchId(id) {
-		tx, err = bigchain.GetTx(id)
-		if err != nil {
-			return nil, "", err
-		}
-		rightId = id
-	}
-	found := false
-	for _, id = range spec.GetCompositionRightIds(publication) {
-		if rightId == id {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return nil, "", ErrorAppend(ErrCriteriaNotMet, "publication does not reference this composition right")
-	}
-	return rightTx, rightId, nil
-}
-
-func ValidateRecordingRightHolder(output int, releaseId, rightHolderId, rightId string) (Data, string, error) {
-	release, err := ValidateReleaseById(releaseId)
-	if err != nil {
-		return nil, "", err
-	}
-	tx, err := bigchain.GetTx(rightHolderId)
-	if err != nil {
-		return nil, "", err
-	}
-	rightHolder := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(rightHolder); err != nil {
-		return nil, "", err
-	}
-	pub := bigchain.DefaultGetTxSigner(tx)
-	tx, err = bigchain.GetTx(rightId)
-	if err != nil {
-		return nil, "", err
-	}
-	rightTx := tx
-	if !pub.Equals(bigchain.GetTxRecipient(tx, output)) {
-		return nil, "", ErrorAppend(ErrCriteriaNotMet, "agent does not hold this recording right")
-	}
-	if id := bigchain.GetTxAssetId(tx); spec.MatchId(id) {
-		tx, err = bigchain.GetTx(id)
-		if err != nil {
-			return nil, "", err
-		}
-		rightId = id
-	}
-	found := false
-	for _, id := range spec.GetRecordingRightIds(release) {
-		if rightId == id {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return nil, "", ErrorAppend(ErrCriteriaNotMet, "release does not reference this recording right")
-	}
-	return rightTx, rightId, nil
 }
 
 // Publishing License
@@ -856,4 +772,340 @@ func QueryMasterLicenseField(field string, license Data, pub crypto.PublicKey) (
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
+}
+
+// Assignment
+
+func ValidateCompositionRightAssignmentById(assignmentId string) (Data, error) {
+	tx, err := bigchain.GetTx(assignmentId)
+	if err != nil {
+		return nil, err
+	}
+	assignment := bigchain.GetTxData(tx)
+	if err = spec.ValidAssignment(assignment); err != nil {
+		return nil, err
+	}
+	pub := bigchain.DefaultGetTxSigner(tx)
+	if err = ValidateCompositionRightAssignment(assignment, pub); err != nil {
+		return nil, err
+	}
+	return assignment, nil
+}
+
+func ValidateCompositionRightAssignment(assignment Data, pub crypto.PublicKey) error {
+	holderId := spec.GetAssignmentHolderId(assignment)
+	tx, err := bigchain.GetTx(holderId)
+	if err != nil {
+		return err
+	}
+	holder := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(holder); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrInvalidKey
+	}
+	issuerId := spec.GetAssignmentIssuerId(assignment)
+	tx, err = bigchain.GetTx(issuerId)
+	if err != nil {
+		return err
+	}
+	issuer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(issuer); err != nil {
+		return err
+	}
+	issuerPub := bigchain.DefaultGetTxSigner(tx)
+	rightId := spec.GetAssignmentRightId(assignment)
+	tx, err = bigchain.GetTx(rightId)
+	if err != nil {
+		return err
+	}
+	percentageShares := bigchain.GetTxShares(tx)
+	right := bigchain.GetTxData(tx)
+	if err = spec.ValidCompositionRight(right); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+		return ErrInvalidKey
+	}
+	if !issuerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrInvalidKey
+	}
+	right.Set("percentageShares", percentageShares)
+	assignment.Set("right", right)
+	return nil
+}
+
+func ValidateRecordingRightAssignmentById(assignmentId string) (Data, error) {
+	tx, err := bigchain.GetTx(assignmentId)
+	if err != nil {
+		return nil, err
+	}
+	assignment := bigchain.GetTxData(tx)
+	if err = spec.ValidAssignment(assignment); err != nil {
+		return nil, err
+	}
+	pub := bigchain.DefaultGetTxSigner(tx)
+	if err = ValidateRecordingRightAssignment(assignment, pub); err != nil {
+		return nil, err
+	}
+	return assignment, nil
+}
+
+func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) error {
+	holderId := spec.GetAssignmentHolderId(assignment)
+	tx, err := bigchain.GetTx(holderId)
+	if err != nil {
+		return err
+	}
+	holder := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(holder); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrInvalidKey
+	}
+	issuerId := spec.GetAssignmentIssuerId(assignment)
+	tx, err = bigchain.GetTx(issuerId)
+	if err != nil {
+		return err
+	}
+	issuer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(issuer); err != nil {
+		return err
+	}
+	issuerPub := bigchain.DefaultGetTxSigner(tx)
+	rightId := spec.GetAssignmentRightId(assignment)
+	tx, err = bigchain.GetTx(rightId)
+	if err != nil {
+		return err
+	}
+	percentageShares := bigchain.GetTxShares(tx)
+	right := bigchain.GetTxData(tx)
+	if err = spec.ValidRecordingRight(right); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+		return ErrInvalidKey
+	}
+	if !issuerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrInvalidKey
+	}
+	right.Set("percentageShares", percentageShares)
+	assignment.Set("right", right)
+	return nil
+}
+
+// Right Holders
+
+func ValidateCompositionRightHolder(pub crypto.PublicKey, publicationId, rightId string) (Data, error) {
+	publication, err := ValidatePublicationById(publicationId)
+	if err != nil {
+		return nil, err
+	}
+	var right Data = nil
+	for _, id := range spec.GetCompositionRightIds(publication) {
+		if rightId == id {
+			tx, err := bigchain.GetTx(rightId)
+			if err != nil {
+				return nil, err
+			}
+			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+				return nil, ErrorAppend(ErrCriteriaNotMet, "does not hold composition right")
+			}
+			right = bigchain.GetTxData(tx)
+			right.Set("percentageShares", bigchain.GetTxShares(tx))
+			break
+		}
+	}
+	if right == nil {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to composition right")
+	}
+	return right, nil
+}
+
+func ValidateRecordingRightHolder(pub crypto.PublicKey, releaseId, rightId string) (Data, error) {
+	release, err := ValidateReleaseById(releaseId)
+	if err != nil {
+		return nil, err
+	}
+	var right Data = nil
+	for _, id := range spec.GetRecordingRightIds(release) {
+		if rightId == id {
+			tx, err := bigchain.GetTx(rightId)
+			if err != nil {
+				return nil, err
+			}
+			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+				return nil, ErrorAppend(ErrCriteriaNotMet, "does not hold recording right")
+			}
+			right = bigchain.GetTxData(tx)
+			right.Set("percentageShares", bigchain.GetTxShares(tx))
+			break
+		}
+	}
+	if right == nil {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
+	}
+	return right, nil
+}
+
+// Transfer
+
+func ValidateCompositionRightTransferById(transferId string) (Data, error) {
+	tx, err := bigchain.GetTx(transferId)
+	if err != nil {
+		return nil, err
+	}
+	transfer := bigchain.GetTxData(tx)
+	if err = spec.ValidCompositionRightTransfer(transfer); err != nil {
+		return nil, err
+	}
+	pub := bigchain.DefaultGetTxSigner(tx)
+	if err = ValidateCompositionRightTransfer(pub, transfer); err != nil {
+		return nil, err
+	}
+	return transfer, nil
+}
+
+func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error {
+	recipientId := spec.GetTransferRecipientId(transfer)
+	tx, err := bigchain.GetTx(recipientId)
+	if err != nil {
+		return err
+	}
+	recipient := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(recipient); err != nil {
+		return err
+	}
+	recipientPub := bigchain.DefaultGetTxSigner(tx)
+	senderId := spec.GetTransferSenderId(transfer)
+	tx, err = bigchain.GetTx(senderId)
+	if err != nil {
+		return err
+	}
+	sender := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(sender); err != nil {
+		return err
+	}
+	senderPub := bigchain.DefaultGetTxSigner(tx)
+	if recipientPub.Equals(senderPub) {
+		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
+	}
+	publicationId := spec.GetTransferPublicationId(transfer)
+	publication, err := ValidatePublicationById(publicationId)
+	if err != nil {
+		return err
+	}
+	txId := spec.GetTransferTxId(transfer)
+	tx, err = bigchain.GetTx(txId)
+	if err != nil {
+		return err
+	}
+	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
+		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
+	}
+	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
+	}
+	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
+	}
+	if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+	}
+	rightId := bigchain.GetTxAssetId(tx)
+	found := false
+	for _, id := range spec.GetCompositionRightIds(publication) {
+		if rightId == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to composition right")
+	}
+	transfer.Set("rightId", rightId)
+	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
+	transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	return nil
+}
+
+func ValidateRecordingRightTransferById(transferId string) (Data, error) {
+	tx, err := bigchain.GetTx(transferId)
+	if err != nil {
+		return nil, err
+	}
+	transfer := bigchain.GetTxData(tx)
+	if err = spec.ValidRecordingRightTransfer(transfer); err != nil {
+		return nil, err
+	}
+	pub := bigchain.DefaultGetTxSigner(tx)
+	if err = ValidateRecordingRightTransfer(pub, transfer); err != nil {
+		return nil, err
+	}
+	return transfer, nil
+}
+
+func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
+	recipientId := spec.GetTransferRecipientId(transfer)
+	tx, err := bigchain.GetTx(recipientId)
+	if err != nil {
+		return err
+	}
+	recipient := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(recipient); err != nil {
+		return err
+	}
+	recipientPub := bigchain.DefaultGetTxSigner(tx)
+	senderId := spec.GetTransferSenderId(transfer)
+	tx, err = bigchain.GetTx(senderId)
+	if err != nil {
+		return err
+	}
+	sender := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(sender); err != nil {
+		return err
+	}
+	senderPub := bigchain.DefaultGetTxSigner(tx)
+	if recipientPub.Equals(senderPub) {
+		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
+	}
+	releaseId := spec.GetTransferReleaseId(transfer)
+	release, err := ValidateReleaseById(releaseId)
+	if err != nil {
+		return err
+	}
+	txId := spec.GetTransferTxId(transfer)
+	tx, err = bigchain.GetTx(txId)
+	if err != nil {
+		return err
+	}
+	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
+		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
+	}
+	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
+	}
+	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
+	}
+	if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+	}
+	rightId := bigchain.GetTxAssetId(tx)
+	found := false
+	for _, id := range spec.GetRecordingRightIds(release) {
+		if rightId == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
+	}
+	transfer.Set("rightId", rightId)
+	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
+	transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	return nil
 }

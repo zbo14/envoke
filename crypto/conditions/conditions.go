@@ -482,10 +482,10 @@ func (f *fulfillment) Validate(p []byte) bool {
 	default:
 		return false
 	}
-	if f.size > MAX_PAYLOAD_SIZE {
-		return false
-	}
-	if len(f.hash) != HASH_SIZE {
+	switch {
+	case
+		f.size > MAX_PAYLOAD_SIZE,
+		len(f.hash) != HASH_SIZE:
 		return false
 	}
 	return true

@@ -3,27 +3,28 @@
 {{end}}
 
 {{define "body"}}
-<header>RECORD</header>
+<br><br>
 <form id="record-form" name="record-form" enctype="multipart/form-data">
-    <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" /><br>
-    <input type="text" name="isrc" placeholder="ISRC CODE" required /><br>
-    <input type="text" name="labelId" placeholder="LABEL ID" required /><br>
-    <input type="text" name="performerId" placeholder="PERFORMER ID" required /><br>
-    <input type="text" name="producerId" placeholder="PRODUCER ID" required /><br>
-    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required /><br>
-    <input accept="audio" type="file" name="recording" required /><br>
+    <header>RECORD</header>
+    <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" />
+    <input type="text" name="isrc" placeholder="ISRC CODE" required />
+    <input type="text" name="labelId" placeholder="LABEL ID" required />
+    <input type="text" name="performerId" placeholder="PERFORMER ID" required />
+    <input type="text" name="producerId" placeholder="PRODUCER ID" required />
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+    <input accept="audio" type="file" name="recording" required />
     <input type="submit" value="submit" />
 </form>
-<header>RELEASE</header>
 <form id="release-form" name="release-form">
-    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" /><br>
-    <input type="text" name="recordingId" placeholder="RECORDING ID" required /><br>
-    <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br>
+    <header>RELEASE</header>
+    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" />
+    <input type="text" name="recordingId" placeholder="RECORDING ID" required />
+    <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
     <input type="submit" value="release" />
 </form>
-<header>RELEASE DETAILS</header>
 <form id="search-form" name="search-form">
-    <input type="text" name="releaseId" placeholder="RELEASE ID" required /><br>
+    <header>RELEASE DETAILS</header>
+    <input type="text" name="releaseId" placeholder="RELEASE ID" required />
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
         <option value="composition_right">COMPOSITION RIGHT</option>
@@ -37,7 +38,9 @@
     </select>
     <input type="submit" value="search" />
 </form>
-<pre id="message"></pre>
+<pre id="record-message"></pre>
+<pre id="release-message"></pre>
+<pre id="details-message"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -55,11 +58,13 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(responseText) {
-    if (responseText != null) {
-        var json = JSON.parse(responseText);
-        var str = JSON.stringify(json,null,2);
-        $("#message").text(str);
+var callback = function(id) {
+    return function(responseText) {
+        if (responseText != null) {
+            var json = JSON.parse(responseText);
+            var str = JSON.stringify(json,null,2);
+            $("#"+id).text(str);
+        };
     };
 };
 
@@ -69,14 +74,14 @@ window.onload = function() {
 	recordForm.submit(function(event) {
 		event.preventDefault();
 		var formData = new FormData(event.target);
-		httpPostAsync("http://localhost:8888/record", formData, callback);
+		httpPostAsync("http://localhost:8888/record", formData, callback("record-message"));
 	});
 
 	var releaseForm = $("#release-form");
 	releaseForm.submit(function(event){
 		event.preventDefault();
 		var formData = releaseForm.serialize();
-		httpPostAsync("http://localhost:8888/release", formData, callback);
+		httpPostAsync("http://localhost:8888/release", formData, callback("release-message"));
 	});
 
 	var searchForm = $("#search-form");
@@ -84,7 +89,7 @@ window.onload = function() {
    		event.preventDefault();
     	var formData = searchForm.serialize();
     	formData.set("type", "release");
-    	httpPostAsync("http://localhost:8888/search", formData, callback);
+    	httpPostAsync("http://localhost:8888/search", formData, callback("details-message"));
   	});
 }
 </script>

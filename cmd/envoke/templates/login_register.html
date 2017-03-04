@@ -3,21 +3,24 @@
 {{end}}
 
 {{define "body"}}
+<br><br>
+<form id="login-form" style="width:50%">
   <header>LOGIN</header>
-  <form id="login-form">
-    <input type="text" name="agentId" placeholder="AGENT ID" required /><br>
-    <input type="password" name="privateKey" placeholder="PRIVATE KEY" required /><br>
-    <input type="submit" value="login" />
-  </form>
+  <input type="text" name="agentId" placeholder="USER ID" required />
+  <input type="password" name="privateKey" placeholder="PRIVATE KEY" required />
+  <input type="submit" value="login" />
+</form>
+<form id="register-form" style="width:50%">
   <header>REGISTER</header>
-  <form id="register-form">
-    <input type="text" name="name" placeholder="NAME" required /><br>
-    <input type="text" name="email" placeholder="EMAIL" required /><br> 
-    <input type="text" name="socialMedia" placeholder="SOCIAL MEDIA" required /><br>
-    <input type="password" name="password" placeholder="PASSWORD" required /><br>
-    <input type="submit" value="register"/>
-  </form>
-  <pre id="message"></pre>
+  <input type="text" name="name" placeholder="NAME" required />
+  <input type="text" name="email" placeholder="EMAIL" required />
+  <input type="text" name="socialMedia" placeholder="SOCIAL MEDIA" required />
+  <input type="password" name="password" placeholder="PASSWORD" required />
+  <input type="submit" value="register"/>
+</form>
+<br><br>
+<pre id="login-message"></pre>
+<pre id="register-message"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -35,31 +38,33 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(responseText) {
-  var json = JSON.parse(responseText);
-  var str = JSON.stringify(json,null,2);
-  $("#message").text(str);
+var callback = function(id) {
+    return function(responseText) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#"+id).text(str);
+    }
 };
 
 var redirect = function(responseText) {
-  console.log(responseText)
-  location.replace("http://localhost:8888/compose_publish");
+    console.log(responseText)
+    location.replace("http://localhost:8888/compose_publish");
 }
 
 window.onload = function(){
 
     var loginForm = $("#login-form");
     loginForm.submit(function(event) {
-      event.preventDefault();
-      var formData = loginForm.serialize();
-      httpPostAsync("http://localhost:8888/login", formData, redirect);
+        event.preventDefault();
+        var formData = loginForm.serialize();
+        httpPostAsync("http://localhost:8888/login", formData, callback("login-message"));
     });
 
     var registerForm = $("#register-form");
     registerForm.submit(function(event) {
-      event.preventDefault();
-      var formData = registerForm.serialize();   
-      httpPostAsync("http://localhost:8888/register", formData, callback); 
+        event.preventDefault();
+        var formData = registerForm.serialize();   
+        httpPostAsync("http://localhost:8888/register", formData, callback("register-message")); 
     });
 }
 </script>

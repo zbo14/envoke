@@ -10,7 +10,7 @@ import (
 
 const (
 	BIGCHAIN_ENDPOINT = ""
-	IPDB_ENDPOINT     = ""
+	IPDB_ENDPOINT     = "http://cochoa.ipdb.foundation:9984/api/v1/"
 	ENDPOINT          = IPDB_ENDPOINT
 )
 
@@ -210,6 +210,10 @@ func SetTxData(tx, data Data) {
 	tx.SetInnerValue(data, "asset", "data")
 }
 
+func GetTxOperation(tx Data) string {
+	return tx.GetStr("operation")
+}
+
 func GetTxSigners(tx Data) [][]crypto.PublicKey {
 	inputs := GetTxInputs(tx)
 	return GetInputsPublicKeys(inputs)
@@ -239,8 +243,7 @@ func GetTxRecipient(tx Data, n int) crypto.PublicKey {
 }
 
 func GetTxShares(tx Data) int {
-	outputs := GetTxOutputs(tx)
-	return GetOutputAmount(outputs[0])
+	return GetTxOutputAmount(tx, 0)
 }
 
 func GetTxInputs(tx Data) []Data {
@@ -268,6 +271,11 @@ func GetInputsPublicKeys(inputs []Data) [][]crypto.PublicKey {
 		pubs[i] = GetInputPublicKeys(input)
 	}
 	return pubs
+}
+
+func GetTxOutputAmount(tx Data, n int) int {
+	output := GetTxOutput(tx, n)
+	return GetOutputAmount(output)
 }
 
 func GetTxOutputs(tx Data) []Data {

@@ -5,97 +5,109 @@
 */
 @import url(http://fonts.googleapis.com/css?family=Lato:100,300,400);
 input::-webkit-input-placeholder, textarea::-webkit-input-placeholder {
-  color: #aca49c;
+color: #025768;
   font-size: 0.875em;
 }
 
 input:focus::-webkit-input-placeholder, textarea:focus::-webkit-input-placeholder {
-  color: #bbb5af;
+color: #025768;
 }
 
 input::-moz-placeholder, textarea::-moz-placeholder {
-  color: #aca49c;
+color: #025768;
   font-size: 0.875em;
 }
 
 input:focus::-moz-placeholder, textarea:focus::-moz-placeholder {
-  color: #bbb5af;
+color: #025768;
 }
 
 input::placeholder, textarea::placeholder {
-  color: #aca49c;
+color: #025768;
   font-size: 0.875em;
 }
 
 input:focus::placeholder, textarea::focus:placeholder {
-  color: #bbb5af;
+color: #025768;
 }
 
 input::-ms-placeholder, textarea::-ms-placeholder {
-  color: #aca49c;
+color: #025768;
   font-size: 0.875em;
 }
 
 input:focus::-ms-placeholder, textarea:focus::-ms-placeholder {
-  color: #bbb5af;
+color: #025768;
 }
 
 /* on hover placeholder */
 
 input:hover::-webkit-input-placeholder, textarea:hover::-webkit-input-placeholder {
-  color: #e2dedb;
+  color: #97cc5f;
   font-size: 0.875em;
 }
 
 input:hover:focus::-webkit-input-placeholder, textarea:hover:focus::-webkit-input-placeholder {
-  color: #cbc6c1;
+  color: #97cc5f;
 }
 
 input:hover::-moz-placeholder, textarea:hover::-moz-placeholder {
-  color: #e2dedb;
+  color: #97cc5f;
   font-size: 0.875em;
 }
 
 input:hover:focus::-moz-placeholder, textarea:hover:focus::-moz-placeholder {
-  color: #cbc6c1;
+  color: #97cc5f;
 }
 
 input:hover::placeholder, textarea:hover::placeholder {
-  color: #e2dedb;
+  color: #97cc5f;
   font-size: 0.875em;
 }
 
 input:hover:focus::placeholder, textarea:hover:focus::placeholder {
-  color: #cbc6c1;
+  color: #97cc5f;
 }
 
 input:hover::placeholder, textarea:hover::placeholder {
-  color: #e2dedb;
+  color: #97cc5f;
   font-size: 0.875em;
 }
 
 input:hover:focus::-ms-placeholder, textarea:hover::focus:-ms-placeholder {
-  color: #cbc6c1;
+  color: #97cc5f;
+}
+
+html {
+  background:
+    url("http://localhost:8888/static/images/background.svg") no-repeat center center fixed; 
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
 }
 
 body {
   font-family: 'Lato', sans-serif;
-  background: #e2dedb;
-  color: #b3aca7;
+  background: url(/static/images/site-icon.png) no-repeat top center;
+  background-size: 200px;
+  border-radius: 50%;
+  color: #025768;
 }
 
 header {
   position: relative;
-  margin: 100px 0 25px 0;
-  font-size: 2.3em;
-  text-align: center;
-  letter-spacing: 7px;
+  margin: 50px auto 100px auto;
+  font-size: 2.2em;
 }
 
 form, pre {
   position: relative;
   width: 500px;
   margin: 50px auto 100px auto;
+  float: left;
+  display: inline-block;
+  padding: 80px;
 }
 
 input {
@@ -107,9 +119,9 @@ input {
   
   background: transparent;
   outline: none;
-  color: #726659;
+  color: #025768;
   
-  border: solid 1px #b3aca7;
+  border: solid 1px #025768;
   border-bottom: none;
   
   transition: all 0.3s ease-in-out;
@@ -118,9 +130,14 @@ input {
   -ms-transition: all 0.3s ease-in-out;
 }
 
+input[type="submit"] {
+  border-bottom: solid 1px #025768;
+}
+
 input:hover {
-  background: #b3aca7;
-  color: #e2dedb;
+  background:  #025768;
+  color: #97cc5f;
+  opacity: 0.8;
 }
 
 textarea {
@@ -133,11 +150,11 @@ textarea {
   background: transparent;
   outline: none;
   
-  color: #726659;
+  color: #168d96;
   font-family: 'Lato', sans-serif;
   font-size: 0.875em;
   
-  border: solid 1px #b3aca7;
+  border: solid 1px #025768;
   
   transition: all 0.3s ease-in-out;
   -webkit-transition: all 0.3s ease-in-out;
@@ -146,27 +163,6 @@ textarea {
 }
 
 textarea:hover {
-  background: #b3aca7;
-  color: #e2dedb;
-}
-
-#submit {
-  width: 502px;
-  
-  padding: 0;
-  margin: -5px 0px 0px 0px;
-  
-  font-family: 'Lato', sans-serif;
-  font-size: 0.875em;
-  color: #b3aca7;
-  
-  outline:none;
-  cursor: pointer;
-  
-  border: solid 1px #b3aca7;
-  border-top: none;
-}
-
-#submit:hover {
-  color: #e2dedb;
+  background: #025768;
+  color:  #b3d991;
 }

@@ -14,6 +14,8 @@ const (
 	PUBLICATION = "publication"
 	RELEASE     = "release"
 	RIGHT       = "right"
+	ASSIGNMENT  = "assignment"
+	TRANSFER    = "transfer"
 
 	LICENSE_MASTER     = "master_license"
 	LICENSE_MECHANICAL = "mechanical_license"
@@ -28,6 +30,8 @@ const (
 	RELEASE_SIZE     = 3
 	RIGHT_SIZE       = 5
 	LICENSE_SIZE     = 8
+	ASSIGNMENT_SIZE  = 4
+	TRANSFER_SIZE    = 5
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
@@ -83,7 +87,7 @@ func GetInstance(thing Data) (instance Data) {
 		return thing
 	}
 	if instance = thing.GetData("instance"); instance == nil {
-		instance = AssertMapData(thing["instance"])
+		instance = thing.GetMapData("instance")
 	}
 	return instance
 }
@@ -111,13 +115,15 @@ func ValidInstance(instance Data) error {
 		RELEASE,
 		RIGHT,
 		LICENSE_MECHANICAL,
-		LICENSE_MASTER:
-		// Ok..
+		LICENSE_MASTER,
+		TRANSFER:
+		// ASSIGNMENT
+		//..
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
 	if len(instance) != INSTANCE_SIZE {
-		return ErrorAppend(ErrInvalidSize, "instance")
+		return ErrInvalidSize
 	}
 	return nil
 }
@@ -163,11 +169,11 @@ func ValidAgent(agent Data) error {
 	}
 	name := GetAgentName(agent)
 	if EmptyStr(name) {
-		return ErrorAppend(ErrEmptyStr, "name")
+		return ErrorAppend(ErrEmptyStr, name)
 	}
 	socialMedia := GetAgentSocialMediaStr(agent)
 	if !MatchUrlRelaxed(socialMedia) {
-		return ErrorAppend(ErrInvalidUrl, "social media")
+		return ErrorAppend(ErrInvalidUrl, socialMedia)
 	}
 	if len(agent) != AGENT_SIZE {
 		return ErrorAppend(ErrInvalidSize, AGENT)
@@ -218,7 +224,7 @@ func ValidComposition(composition Data) error {
 	}
 	composerId := GetCompositionComposerId(composition)
 	if !MatchId(composerId) {
-		return ErrorAppend(ErrInvalidId, "composerId")
+		return ErrorAppend(ErrInvalidId, composerId)
 	}
 	hfa := GetCompositionHFA(composition)
 	if !MatchStr(HFA_REGEX, hfa) {
@@ -230,11 +236,11 @@ func ValidComposition(composition Data) error {
 	}
 	publisherId := GetCompositionPublisherId(composition)
 	if !MatchId(publisherId) {
-		return ErrorAppend(ErrInvalidId, "publisherId")
+		return ErrorAppend(ErrInvalidId, publisherId)
 	}
 	title := GetCompositionTitle(composition)
 	if EmptyStr(title) {
-		return ErrorAppend(ErrEmptyStr, "title")
+		return ErrEmptyStr
 	}
 	if len(composition) != COMPOSITION_SIZE {
 		return ErrorAppend(ErrInvalidSize, COMPOSITION)
@@ -268,7 +274,7 @@ func ValidPublication(publication Data) error {
 	}
 	compositionId := GetPublicationCompositionId(publication)
 	if !MatchId(compositionId) {
-		return ErrorAppend(ErrInvalidId, "compositionId")
+		return ErrorAppend(ErrInvalidId, compositionId)
 	}
 	rightIds := GetCompositionRightIds(publication)
 	seen := make(map[string]struct{})
@@ -277,7 +283,7 @@ func ValidPublication(publication Data) error {
 			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
 		}
 		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, "rightId")
+			return ErrorAppend(ErrInvalidId, rightId)
 		}
 		seen[rightId] = struct{}{}
 	}
@@ -299,7 +305,7 @@ func NewRecording(compositionRightId, isrc, labelId, performerId, producerId, pu
 		"publicationId": publicationId,
 	}
 	if !EmptyStr(compositionRightId) {
-		recording["compositionRightId"] = compositionRightId
+		recording.Set("compositionRightId", compositionRightId)
 	}
 	return recording
 }
@@ -336,35 +342,35 @@ func ValidRecording(recording Data) error {
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
 	}
-	compositionRightId := GetRecordingCompositionRightId(recording)
-	if !EmptyStr(compositionRightId) {
-		if !MatchId(compositionRightId) {
-			return ErrorAppend(ErrInvalidId, "compositionRightId")
-		}
-		if len(recording) != RECORDING_SIZE+1 {
-			return ErrorAppend(ErrInvalidSize, RECORDING)
-		}
-		return nil
-	}
 	isrc := GetRecordingISRC(recording)
 	if !MatchStr(ISRC_REGEX, isrc) {
 		return Error("Invalid ISRC code")
 	}
 	labelId := GetRecordingLabelId(recording)
 	if !MatchId(labelId) {
-		return ErrorAppend(ErrInvalidId, "labelId")
+		return ErrorAppend(ErrInvalidId, labelId)
 	}
 	performerId := GetRecordingPerformerId(recording)
 	if !MatchId(performerId) {
-		return ErrorAppend(ErrInvalidId, "performerId")
+		return ErrorAppend(ErrInvalidId, performerId)
 	}
 	producerId := GetRecordingProducerId(recording)
 	if !MatchId(producerId) {
-		return ErrorAppend(ErrInvalidId, "performerId")
+		return ErrorAppend(ErrInvalidId, producerId)
 	}
 	publicationId := GetRecordingPublicationId(recording)
 	if !MatchId(publicationId) {
-		return ErrorAppend(ErrInvalidId, "publicationId")
+		return ErrorAppend(ErrInvalidId, publicationId)
+	}
+	rightId := GetRecordingCompositionRightId(recording)
+	if !EmptyStr(rightId) {
+		if !MatchId(rightId) {
+			return ErrorAppend(ErrInvalidId, rightId)
+		}
+		if len(recording) != RECORDING_SIZE+1 {
+			return ErrorAppend(ErrInvalidSize, RECORDING)
+		}
+		return nil
 	}
 	if len(recording) != RECORDING_SIZE {
 		return ErrorAppend(ErrInvalidSize, RECORDING)
@@ -406,7 +412,17 @@ func ValidRelease(release Data) error {
 	}
 	recordingId := GetReleaseRecordingId(release)
 	if !MatchId(recordingId) {
-		return ErrorAppend(ErrInvalidId, "recordingId")
+		return ErrorAppend(ErrInvalidId, recordingId)
+	}
+	licenseId := GetReleaseLicenseId(release)
+	if !EmptyStr(licenseId) {
+		if !MatchId(licenseId) {
+			return ErrorAppend(ErrInvalidId, licenseId)
+		}
+		if len(release) != RELEASE_SIZE+1 {
+			return ErrorAppend(ErrInvalidSize, RELEASE)
+		}
+		return nil
 	}
 	rightIds := GetRecordingRightIds(release)
 	seen := make(map[string]struct{})
@@ -415,22 +431,64 @@ func ValidRelease(release Data) error {
 			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
 		}
 		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, "rightId")
+			return ErrorAppend(ErrInvalidId, rightId)
 		}
 		seen[rightId] = struct{}{}
 	}
-	licenseId := GetReleaseLicenseId(release)
-	if !EmptyStr(licenseId) {
-		if !MatchId(licenseId) {
-			return ErrorAppend(ErrInvalidId, "mechanicalLicenseId")
-		}
-		if len(release) != RELEASE_SIZE+1 {
-			return ErrorAppend(ErrInvalidSize, RELEASE)
-		}
-		return nil
-	}
 	if len(release) != RELEASE_SIZE {
 		return ErrorAppend(ErrInvalidSize, RELEASE)
+	}
+	return nil
+}
+
+// Assignment
+func NewAssignment(holderId, issuerId, rightId string) Data {
+	return Data{
+		"holderId": holderId,
+		"instance": NewInstance(ASSIGNMENT),
+		"issuerId": issuerId,
+		"rightId":  rightId,
+	}
+}
+
+func GetAssignmentHolderId(assignment Data) string {
+	return assignment.GetStr("holderId")
+}
+
+func GetAssignmentIssuerId(assignment Data) string {
+	return assignment.GetStr("issuerId")
+}
+
+func GetAssignmentRight(assignment Data) Data {
+	return assignment.GetData("right")
+}
+
+func GetAssignmentRightId(assignment Data) string {
+	return assignment.GetStr("rightId")
+}
+
+func ValidAssignment(assignment Data) error {
+	instance := GetInstance(assignment)
+	if err := ValidInstance(instance); err != nil {
+		return err
+	}
+	if !HasType(assignment, ASSIGNMENT) {
+		return ErrorAppend(ErrInvalidType, GetType(assignment))
+	}
+	holderId := GetAssignmentHolderId(assignment)
+	if !MatchId(holderId) {
+		return ErrorAppend(ErrInvalidId, holderId)
+	}
+	issuerId := GetAssignmentIssuerId(assignment)
+	if !MatchId(issuerId) {
+		return ErrorAppend(ErrInvalidId, issuerId)
+	}
+	rightId := GetAssignmentRightId(assignment)
+	if !MatchId(rightId) {
+		return ErrorAppend(ErrInvalidId, rightId)
+	}
+	if len(assignment) != ASSIGNMENT_SIZE {
+		return ErrInvalidSize
 	}
 	return nil
 }
@@ -460,6 +518,10 @@ func NewRecordingRight(recordingId string, territory []string, validFrom, validT
 
 func GetRightCompositionId(right Data) string {
 	return right.GetStr("compositionId")
+}
+
+func GetRightPercentageShares(right Data) int {
+	return right.GetInt("percentageShares")
 }
 
 func GetRightRecordingId(right Data) string {
@@ -586,29 +648,29 @@ func ValidLicense(license Data) error {
 	_type := GetType(license)
 	switch _type {
 	case LICENSE_MECHANICAL:
-		publicationId := license.GetStr("publicationId")
+		publicationId := GetLicensePublicationId(license)
 		if !MatchId(publicationId) {
-			return ErrorAppend(ErrInvalidId, "publicationId")
+			return ErrorAppend(ErrInvalidId, publicationId)
 		}
 	case LICENSE_MASTER:
-		releaseId := license.GetStr("releaseId")
+		releaseId := GetLicenseReleaseId(license)
 		if !MatchId(releaseId) {
-			return ErrorAppend(ErrInvalidId, "releaseId")
+			return ErrorAppend(ErrInvalidId, releaseId)
 		}
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
 	licenseeId := GetLicenseLicenseeId(license)
 	if !MatchId(licenseeId) {
-		return ErrorAppend(ErrInvalidId, "licenseeId")
+		return ErrorAppend(ErrInvalidId, licenseeId)
 	}
 	licenserId := GetLicenseLicenserId(license)
 	if !MatchId(licenserId) {
-		return ErrorAppend(ErrInvalidId, "licenserId")
+		return ErrorAppend(ErrInvalidId, licenserId)
 	}
 	rightId := GetLicenseRightId(license)
 	if !MatchId(rightId) {
-		return ErrorAppend(ErrInvalidId, "rightId")
+		return ErrorAppend(ErrInvalidId, rightId)
 	}
 	seen := make(map[string]struct{})
 	for _, territory := range GetTerritory(license) {
@@ -626,7 +688,116 @@ func ValidLicense(license Data) error {
 		return ErrInvalidTime
 	}
 	if len(license) != LICENSE_SIZE {
-		return ErrorAppend(ErrInvalidSize, "license")
+		return ErrInvalidSize
+	}
+	return nil
+}
+
+// Transfer
+
+func NewTransfer(recipientId, senderId, txId string) Data {
+	return Data{
+		"instance":    NewInstance(TRANSFER),
+		"recipientId": recipientId,
+		"senderId":    senderId,
+		"txId":        txId,
+	}
+}
+
+func NewCompositionRightTransfer(publicationId, recipientId, senderId, txId string) Data {
+	transfer := NewTransfer(recipientId, senderId, txId)
+	transfer.Set("publicationId", publicationId)
+	return transfer
+}
+
+func NewRecordingRightTransfer(recipientId, releaseId, senderId, txId string) Data {
+	transfer := NewTransfer(recipientId, senderId, txId)
+	transfer.Set("releaseId", releaseId)
+	return transfer
+}
+
+func GetTransferRecipientShares(transfer Data) int {
+	return transfer.GetInt("recipientShares")
+}
+
+func GetTransferSenderShares(transfer Data) int {
+	return transfer.GetInt("senderShares")
+}
+
+func GetTransferPublicationId(transfer Data) string {
+	return transfer.GetStr("publicationId")
+}
+
+func GetTransferRecipientId(transfer Data) string {
+	return transfer.GetStr("recipientId")
+}
+
+func GetTransferReleaseId(transfer Data) string {
+	return transfer.GetStr("releaseId")
+}
+
+func GetTransferRightId(transfer Data) string {
+	return transfer.GetStr("rightId")
+}
+
+func GetTransferSenderId(transfer Data) string {
+	return transfer.GetStr("senderId")
+}
+
+func GetTransferTxId(transfer Data) string {
+	return transfer.GetStr("txId")
+}
+
+func ValidCompositionRightTransfer(transfer Data) error {
+	if err := ValidTransfer(transfer); err != nil {
+		return err
+	}
+	publicationId := GetTransferPublicationId(transfer)
+	if !MatchId(publicationId) {
+		return ErrorAppend(ErrInvalidId, publicationId)
+	}
+	if len(transfer) != TRANSFER_SIZE {
+		return ErrInvalidSize
+	}
+	return nil
+}
+
+func ValidRecordingRightTransfer(transfer Data) error {
+	if err := ValidTransfer(transfer); err != nil {
+		return err
+	}
+	releaseId := GetTransferReleaseId(transfer)
+	if !MatchId(releaseId) {
+		return ErrorAppend(ErrInvalidId, releaseId)
+	}
+	if len(transfer) != TRANSFER_SIZE {
+		return ErrInvalidSize
+	}
+	return nil
+}
+
+func ValidTransfer(transfer Data) error {
+	instance := GetInstance(transfer)
+	if err := ValidInstance(instance); err != nil {
+		return err
+	}
+	if !HasType(transfer, TRANSFER) {
+		return ErrorAppend(ErrInvalidType, GetType(transfer))
+	}
+	recipientId := GetTransferRecipientId(transfer)
+	if !MatchId(recipientId) {
+		return ErrorAppend(ErrInvalidId, recipientId)
+	}
+	senderId := GetTransferSenderId(transfer)
+	if !MatchId(senderId) {
+		return ErrorAppend(ErrInvalidId, senderId)
+	}
+	if recipientId == senderId {
+		return ErrorAppend(ErrCriteriaNotMet, "recipientId and senderId must be different")
+	}
+	txId := GetTransferTxId(transfer)
+	if !MatchId(txId) {
+		return ErrorAppend(ErrInvalidId, txId)
 	}
 	return nil
 }

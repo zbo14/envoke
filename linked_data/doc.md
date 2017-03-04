@@ -32,6 +32,18 @@ This module defines a linked-data validation for data models in envoke. When a m
 - Query right and check that licenser is right-holder
 - Check that license territory is subset of right territory
 
+### Composition Right Transfer
+
+- Validate fields in transfer
+- Query recipient, signer and validate fields
+- Check that recipient and signer have different keys 
+- Query publication and run validation process
+- Query TRANSFER tx and do the following...
+	- Check that it has TRANSFER operation
+	- Check that it was signed by sender
+	- Check that recipient holds primary output and sender holds the secondary output, if there is one
+- Check that TRANSFER tx and publication link to composition right
+
 ### Recording
 
 - Validate fields in the recording
@@ -67,3 +79,15 @@ This module defines a linked-data validation for data models in envoke. When a m
 - Check that release links to license recording right
 - Query right and check that licenser is right-holder
 - Check that license territory is subset of right territory
+
+### Recording Right Transfer
+
+- Validate fields in transfer
+- Query recipient, signer and validate fields
+- Check that recipient and signer have different keys 
+- Query release and run validation process
+- Query TRANSFER tx and do the following...
+	- Check that it has TRANSFER operation
+	- Check that it was signed by sender
+	- Check that recipient holds primary output and sender holds the secondary output, if there is one
+- Check that TRANSFER tx and release link to recording right

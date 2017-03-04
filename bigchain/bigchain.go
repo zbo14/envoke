@@ -8,16 +8,12 @@ import (
 	"github.com/zbo14/envoke/crypto/ed25519"
 )
 
-const (
-	BIGCHAIN_ENDPOINT = ""
-	IPDB_ENDPOINT     = "http://cochoa.ipdb.foundation:9984/api/v1/"
-	ENDPOINT          = IPDB_ENDPOINT
-)
+const IPDB_ENDPOINT = ""
 
 // GET
 
 func GetTx(txId string) (Data, error) {
-	url := ENDPOINT + "transactions/" + txId
+	url := IPDB_ENDPOINT + "transactions/" + txId
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, err
@@ -38,7 +34,7 @@ func GetTx(txId string) (Data, error) {
 // docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html
 
 func PostTx(tx Data) (string, error) {
-	url := ENDPOINT + "transactions/"
+	url := IPDB_ENDPOINT + "transactions/"
 	buf := new(bytes.Buffer)
 	buf.Write(MustMarshalJSON(tx))
 	response, err := HttpPost(url, "application/json", buf)

@@ -2,7 +2,7 @@
 
 ### Transaction 
 
-A JSON-encoded transaction wraps every data model sent to/queried in the database. A transaction includes a 64-character hexadecimal ID, the public keys of the signer and recipient encoded as base58 strings, and other information. To learn more about the transaction model, please refer to the BigchainDB [doc](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) or check out the `bigchain` module in the repo. In the following examples, the transaction id, output amount, signer and recipient public keys are included; the remaining transaction information is omitted.
+A JSON-encoded transaction wraps every data model sent to/queried in the database. A transaction includes a 64-character hexadecimal ID, the public keys of the signer and recipient encoded as base58 strings, and other information. To learn more about the transaction model, please refer to the BigchainDB [doc](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) or check out the `bigchain` module in the repo. In the following examples, the transaction id and public keys are included. Note: output amount and recipient key are only included in the right model. The remaining transaction information is omitted.
 
 ### Instance
 
@@ -25,7 +25,6 @@ Example:
 ```javascript
 {
     "id": "3316...",
-    "recipient_key": "9vd8...", 
     "signer_key": "9vd8...",
     {
         "name": "composer_name",
@@ -48,7 +47,6 @@ Example:
 ```javascript
 {
     "id": "ebdb...",
-    "recipient_key": "9vd8...", 
     "signer_key": "9vd8...",
     {
         "composerId": "3316...",
@@ -99,7 +97,6 @@ Example:
 ```javascript
 {
     "id": "fd7b...",
-    "recipient_key": "7tev...",
     "signer_key": "7tev...",
     {
         "compositionId": "ebdb..."
@@ -117,13 +114,12 @@ Example:
 
 ### Recording
 
-A recording represents a digitally recorded performance of a composition. It contains an ISRC code and links to the performer, producer, and record label. If the performer or producer is a right holder of the composition, the composition right id is included as well.
+A recording represents a digitally recorded performance of a composition. It contains an ISRC code and links to the performer, producer, and record label. If the performer or producer is a right-holder of the composition, the composition right id is included as well.
 
 Example:
 ```javascript
 {
     "id": "868c...",
-    "recipient_key": "3y8v...",
     "signer_key": "3y8v...",
     {
         "isrc": "US-S1Z-99-00001",
@@ -172,7 +168,6 @@ A release describes the relationship of recording rights to a recording. The mod
 ```javascript
 {
     "id": "9502..."
-    "recipient_key": "Eup9..."
     "signer_key": "Eup9..."
     {
         "instance": {
@@ -199,7 +194,6 @@ Example:
 ```javascript
 {
     "id": "6572...",
-    "recipient_key": "7tev...",
     "signer_key": "7tev...",
     {
         "instance": {
@@ -229,7 +223,6 @@ Example:
 ```javascript
 {
     "id": "0d19...",
-    "recipient_key":  "Eup9...",
     "signer_key": "Eup9...",
     {
         "instance": {
@@ -248,6 +241,50 @@ Example:
     }
 }
 ```
+
+### Composition Right Transfer 
+
+A composition right transfer indicates a transfer of ownership shares from a sender to a recipient. The sender holds a composition right or ownership shares from a previous transfer. The model links to a publication, recipient, sender, and [TRANSFER tx](https://docs.bigchaindb.com/en/latest/transaction-concepts.html#transfer-transactions).
+
+Example:
+```javascript 
+{
+    "id": "56ac...",
+    "signer_key": "9vd8...",
+    {
+        "instance": {
+            "time": "1488654659",
+            "type": "transfer"
+        },
+        "publicationId": "fd7b...",
+        "recipientId": "67c3...",
+        "senderId": "3316...", 
+        "txId": "1047..."
+    }
+}
+```
+
+### Recording Right Transfer
+
+A recording right transfer indicates a transfer of ownership shares from a sender to a recipient. The sender holds a recording right or ownership shares from a previous transfer. The model links to a recipient, release, sender, and TRANSFER tx.
+
+Example:
+```javascript
+{
+    "id": "3ce9...",
+    "signer_key": "3y8v...",
+    {
+        "instance": {
+            "time": "1488654667",
+            "type": "transfer"
+        },
+        "recipientId": "5ea2...",
+        "releaseId": "9502...",
+        "senderId": "6c77...",
+        "txId": "30ec..."
+    }
+}
+``` 
 
 ### Validation
 

@@ -1008,11 +1008,17 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
 	}
+	n := len(bigchain.GetTxOutputs(tx))
+	if n != 1 && n != 2 {
+		return ErrorAppend(ErrInvalidSize, "tx outputs must have size 1 or 2")
+	}
 	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
-	if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
-		return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+	if n == 2 {
+		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+			return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+		}
 	}
 	rightId := bigchain.GetTxAssetId(tx)
 	found := false
@@ -1027,7 +1033,9 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	}
 	transfer.Set("rightId", rightId)
 	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
-	transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	if n == 2 {
+		transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	}
 	return nil
 }
 
@@ -1084,14 +1092,20 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
 		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
 	}
+	n := len(bigchain.GetTxOutputs(tx))
+	if n != 1 && n != 2 {
+		return ErrorAppend(ErrInvalidSize, "outputs must have size 1 or 2")
+	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
 	}
 	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
-	if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
-		return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+	if n == 2 {
+		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+			return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+		}
 	}
 	rightId := bigchain.GetTxAssetId(tx)
 	found := false
@@ -1106,6 +1120,8 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	}
 	transfer.Set("rightId", rightId)
 	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
-	transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	if n == 2 {
+		transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+	}
 	return nil
 }

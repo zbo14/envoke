@@ -6,7 +6,7 @@
 <br><br>
 <form id="record-form" name="record-form" enctype="multipart/form-data">
     <header>RECORD</header>
-    <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" />
+    <input type="text" name="assignmentId" placeholder="PUBLICATION ASSIGNMENT ID" />
     <input type="text" name="isrc" placeholder="ISRC CODE" required />
     <input type="text" name="labelId" placeholder="LABEL ID" required />
     <input type="text" name="performerId" placeholder="PERFORMER ID" required />
@@ -17,9 +17,9 @@
 </form>
 <form id="release-form" name="release-form">
     <header>RELEASE</header>
-    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" />
+    <input type="text" name="assignmentIds" placeholder="ASSIGNMENT IDs" required />
+    <input type="text" name="licenseId" placeholder="MECHANICAL LICENSE ID" />
     <input type="text" name="recordingId" placeholder="RECORDING ID" required />
-    <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
     <input type="submit" value="release" />
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">

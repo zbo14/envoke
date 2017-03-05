@@ -32,7 +32,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/compose", api.ComposeHandler)
 	mux.HandleFunc("/record", api.RecordHandler)
-	mux.HandleFunc("/right", api.RightHandler)
+	mux.HandleFunc("/assignment", api.AssignmentHandler)
 	mux.HandleFunc("/publish", api.PublishHandler)
 	mux.HandleFunc("/release", api.ReleaseHandler)
 	mux.HandleFunc("/license", api.LicenseHandler)
@@ -81,7 +81,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, msg)
 }
 
-func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) AssignmentHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -97,17 +97,17 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var right Data
 	compositionId := values.Get("compositionId")
+	holderId := values.Get("holderId")
 	percentageShares := MustAtoi(values.Get("percentageShares"))
 	recordingId := values.Get("recordingId")
-	rightHolderId := values.Get("rightHolderId")
 	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(compositionId):
-		right, err = api.CompositionRight(compositionId, percentageShares, rightHolderId, territory, validFrom, validTo)
+		right, err = api.PublicationAssignment(compositionId, holderId, percentageShares, territory, validFrom, validTo)
 	case !EmptyStr(recordingId):
-		right, err = api.RecordingRight(percentageShares, recordingId, rightHolderId, territory, validFrom, validTo)
+		right, err = api.ReleaseAssignment(holderId, percentageShares, recordingId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
 		return
@@ -159,7 +159,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	compositionRightId := form.Value["compositionRightId"][0]
+	assignmentId := form.Value["assignmentId"][0]
 	file, err := form.File["recording"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -170,7 +170,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	performerId := form.Value["performerId"][0]
 	producerId := form.Value["producerId"][0]
 	publicationId := form.Value["publicationId"][0]
-	recording, err := api.Record(compositionRightId, file, isrc, labelId, performerId, producerId, publicationId)
+	recording, err := api.Record(assignmentId, file, isrc, labelId, performerId, producerId, publicationId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -192,9 +192,9 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	assignmentIds := SplitStr(values.Get("assignmentIds"), ",")
 	compositionId := values.Get("compositionId")
-	rightIds := SplitStr(values.Get("rightIds"), ",")
-	composition, err := api.Publish(compositionId, rightIds)
+	composition, err := api.Publish(assignmentIds, compositionId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -216,10 +216,10 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	mechanicalLicenseId := values.Get("mechanicalLicenseId")
+	assignmentIds := SplitStr(values.Get("assignmentIds"), ",")
+	licenseId := values.Get("licenseId")
 	recordingId := values.Get("recordingId")
-	rightIds := SplitStr(values.Get("rightIds"), ",")
-	release, err := api.Release(mechanicalLicenseId, recordingId, rightIds)
+	release, err := api.Release(assignmentIds, licenseId, recordingId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -242,18 +242,18 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var license Data
+	assignmentId := values.Get("assignmentId")
 	licenseeId := values.Get("licenseeId")
 	publicationId := values.Get("publicationId")
 	releaseId := values.Get("releaseId")
-	rightId := values.Get("rightId")
 	territory := SplitStr(values.Get("territory"), ",")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(publicationId):
-		license, err = api.MechanicalLicense(licenseeId, publicationId, rightId, territory, validFrom, validTo)
+		license, err = api.MechanicalLicense(assignmentId, licenseeId, publicationId, territory, validFrom, validTo)
 	case !EmptyStr(releaseId):
-		license, err = api.MasterLicense(licenseeId, releaseId, rightId, territory, validFrom, validTo)
+		license, err = api.MasterLicense(assignmentId, licenseeId, releaseId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
 		return
@@ -328,17 +328,17 @@ func (api *Api) TransferHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var transfer Data
+	assignmentId := values.Get("assignmentId")
 	percentageShares := MustAtoi(values.Get("percentageShares"))
 	publicationId := values.Get("publicationId")
 	recipientId := values.Get("recipientId")
 	releaseId := values.Get("releaseId")
-	rightId := values.Get("rightId")
 	transferId := values.Get("transferId")
 	switch {
 	case !EmptyStr(publicationId):
-		transfer, err = api.TransferCompositionRight(publicationId, recipientId, percentageShares, rightId, transferId)
+		transfer, err = api.TransferCompositionRight(assignmentId, publicationId, recipientId, percentageShares, transferId)
 	case !EmptyStr(releaseId):
-		transfer, err = api.TransferRecordingRight(recipientId, percentageShares, releaseId, rightId, transferId)
+		transfer, err = api.TransferRecordingRight(assignmentId, recipientId, percentageShares, releaseId, transferId)
 	default:
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
 	}
@@ -407,12 +407,12 @@ func (api *Api) Register(email, name, password, socialMedia string) (Data, error
 	}
 	api.logger.Info("SUCCESS registered new agent: " + name)
 	return Data{
-		"id": id,
 		"agent": Data{
 			"name":       name,
 			"privateKey": priv.String(),
 			"publicKey":  pub.String(),
 		},
+		"id": id,
 	}, nil
 }
 
@@ -434,15 +434,15 @@ func (api *Api) Compose(hfa, iswc, publisherId, title string) (Data, error) {
 	}, nil
 }
 
-func (api *Api) Record(compositionRightId string, file io.Reader, isrc, labelId, performerId, producerId, publicationId string) (Data, error) {
+func (api *Api) Record(assignmentId string, file io.Reader, isrc, labelId, performerId, producerId, publicationId string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	// 	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording := spec.NewRecording(compositionRightId, isrc, labelId, performerId, producerId, publicationId)
-	if err := ld.ValidateRecording(recording, api.pub); err != nil {
+	recording := spec.NewRecording(assignmentId, isrc, labelId, performerId, producerId, publicationId)
+	if _, err := ld.ValidateRecording(recording, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
@@ -458,8 +458,8 @@ func (api *Api) Record(compositionRightId string, file io.Reader, isrc, labelId,
 	}, nil
 }
 
-func (api *Api) Publish(compositionId string, rightIds []string) (Data, error) {
-	publication := spec.NewPublication(compositionId, rightIds)
+func (api *Api) Publish(assignmentIds []string, compositionId string) (Data, error) {
+	publication := spec.NewPublication(assignmentIds, compositionId)
 	if err := ld.ValidatePublication(publication, api.pub); err != nil {
 		panic(err)
 		return nil, err
@@ -477,8 +477,8 @@ func (api *Api) Publish(compositionId string, rightIds []string) (Data, error) {
 	}, nil
 }
 
-func (api *Api) Release(mechanicalLicenseId, recordingId string, rightIds []string) (Data, error) {
-	release := spec.NewRelease(mechanicalLicenseId, recordingId, rightIds)
+func (api *Api) Release(assignmentIds []string, licenseId, recordingId string) (Data, error) {
+	release := spec.NewRelease(assignmentIds, licenseId, recordingId)
 	if err := ld.ValidateRelease(release, api.pub); err != nil {
 		return nil, err
 	}
@@ -495,8 +495,8 @@ func (api *Api) Release(mechanicalLicenseId, recordingId string, rightIds []stri
 	}, nil
 }
 
-func (api *Api) CompositionRight(compositionId string, percentageShares int, rightHolderId string, territory []string, validFrom, validTo string) (Data, error) {
-	tx, err := bigchain.GetTx(rightHolderId)
+func (api *Api) PublicationAssignment(compositionId, holderId string, percentageShares int, territory []string, validFrom, validTo string) (Data, error) {
+	tx, err := bigchain.GetTx(holderId)
 	if err != nil {
 		return nil, err
 	}
@@ -504,42 +504,59 @@ func (api *Api) CompositionRight(compositionId string, percentageShares int, rig
 	right := spec.NewCompositionRight(compositionId, territory, validFrom, validTo)
 	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	rightId, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS created composition right")
-	return Data{
-		"compositionRight": right,
-		"id":               id,
-	}, nil
-}
-
-func (api *Api) RecordingRight(percentageShares int, recordingId, rightHolderId string, territory []string, validFrom, validTo string) (Data, error) {
-	tx, err := bigchain.GetTx(rightHolderId)
-	if err != nil {
+	assignment := spec.NewAssignment(holderId, api.agentId, rightId)
+	if err := ld.ValidatePublicationAssignment(assignment); err != nil {
 		return nil, err
 	}
-	pub := bigchain.DefaultGetTxSigner(tx)
-	right := spec.NewRecordingRight(recordingId, territory, validFrom, validTo)
-	if err = spec.ValidRecordingRight(right); err != nil {
-		return nil, err
-	}
-	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
+	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS created recording right")
+	api.logger.Info("SUCCESS created publication assignment")
 	return Data{
-		"id":             id,
-		"recordingRight": right,
+		"id": id,
+		"publicationAssignment": assignment,
 	}, nil
 }
 
-func (api *Api) MechanicalLicense(licenseeId, publicationId, rightId string, territory []string, validFrom, validTo string) (Data, error) {
-	license := spec.NewLicense(licenseeId, api.agentId, publicationId, "", rightId, territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
+func (api *Api) ReleaseAssignment(holderId string, percentageShares int, recordingId string, territory []string, validFrom, validTo string) (Data, error) {
+	tx, err := bigchain.GetTx(holderId)
+	if err != nil {
+		return nil, err
+	}
+	pub := bigchain.DefaultGetTxSigner(tx)
+	right := spec.NewRecordingRight(recordingId, territory, validFrom, validTo)
+	tx = bigchain.IndividualCreateTx(percentageShares, right, pub, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	rightId, err := bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	assignment := spec.NewAssignment(holderId, api.agentId, rightId)
+	if err := ld.ValidateReleaseAssignment(assignment); err != nil {
+		return nil, err
+	}
+	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	id, err := bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS created release assignment")
+	return Data{
+		"id":                id,
+		"releaseAssignment": assignment,
+	}, nil
+}
+
+func (api *Api) MechanicalLicense(assignmentId, licenseeId, publicationId string, territory []string, validFrom, validTo string) (Data, error) {
+	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, publicationId, "", territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
 	if err := ld.ValidateMechanicalLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -556,8 +573,8 @@ func (api *Api) MechanicalLicense(licenseeId, publicationId, rightId string, ter
 	}, nil
 }
 
-func (api *Api) MasterLicense(licenseeId, releaseId, rightId string, territory []string, validFrom, validTo string) (Data, error) {
-	license := spec.NewLicense(licenseeId, api.agentId, "", releaseId, rightId, territory, spec.LICENSE_MASTER, validFrom, validTo)
+func (api *Api) MasterLicense(assignmentId, licenseeId, releaseId string, territory []string, validFrom, validTo string) (Data, error) {
+	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, "", releaseId, territory, spec.LICENSE_MASTER, validFrom, validTo)
 	if err := ld.ValidateMasterLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -574,9 +591,9 @@ func (api *Api) MasterLicense(licenseeId, releaseId, rightId string, territory [
 	}, nil
 }
 
-func (api *Api) TransferCompositionRight(publicationId, recipientId string, recipientShares int, rightId, transferId string) (Data, error) {
+func (api *Api) TransferCompositionRight(assignmentId, publicationId, recipientId string, recipientShares int, transferId string) (Data, error) {
 	var output, totalShares int
-	var txId string
+	var rightId, txId string
 	if !EmptyStr(transferId) {
 		transfer, err := ld.ValidateCompositionRightTransferById(transferId)
 		if err != nil {
@@ -590,15 +607,22 @@ func (api *Api) TransferCompositionRight(publicationId, recipientId string, reci
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
 		}
-		rightId = spec.GetTransferRightId(transfer)
-		txId = spec.GetTransferTxId(transfer)
-	} else {
-		right, err := ld.ValidateCompositionRightHolder(api.pub, publicationId, rightId)
+		assignmentId = spec.GetTransferAssignmentId(transfer)
+		tx, err := bigchain.GetTx(assignmentId)
 		if err != nil {
 			return nil, err
 		}
+		assignment := bigchain.GetTxData(tx)
+		rightId = spec.GetAssignmentRightId(assignment)
+		txId = spec.GetTransferTxId(transfer)
+	} else {
+		assignment, err := ld.ValidatePublicationAssignmentHolder(assignmentId, api.agentId, publicationId)
+		if err != nil {
+			return nil, err
+		}
+		rightId = spec.GetAssignmentRightId(assignment)
+		right := spec.GetAssignmentRight(assignment)
 		totalShares = spec.GetRightPercentageShares(right)
-		Println(totalShares)
 		txId = rightId
 	}
 	tx, err := bigchain.GetTx(recipientId)
@@ -634,9 +658,9 @@ func (api *Api) TransferCompositionRight(publicationId, recipientId string, reci
 	}, nil
 }
 
-func (api *Api) TransferRecordingRight(recipientId string, recipientShares int, releaseId, rightId, transferId string) (Data, error) {
+func (api *Api) TransferRecordingRight(assignmentId, recipientId string, recipientShares int, releaseId, transferId string) (Data, error) {
 	var output, totalShares int
-	var txId string
+	var txId, rightId string
 	if !EmptyStr(transferId) {
 		transfer, err := ld.ValidateRecordingRightTransferById(transferId)
 		if err != nil {
@@ -650,13 +674,21 @@ func (api *Api) TransferRecordingRight(recipientId string, recipientShares int, 
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
 		}
-		rightId = spec.GetTransferRightId(transfer)
-		txId = spec.GetTransferTxId(transfer)
-	} else {
-		right, err := ld.ValidateRecordingRightHolder(api.pub, releaseId, rightId)
+		assignmentId = spec.GetTransferAssignmentId(transfer)
+		tx, err := bigchain.GetTx(assignmentId)
 		if err != nil {
 			return nil, err
 		}
+		assignment := bigchain.GetTxData(tx)
+		rightId = spec.GetAssignmentRightId(assignment)
+		txId = spec.GetTransferTxId(transfer)
+	} else {
+		assignment, err := ld.ValidateReleaseAssignmentHolder(assignmentId, api.agentId, releaseId)
+		if err != nil {
+			return nil, err
+		}
+		rightId = spec.GetAssignmentRightId(assignment)
+		right := spec.GetAssignmentRight(assignment)
 		totalShares = spec.GetRightPercentageShares(right)
 		txId = rightId
 	}

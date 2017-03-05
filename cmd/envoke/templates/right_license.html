@@ -7,9 +7,9 @@
 <form id="right-form" name="right-form">
     <header>RIGHT</header>
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" />
+    <input type="text" name="holderId" placeholder="RIGHT HOLDER ID" required />
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
     <input type="text" name="recordingId" placeholder="RECORDING ID" />
-    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
     <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
@@ -19,10 +19,10 @@
 </form>
 <form id="license-form" name="license-form">
     <header>LICENSE</header>
+    <input type="text" name="assignmentId" placeholder="ASSIGNMENT ID" required />
     <input type="text" name="licenseeId" placeholder="LICENSEE ID" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
     <input type="text" name="releaseId" placeholder="RELEASE ID" />
-    <input type="text" name="rightId" placeholder="RIGHT ID" required />
     <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
@@ -32,11 +32,11 @@
 </form>
 <form id="transfer-form" name="transform-form" style="margin-top: -240px">
     <header>TRANSFER</header>
+    <input type="text" name="assignmentId" placeholder="ASSIGNMENT ID" />
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
     <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
     <input type="text" name="releaseId" placeholder="RELEASE ID" />
-    <input type="text" name="rightId" placeholder="RIGHT ID" />
     <input type="text" name="transferId" placeholder="TRANSFER ID" />
     <input type="submit" value="submit" />
 </form>

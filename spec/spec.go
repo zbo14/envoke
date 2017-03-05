@@ -30,7 +30,7 @@ const (
 	RELEASE_SIZE     = 3
 	RIGHT_SIZE       = 5
 	LICENSE_SIZE     = 8
-	ASSIGNMENT_SIZE  = 4
+	ASSIGNMENT_SIZE  = 5
 	TRANSFER_SIZE    = 5
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
@@ -114,10 +114,10 @@ func ValidInstance(instance Data) error {
 		PUBLICATION,
 		RELEASE,
 		RIGHT,
+		ASSIGNMENT,
 		LICENSE_MECHANICAL,
 		LICENSE_MASTER,
 		TRANSFER:
-		// ASSIGNMENT
 		//..
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
@@ -488,7 +488,7 @@ func ValidAssignment(assignment Data) error {
 		return ErrorAppend(ErrInvalidId, rightId)
 	}
 	if len(assignment) != ASSIGNMENT_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, ASSIGNMENT)
 	}
 	return nil
 }
@@ -688,7 +688,7 @@ func ValidLicense(license Data) error {
 		return ErrInvalidTime
 	}
 	if len(license) != LICENSE_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, "license")
 	}
 	return nil
 }
@@ -757,7 +757,7 @@ func ValidCompositionRightTransfer(transfer Data) error {
 		return ErrorAppend(ErrInvalidId, publicationId)
 	}
 	if len(transfer) != TRANSFER_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, TRANSFER)
 	}
 	return nil
 }
@@ -771,7 +771,7 @@ func ValidRecordingRightTransfer(transfer Data) error {
 		return ErrorAppend(ErrInvalidId, releaseId)
 	}
 	if len(transfer) != TRANSFER_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, TRANSFER)
 	}
 	return nil
 }

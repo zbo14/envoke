@@ -59,3 +59,12 @@ func MustReadFile(path string) []byte {
 func Getenv(key string) string {
 	return os.Getenv(key)
 }
+
+func Setenv(key, value string) error {
+	return os.Setenv(key, value)
+}
+
+func MustSetenv(key, value string) {
+	err := Setenv(key, value)
+	Check(err)
+}

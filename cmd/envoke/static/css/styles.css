@@ -97,17 +97,17 @@ body {
 
 header {
   position: relative;
-  margin: 50px auto 100px auto;
+  margin: 50;
   font-size: 2.2em;
 }
 
 form, pre {
   position: relative;
-  width: 500px;
+  width: 400px;
   margin: 50px auto 100px auto;
   float: left;
   display: inline-block;
-  padding: 80px;
+  padding: 120px;
 }
 
 input {
@@ -166,3 +166,4 @@ textarea:hover {
   background: #025768;
   color:  #b3d991;
 }
+

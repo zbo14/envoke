@@ -3,14 +3,13 @@
 {{end}}
 
 {{define "body"}}
-<br><br>
-<form id="login-form" style="width:50%">
+<form id="login-form">
   <header>LOGIN</header>
-  <input type="text" name="agentId" placeholder="USER ID" required />
+  <input type="text" name="agentId" placeholder="AGENT ID" required />
   <input type="password" name="privateKey" placeholder="PRIVATE KEY" required />
   <input type="submit" value="login" />
 </form>
-<form id="register-form" style="width:50%">
+<form id="register-form">
   <header>REGISTER</header>
   <input type="text" name="name" placeholder="NAME" required />
   <input type="text" name="email" placeholder="EMAIL" required />
@@ -18,9 +17,7 @@
   <input type="password" name="password" placeholder="PASSWORD" required />
   <input type="submit" value="register"/>
 </form>
-<br><br>
-<pre id="login-message"></pre>
-<pre id="register-message"></pre>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -38,12 +35,10 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(id) {
-    return function(responseText) {
-        var json = JSON.parse(responseText);
-        var str = JSON.stringify(json,null,2);
-        $("#"+id).text(str);
-    }
+var callback = function(responseText) {
+    var json = JSON.parse(responseText);
+    var str = JSON.stringify(json,null,2);
+    $("#message").text(str);
 };
 
 var redirect = function(responseText) {
@@ -57,14 +52,14 @@ window.onload = function(){
     loginForm.submit(function(event) {
         event.preventDefault();
         var formData = loginForm.serialize();
-        httpPostAsync("http://localhost:8888/login", formData, callback("login-message"));
+        httpPostAsync("http://localhost:8888/login", formData, callback);
     });
 
     var registerForm = $("#register-form");
     registerForm.submit(function(event) {
         event.preventDefault();
         var formData = registerForm.serialize();   
-        httpPostAsync("http://localhost:8888/register", formData, callback("register-message")); 
+        httpPostAsync("http://localhost:8888/register", formData, callback); 
     });
 }
 </script>

@@ -41,7 +41,6 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
-	Println(req.Method)
 	if req.Method != http.MethodPost {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return

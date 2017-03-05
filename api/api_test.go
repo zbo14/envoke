@@ -12,7 +12,7 @@ func GetAgentPrivateKey(data Data) string {
 	return data.GetData("agent").GetStr("privateKey")
 }
 
-var path = "/Users/zach/Desktop/music/hey_jude_1.mp3"
+var path = "<path_to_audio_file>"
 
 func TestApi(t *testing.T) {
 	api := NewApi()

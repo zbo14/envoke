@@ -3,36 +3,34 @@
 {{end}}
 
 {{define "body"}}
-<br><br>
 <form id="compose-form" name="compose-form">
     <header>COMPOSE</header>
     <input type="text" name="hfa" placeholder="HFA SONG CODE" required />
     <input type="text" name="iswc" placeholder="ISWC CODE" required />
     <input type="text" name="publisherId" placeholder="PUBLISHER ID" required />
     <input type="text" name="title" placeholder="TITLE" required />
-    <input type="submit" value="submit" />
+    <input type="submit" value="compose" />
 </form>
-<form id="publish-form" name="publish-form" >
+<form id="publish-form" name="publish-form">
     <header>PUBLISH</header>
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
     <input type="submit" value="publish" />
 </form>
-<form id="search-form" name="search-form">
-    <header>PUBLICATION DETAILS</header>
-    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+<form id="search-form" name="search-form" style="margin-top: -240px">
+    <header>PUBLICATION</header>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" style="border-bottom: solid 1px #025768" required /><br><br>
+    <label>FIELD</label>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
         <option value="composer">COMPOSER</option>
         <option value="composition">COMPOSITION</option>
         <option value="publisher">PUBLISHER</option>
         <option value="rights">RIGHTS</option>
-    </select>
+    </select><br><br>
     <input type="submit" value="search" />
 </form>
-<pre id="compose-message"></pre>
-<pre id="publish-message"></pre>
-<pre id="details-message"></pre>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -50,14 +48,10 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(id) {
-    return function(responseText) {
-        if (responseText != null) {
-            var json = JSON.parse(responseText);
-            var str = JSON.stringify(json,null,2);
-            $("#"+id).text(str);
-        };
-    };
+var callback = function(responseText) {
+    var json = JSON.parse(responseText);
+    var str = JSON.stringify(json,null,2);
+    $("#message").text(str);
 };
 
 window.onload = function() {
@@ -66,21 +60,21 @@ window.onload = function() {
   composeForm.submit(function(event) {
     event.preventDefault();
     var formData = composeForm.serialize();
-    httpPostAsync("http://localhost:8888/compose", formData, callback("compose-message"));
+    httpPostAsync("http://localhost:8888/compose", formData, callback);
   });
 
   var publishForm = $("#publish-form");
   publishForm.submit(function(event){
     event.preventDefault();
     var formData = publishForm.serialize();
-    httpPostAsync("http://localhost:8888/publish", formData, callback("publish-message"));
+    httpPostAsync("http://localhost:8888/publish", formData, callback);
   });
 
   var searchForm = $("#search-form");
   searchForm.submit(function(event){
     event.preventDefault();
     var formData = searchForm.serialize();
-    httpPostAsync("http://localhost:8888/search", formData, callback("details-message"));
+    httpPostAsync("http://localhost:8888/search", formData, callback);
   });
 }
 </script>

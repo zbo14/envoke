@@ -1,9 +1,10 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/zbo14/envoke/api"
 	. "github.com/zbo14/envoke/common"
-	"net/http"
 )
 
 func main() {
@@ -11,15 +12,15 @@ func main() {
 	CreatePages(
 		"compose_publish",
 		"login_register",
-		"right_license",
 		"record_release",
+		"right_license",
 	)
 
 	RegisterTemplates(
 		"compose_publish.html",
 		"login_register.html",
-		"right_license.html",
 		"record_release.html",
+		"right_license.html",
 	)
 
 	// Create request multiplexer
@@ -38,5 +39,5 @@ func main() {
 	api.AddRoutes(mux)
 
 	// Start HTTP server with multiplexer
-	http.ListenAndServe(":8888", mux)
+	Println(http.ListenAndServe(":8888", mux))
 }

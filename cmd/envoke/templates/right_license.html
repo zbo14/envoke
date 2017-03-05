@@ -10,11 +10,11 @@
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
     <input type="text" name="recordingId" placeholder="RECORDING ID" />
     <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
-    <input type="text" name="territory" placeholder="TERRITORY" />
+    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
     <label>VALID FROM</label>
-    <input type="date" name="validFrom" required />
+    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
-    <input type="date" name="validTo" required />
+    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
     <input type="submit" value="submit" />
 </form>
 <form id="license-form" name="license-form">
@@ -23,14 +23,14 @@
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
     <input type="text" name="releaseId" placeholder="RELEASE ID" />
     <input type="text" name="rightId" placeholder="RIGHT ID" required />
-    <input type="text" name="territory" placeholder="TERRITORY" />
+    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
     <label>VALID FROM</label>
-    <input type="date" name="validFrom" required />
+    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
-    <input type="date" name="validTo" required />
+    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
     <input type="submit" value="submit" />
 </form>
-<form id="transfer-form" name="transform-form">
+<form id="transfer-form" name="transform-form" style="margin-top: -240px">
     <header>TRANSFER</header>
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
@@ -40,9 +40,7 @@
     <input type="text" name="transferId" placeholder="TRANSFER ID" />
     <input type="submit" value="submit" />
 </form>
-<pre id="right-message"></pre>
-<pre id="license-message"></pre>
-<pre id="transfer-message"></pre>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -60,11 +58,11 @@ function httpPostAsync(addr, data, callback) {
     xhr.send(data);
 };
 
-var callback = function(id) {
-    return function(responseText) {
+var callback = function(responseText) {
+    if (responseText != null) {
         var json = JSON.parse(responseText);
         var str = JSON.stringify(json,null,2);
-        $("#"+id).text(str);
+        $("#message").text(str);
     };
 };
 

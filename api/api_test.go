@@ -12,8 +12,6 @@ func GetAgentPrivateKey(data Data) string {
 	return data.GetData("agent").GetStr("privateKey")
 }
 
-var path = "<path_to_audio_file>"
-
 func TestApi(t *testing.T) {
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
@@ -93,7 +91,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, mechanicalLicense)
 	mechanicalLicenseId := bigchain.GetId(mechanicalLicense)
-	file, err := OpenFile(path)
+	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,12 +131,12 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, release)
 	releaseId := bigchain.GetId(release)
-	releaseLicense, err := api.MasterLicense(radioId, releaseId, labelRightId, []string{"US"}, "2020-01-01", "2022-01-01")
+	masterLicense, err := api.MasterLicense(radioId, releaseId, labelRightId, []string{"US"}, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, releaseLicense)
-	releaseLicenseId := bigchain.GetId(releaseLicense)
+	WriteJSON(output, masterLicense)
+	// masterLicenseId := bigchain.GetId(masterLicense)
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}

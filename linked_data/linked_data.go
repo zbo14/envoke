@@ -183,9 +183,11 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) error {
 		if !composerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 			return ErrorAppend(ErrCriteriaNotMet, "composition right must be signed by composer signer")
 		}
-		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
+		holderPub := bigchain.DefaultGetTxRecipient(tx)
+		if _, ok := rightHolders[holderPub.String()]; ok {
 			return ErrorAppend(ErrCriteriaNotMet, "right-holder cannot have multiple rights to composition")
 		}
+		rightHolders[holderPub.String()] = struct{}{}
 		shares := bigchain.GetTxShares(tx)
 		if shares <= 0 {
 			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
@@ -315,15 +317,19 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) error {
 		rightIds := spec.GetCompositionRightIds(publication)
 		for i := range rightIds {
 			if rightId == rightIds[i] {
+				tx, err = bigchain.GetTx(rightId)
+				if err != nil {
+					return err
+				}
 				if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-					return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not rightHolder")
+					return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not right-holder")
 				}
 				rightHolder = true
 				break
 			}
 		}
 		if !rightHolder {
-			return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not rightHolder")
+			return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not right-holder")
 		}
 	}
 	return nil
@@ -437,9 +443,11 @@ func ValidateRelease(release Data, pub crypto.PublicKey) error {
 		if !recorderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 			return ErrorAppend(ErrCriteriaNotMet, "recording right must be signed by recording signer")
 		}
-		if _, ok := rightHolders[bigchain.DefaultGetTxRecipient(tx).String()]; ok {
+		holderPub := bigchain.DefaultGetTxRecipient(tx)
+		if _, ok := rightHolders[holderPub.String()]; ok {
 			return ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to recording")
 		}
+		rightHolders[holderPub.String()] = struct{}{}
 		shares := bigchain.GetTxShares(tx)
 		if shares <= 0 {
 			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
@@ -978,7 +986,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	if err = spec.ValidAgent(recipient); err != nil {
 		return err
 	}
-	recipientPub := bigchain.DefaultGetTxSigner(tx)
+	holderPub := bigchain.DefaultGetTxSigner(tx)
 	senderId := spec.GetTransferSenderId(transfer)
 	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
@@ -989,7 +997,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 		return err
 	}
 	senderPub := bigchain.DefaultGetTxSigner(tx)
-	if recipientPub.Equals(senderPub) {
+	if holderPub.Equals(senderPub) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
 	}
 	publicationId := spec.GetTransferPublicationId(transfer)
@@ -1012,7 +1020,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	if n != 1 && n != 2 {
 		return ErrorAppend(ErrInvalidSize, "tx outputs must have size 1 or 2")
 	}
-	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+	if !holderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
 	if n == 2 {
@@ -1065,7 +1073,7 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	if err = spec.ValidAgent(recipient); err != nil {
 		return err
 	}
-	recipientPub := bigchain.DefaultGetTxSigner(tx)
+	holderPub := bigchain.DefaultGetTxSigner(tx)
 	senderId := spec.GetTransferSenderId(transfer)
 	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
@@ -1076,7 +1084,7 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 		return err
 	}
 	senderPub := bigchain.DefaultGetTxSigner(tx)
-	if recipientPub.Equals(senderPub) {
+	if holderPub.Equals(senderPub) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
 	}
 	releaseId := spec.GetTransferReleaseId(transfer)
@@ -1099,7 +1107,7 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
 	}
-	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+	if !holderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
 	if n == 2 {

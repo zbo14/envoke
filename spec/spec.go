@@ -248,20 +248,20 @@ func ValidComposition(composition Data) error {
 	return nil
 }
 
-func NewPublication(compositionId string, rightIds []string) Data {
+func NewPublication(assignmentIds []string, compositionId string) Data {
 	return Data{
+		"assignmentIds": assignmentIds,
 		"compositionId": compositionId,
 		"instance":      NewInstance(PUBLICATION),
-		"rightIds":      rightIds,
 	}
+}
+
+func GetPublicationAssignmentIds(publication Data) []string {
+	return publication.GetStrSlice("assignmentIds")
 }
 
 func GetPublicationCompositionId(publication Data) string {
 	return publication.GetStr("compositionId")
-}
-
-func GetCompositionRightIds(publication Data) []string {
-	return publication.GetStrSlice("rightIds")
 }
 
 func ValidPublication(publication Data) error {
@@ -272,20 +272,20 @@ func ValidPublication(publication Data) error {
 	if !HasType(publication, PUBLICATION) {
 		return ErrorAppend(ErrInvalidType, GetType(publication))
 	}
+	assignmentIds := GetPublicationAssignmentIds(publication)
+	seen := make(map[string]struct{})
+	for _, assignmentId := range assignmentIds {
+		if _, ok := seen[assignmentId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to assignment")
+		}
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
+		}
+		seen[assignmentId] = struct{}{}
+	}
 	compositionId := GetPublicationCompositionId(publication)
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, compositionId)
-	}
-	rightIds := GetCompositionRightIds(publication)
-	seen := make(map[string]struct{})
-	for _, rightId := range rightIds {
-		if _, ok := seen[rightId]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
-		}
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
-		}
-		seen[rightId] = struct{}{}
 	}
 	if len(publication) != PUBLICATION_SIZE {
 		return ErrorAppend(ErrInvalidSize, PUBLICATION)
@@ -295,7 +295,7 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(compositionRightId, isrc, labelId, performerId, producerId, publicationId string) Data {
+func NewRecording(assignmentId, isrc, labelId, performerId, producerId, publicationId string) Data {
 	recording := Data{
 		"instance":      NewInstance(RECORDING),
 		"isrc":          isrc,
@@ -304,14 +304,14 @@ func NewRecording(compositionRightId, isrc, labelId, performerId, producerId, pu
 		"producerId":    producerId,
 		"publicationId": publicationId,
 	}
-	if !EmptyStr(compositionRightId) {
-		recording.Set("compositionRightId", compositionRightId)
+	if !EmptyStr(assignmentId) {
+		recording.Set("assignmentId", assignmentId)
 	}
 	return recording
 }
 
-func GetRecordingCompositionRightId(recording Data) string {
-	return recording.GetStr("compositionRightId")
+func GetRecordingAssignmentId(recording Data) string {
+	return recording.GetStr("assignmentId")
 }
 
 func GetRecordingISRC(recording Data) string {
@@ -362,10 +362,10 @@ func ValidRecording(recording Data) error {
 	if !MatchId(publicationId) {
 		return ErrorAppend(ErrInvalidId, publicationId)
 	}
-	rightId := GetRecordingCompositionRightId(recording)
-	if !EmptyStr(rightId) {
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
+	assignmentId := GetRecordingAssignmentId(recording)
+	if !EmptyStr(assignmentId) {
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
 		}
 		if len(recording) != RECORDING_SIZE+1 {
 			return ErrorAppend(ErrInvalidSize, RECORDING)
@@ -378,16 +378,20 @@ func ValidRecording(recording Data) error {
 	return nil
 }
 
-func NewRelease(licenseId, recordingId string, rightIds []string) Data {
+func NewRelease(assignmentIds []string, licenseId, recordingId string) Data {
 	release := Data{
-		"instance":    NewInstance(RELEASE),
-		"recordingId": recordingId,
-		"rightIds":    rightIds,
+		"assignmentIds": assignmentIds,
+		"instance":      NewInstance(RELEASE),
+		"recordingId":   recordingId,
 	}
 	if licenseId != "" {
 		release.Set("licenseId", licenseId)
 	}
 	return release
+}
+
+func GetReleaseAssignmentIds(release Data) []string {
+	return release.GetStrSlice("assignmentIds")
 }
 
 func GetReleaseLicenseId(release Data) string {
@@ -396,10 +400,6 @@ func GetReleaseLicenseId(release Data) string {
 
 func GetReleaseRecordingId(release Data) string {
 	return release.GetStr("recordingId")
-}
-
-func GetRecordingRightIds(release Data) []string {
-	return release.GetStrSlice("rightIds")
 }
 
 func ValidRelease(release Data) error {
@@ -424,16 +424,16 @@ func ValidRelease(release Data) error {
 		}
 		return nil
 	}
-	rightIds := GetRecordingRightIds(release)
+	assignmentIds := GetReleaseAssignmentIds(release)
 	seen := make(map[string]struct{})
-	for _, rightId := range rightIds {
-		if _, ok := seen[rightId]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
+	for _, assignmentId := range assignmentIds {
+		if _, ok := seen[assignmentId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to assignment")
 		}
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
 		}
-		seen[rightId] = struct{}{}
+		seen[assignmentId] = struct{}{}
 	}
 	if len(release) != RELEASE_SIZE {
 		return ErrorAppend(ErrInvalidSize, RELEASE)
@@ -599,15 +599,15 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, publicationId, releaseId, rightId string, territory []string, _type, validFrom, validTo string) Data {
+func NewLicense(assignmentId, licenseeId, licenserId, publicationId, releaseId string, territory []string, _type, validFrom, validTo string) Data {
 	license := Data{
-		"instance":   NewInstance(_type),
-		"licenseeId": licenseeId,
-		"licenserId": licenserId,
-		"rightId":    rightId,
-		"territory":  territory,
-		"validFrom":  validFrom,
-		"validTo":    validTo,
+		"assignmentId": assignmentId,
+		"instance":     NewInstance(_type),
+		"licenseeId":   licenseeId,
+		"licenserId":   licenserId,
+		"territory":    territory,
+		"validFrom":    validFrom,
+		"validTo":      validTo,
 	}
 	switch _type {
 	case LICENSE_MECHANICAL:
@@ -620,6 +620,10 @@ func NewLicense(licenseeId, licenserId, publicationId, releaseId, rightId string
 	return license
 }
 
+func GetLicenseAssignmentId(license Data) string {
+	return license.GetStr("assignmentId")
+}
+
 func GetLicenseLicenseeId(license Data) string {
 	return license.GetStr("licenseeId")
 }
@@ -630,10 +634,6 @@ func GetLicenseLicenserId(license Data) string {
 
 func GetLicenseReleaseId(license Data) string {
 	return license.GetStr("releaseId")
-}
-
-func GetLicenseRightId(license Data) string {
-	return license.GetStr("rightId")
 }
 
 func GetLicensePublicationId(license Data) string {
@@ -660,6 +660,10 @@ func ValidLicense(license Data) error {
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
+	assignmentId := GetLicenseAssignmentId(license)
+	if !MatchId(assignmentId) {
+		return ErrorAppend(ErrInvalidId, assignmentId)
+	}
 	licenseeId := GetLicenseLicenseeId(license)
 	if !MatchId(licenseeId) {
 		return ErrorAppend(ErrInvalidId, licenseeId)
@@ -667,10 +671,6 @@ func ValidLicense(license Data) error {
 	licenserId := GetLicenseLicenserId(license)
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, licenserId)
-	}
-	rightId := GetLicenseRightId(license)
-	if !MatchId(rightId) {
-		return ErrorAppend(ErrInvalidId, rightId)
 	}
 	seen := make(map[string]struct{})
 	for _, territory := range GetTerritory(license) {
@@ -716,6 +716,10 @@ func NewRecordingRightTransfer(recipientId, releaseId, senderId, txId string) Da
 	return transfer
 }
 
+func GetTransferAssignmentId(transfer Data) string {
+	return transfer.GetStr("assignmentId")
+}
+
 func GetTransferRecipientShares(transfer Data) int {
 	return transfer.GetInt("recipientShares")
 }
@@ -734,10 +738,6 @@ func GetTransferRecipientId(transfer Data) string {
 
 func GetTransferReleaseId(transfer Data) string {
 	return transfer.GetStr("releaseId")
-}
-
-func GetTransferRightId(transfer Data) string {
-	return transfer.GetStr("rightId")
 }
 
 func GetTransferSenderId(transfer Data) string {

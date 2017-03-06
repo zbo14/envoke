@@ -442,21 +442,17 @@ func ValidRelease(release Data) error {
 }
 
 // Assignment
-func NewAssignment(holderId, issuerId, rightId string) Data {
+func NewAssignment(holderId, rightId, signerId string) Data {
 	return Data{
 		"holderId": holderId,
 		"instance": NewInstance(ASSIGNMENT),
-		"issuerId": issuerId,
 		"rightId":  rightId,
+		"signerId": signerId,
 	}
 }
 
 func GetAssignmentHolderId(assignment Data) string {
 	return assignment.GetStr("holderId")
-}
-
-func GetAssignmentIssuerId(assignment Data) string {
-	return assignment.GetStr("issuerId")
 }
 
 func GetAssignmentRight(assignment Data) Data {
@@ -465,6 +461,10 @@ func GetAssignmentRight(assignment Data) Data {
 
 func GetAssignmentRightId(assignment Data) string {
 	return assignment.GetStr("rightId")
+}
+
+func GetAssignmentSignerId(assignment Data) string {
+	return assignment.GetStr("signerId")
 }
 
 func ValidAssignment(assignment Data) error {
@@ -479,13 +479,13 @@ func ValidAssignment(assignment Data) error {
 	if !MatchId(holderId) {
 		return ErrorAppend(ErrInvalidId, holderId)
 	}
-	issuerId := GetAssignmentIssuerId(assignment)
-	if !MatchId(issuerId) {
-		return ErrorAppend(ErrInvalidId, issuerId)
-	}
 	rightId := GetAssignmentRightId(assignment)
 	if !MatchId(rightId) {
 		return ErrorAppend(ErrInvalidId, rightId)
+	}
+	signerId := GetAssignmentSignerId(assignment)
+	if !MatchId(signerId) {
+		return ErrorAppend(ErrInvalidId, signerId)
 	}
 	if len(assignment) != ASSIGNMENT_SIZE {
 		return ErrorAppend(ErrInvalidSize, ASSIGNMENT)

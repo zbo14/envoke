@@ -460,8 +460,7 @@ func (api *Api) Record(assignmentId string, file io.Reader, isrc, labelId, perfo
 
 func (api *Api) Publish(assignmentIds []string, compositionId string) (Data, error) {
 	publication := spec.NewPublication(assignmentIds, compositionId)
-	if err := ld.ValidatePublication(publication, api.pub); err != nil {
-		panic(err)
+	if _, err := ld.ValidatePublication(publication, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
@@ -479,7 +478,7 @@ func (api *Api) Publish(assignmentIds []string, compositionId string) (Data, err
 
 func (api *Api) Release(assignmentIds []string, licenseId, recordingId string) (Data, error) {
 	release := spec.NewRelease(assignmentIds, licenseId, recordingId)
-	if err := ld.ValidateRelease(release, api.pub); err != nil {
+	if _, err := ld.ValidateRelease(release, api.pub); err != nil {
 		return nil, err
 	}
 	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
@@ -508,8 +507,8 @@ func (api *Api) PublicationAssignment(compositionId, holderId string, percentage
 	if err != nil {
 		return nil, err
 	}
-	assignment := spec.NewAssignment(holderId, api.agentId, rightId)
-	if err := ld.ValidatePublicationAssignment(assignment); err != nil {
+	assignment := spec.NewAssignment(holderId, rightId, api.agentId)
+	if err = ld.ValidatePublicationAssignment(assignment, api.pub); err != nil {
 		return nil, err
 	}
 	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)
@@ -538,8 +537,8 @@ func (api *Api) ReleaseAssignment(holderId string, percentageShares int, recordi
 	if err != nil {
 		return nil, err
 	}
-	assignment := spec.NewAssignment(holderId, api.agentId, rightId)
-	if err := ld.ValidateReleaseAssignment(assignment); err != nil {
+	assignment := spec.NewAssignment(holderId, rightId, api.agentId)
+	if err = ld.ValidateReleaseAssignment(assignment, api.pub); err != nil {
 		return nil, err
 	}
 	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)

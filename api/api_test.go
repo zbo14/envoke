@@ -64,13 +64,13 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, composition)
 	compositionId := bigchain.GetId(composition)
-	composerAssignment, err := api.PublicationAssignment(compositionId, composerId, 20, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	composerAssignment, err := api.AssignCompositionRight(compositionId, composerId, 20, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composerAssignment)
 	composerAssignmentId := bigchain.GetId(composerAssignment)
-	publisherAssignment, err := api.PublicationAssignment(compositionId, publisherId, 80, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	publisherAssignment, err := api.AssignCompositionRight(compositionId, publisherId, 80, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,19 +104,19 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, recording)
 	recordingId := bigchain.GetId(recording)
-	performerAssignment, err := api.ReleaseAssignment(performerId, 20, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	performerAssignment, err := api.AssignRecordingRight(performerId, 20, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, performerAssignment)
 	performerAssignmentId := bigchain.GetId(performerAssignment)
-	producerAssignment, err := api.ReleaseAssignment(producerId, 10, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	producerAssignment, err := api.AssignRecordingRight(producerId, 10, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, producerAssignment)
 	producerAssignmentId := bigchain.GetId(producerAssignment)
-	labelAssignment, err := api.ReleaseAssignment(labelId, 70, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	labelAssignment, err := api.AssignRecordingRight(labelId, 70, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}

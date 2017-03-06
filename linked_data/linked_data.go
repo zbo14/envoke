@@ -173,10 +173,10 @@ func ValidatePublication(publication Data, pub crypto.PublicKey) ([]Data, error)
 	totalShares := 0
 	holderIds := make(map[string]struct{})
 	rightIds := make(map[string]struct{})
-	assignmentIds := spec.GetPublicationAssignmentIds(publication)
+	assignmentIds := spec.GetCompositionRightAssignmentIds(publication)
 	assignments := make([]Data, len(assignmentIds))
 	for i, assignmentId := range assignmentIds {
-		assignments[i], err = ValidatePublicationAssignmentById(assignmentId)
+		assignments[i], err = ValidateCompositionRightAssignmentById(assignmentId)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +316,7 @@ func ValidateRecording(recording Data, pub crypto.PublicKey) (string, error) {
 	assignmentId := spec.GetRecordingAssignmentId(recording)
 	if !EmptyStr(assignmentId) {
 		holder := false
-		assignmentIds := spec.GetPublicationAssignmentIds(publication)
+		assignmentIds := spec.GetCompositionRightAssignmentIds(publication)
 		for i := range assignmentIds {
 			if assignmentId == assignmentIds[i] {
 				if signerId != spec.GetAssignmentHolderId(assignments[i]) {
@@ -427,10 +427,10 @@ func ValidateRelease(release Data, pub crypto.PublicKey) ([]Data, error) {
 	totalShares := 0
 	holderIds := make(map[string]struct{})
 	rightIds := make(map[string]struct{})
-	assignmentIds := spec.GetReleaseAssignmentIds(release)
+	assignmentIds := spec.GetRecordingRightAssignmentIds(release)
 	assignments := make([]Data, len(assignmentIds))
 	for i, assignmentId := range assignmentIds {
-		assignments[i], err = ValidateReleaseAssignmentById(assignmentId)
+		assignments[i], err = ValidateRecordingRightAssignmentById(assignmentId)
 		if err != nil {
 			return nil, err
 		}
@@ -766,7 +766,7 @@ func QueryMasterLicenseField(field string, license Data, pub crypto.PublicKey) (
 
 // Assignment
 
-func ValidatePublicationAssignmentById(assignmentId string) (Data, error) {
+func ValidateCompositionRightAssignmentById(assignmentId string) (Data, error) {
 	tx, err := bigchain.GetTx(assignmentId)
 	if err != nil {
 		return nil, err
@@ -776,13 +776,13 @@ func ValidatePublicationAssignmentById(assignmentId string) (Data, error) {
 		return nil, err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
-	if err = ValidatePublicationAssignment(assignment, pub); err != nil {
+	if err = ValidateCompositionRightAssignment(assignment, pub); err != nil {
 		return nil, err
 	}
 	return assignment, nil
 }
 
-func ValidatePublicationAssignment(assignment Data, pub crypto.PublicKey) error {
+func ValidateCompositionRightAssignment(assignment Data, pub crypto.PublicKey) error {
 	signerId := spec.GetAssignmentSignerId(assignment)
 	tx, err := bigchain.GetTx(signerId)
 	if err != nil {
@@ -826,7 +826,7 @@ func ValidatePublicationAssignment(assignment Data, pub crypto.PublicKey) error 
 	return nil
 }
 
-func ValidateReleaseAssignmentById(assignmentId string) (Data, error) {
+func ValidateRecordingRightAssignmentById(assignmentId string) (Data, error) {
 	tx, err := bigchain.GetTx(assignmentId)
 	if err != nil {
 		return nil, err
@@ -836,13 +836,13 @@ func ValidateReleaseAssignmentById(assignmentId string) (Data, error) {
 		return nil, err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
-	if err = ValidateReleaseAssignment(assignment, pub); err != nil {
+	if err = ValidateRecordingRightAssignment(assignment, pub); err != nil {
 		return nil, err
 	}
 	return assignment, nil
 }
 
-func ValidateReleaseAssignment(assignment Data, pub crypto.PublicKey) error {
+func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) error {
 	signerId := spec.GetAssignmentSignerId(assignment)
 	tx, err := bigchain.GetTx(signerId)
 	if err != nil {
@@ -888,7 +888,7 @@ func ValidateReleaseAssignment(assignment Data, pub crypto.PublicKey) error {
 
 // Assignment Holders
 
-func ValidatePublicationAssignmentHolder(assignmentId, holderId, publicationId string) (Data, error) {
+func ValidateCompositionRightAssignmentHolder(assignmentId, holderId, publicationId string) (Data, error) {
 	_, assignments, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return nil, err
@@ -904,7 +904,7 @@ func ValidatePublicationAssignmentHolder(assignmentId, holderId, publicationId s
 	return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 }
 
-func ValidateReleaseAssignmentHolder(assignmentId, holderId, releaseId string) (Data, error) {
+func ValidateRecordingRightAssignmentHolder(assignmentId, holderId, releaseId string) (Data, error) {
 	_, assignments, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return nil, err

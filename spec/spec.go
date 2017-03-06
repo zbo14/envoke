@@ -256,7 +256,7 @@ func NewPublication(assignmentIds []string, compositionId string) Data {
 	}
 }
 
-func GetPublicationAssignmentIds(publication Data) []string {
+func GetCompositionRightAssignmentIds(publication Data) []string {
 	return publication.GetStrSlice("assignmentIds")
 }
 
@@ -272,7 +272,7 @@ func ValidPublication(publication Data) error {
 	if !HasType(publication, PUBLICATION) {
 		return ErrorAppend(ErrInvalidType, GetType(publication))
 	}
-	assignmentIds := GetPublicationAssignmentIds(publication)
+	assignmentIds := GetCompositionRightAssignmentIds(publication)
 	seen := make(map[string]struct{})
 	for _, assignmentId := range assignmentIds {
 		if _, ok := seen[assignmentId]; ok {
@@ -390,7 +390,7 @@ func NewRelease(assignmentIds []string, licenseId, recordingId string) Data {
 	return release
 }
 
-func GetReleaseAssignmentIds(release Data) []string {
+func GetRecordingRightAssignmentIds(release Data) []string {
 	return release.GetStrSlice("assignmentIds")
 }
 
@@ -424,7 +424,7 @@ func ValidRelease(release Data) error {
 		}
 		return nil
 	}
-	assignmentIds := GetReleaseAssignmentIds(release)
+	assignmentIds := GetRecordingRightAssignmentIds(release)
 	seen := make(map[string]struct{})
 	for _, assignmentId := range assignmentIds {
 		if _, ok := seen[assignmentId]; ok {
@@ -560,7 +560,7 @@ func ValidRight(right Data) error {
 	}
 	validFrom := GetValidFrom(right)
 	validTo := GetValidTo(right)
-	if !validFrom.Before(validTo) {
+	if validFrom.After(validTo) {
 		return ErrorAppend(ErrInvalidTime, "range")
 	}
 	if validTo.Before(Now()) {

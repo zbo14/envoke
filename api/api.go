@@ -32,7 +32,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/compose", api.ComposeHandler)
 	mux.HandleFunc("/record", api.RecordHandler)
-	mux.HandleFunc("/assignment", api.AssignmentHandler)
+	mux.HandleFunc("/assign", api.AssignHandler)
 	mux.HandleFunc("/publish", api.PublishHandler)
 	mux.HandleFunc("/release", api.ReleaseHandler)
 	mux.HandleFunc("/license", api.LicenseHandler)
@@ -81,7 +81,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, msg)
 }
 
-func (api *Api) AssignmentHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) AssignHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -105,9 +105,9 @@ func (api *Api) AssignmentHandler(w http.ResponseWriter, req *http.Request) {
 	validTo := values.Get("validTo")
 	switch {
 	case !EmptyStr(compositionId):
-		right, err = api.PublicationAssignment(compositionId, holderId, percentageShares, territory, validFrom, validTo)
+		right, err = api.AssignCompositionRight(compositionId, holderId, percentageShares, territory, validFrom, validTo)
 	case !EmptyStr(recordingId):
-		right, err = api.ReleaseAssignment(holderId, percentageShares, recordingId, territory, validFrom, validTo)
+		right, err = api.AssignRecordingRight(holderId, percentageShares, recordingId, territory, validFrom, validTo)
 	default:
 		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
 		return
@@ -369,7 +369,6 @@ func (api *Api) LoggedIn() bool {
 func (api *Api) Login(agentId, privstr string) error {
 	priv := new(ed25519.PrivateKey)
 	if err := priv.FromString(privstr); err != nil {
-		Println(priv)
 		return err
 	}
 	tx, err := bigchain.GetTx(agentId)
@@ -494,7 +493,7 @@ func (api *Api) Release(assignmentIds []string, licenseId, recordingId string) (
 	}, nil
 }
 
-func (api *Api) PublicationAssignment(compositionId, holderId string, percentageShares int, territory []string, validFrom, validTo string) (Data, error) {
+func (api *Api) AssignCompositionRight(compositionId, holderId string, percentageShares int, territory []string, validFrom, validTo string) (Data, error) {
 	tx, err := bigchain.GetTx(holderId)
 	if err != nil {
 		return nil, err
@@ -508,7 +507,7 @@ func (api *Api) PublicationAssignment(compositionId, holderId string, percentage
 		return nil, err
 	}
 	assignment := spec.NewAssignment(holderId, rightId, api.agentId)
-	if err = ld.ValidatePublicationAssignment(assignment, api.pub); err != nil {
+	if err = ld.ValidateCompositionRightAssignment(assignment, api.pub); err != nil {
 		return nil, err
 	}
 	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)
@@ -517,14 +516,14 @@ func (api *Api) PublicationAssignment(compositionId, holderId string, percentage
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS created publication assignment")
+	api.logger.Info("SUCCESS sent tx with composition right assignment")
 	return Data{
 		"id": id,
 		"publicationAssignment": assignment,
 	}, nil
 }
 
-func (api *Api) ReleaseAssignment(holderId string, percentageShares int, recordingId string, territory []string, validFrom, validTo string) (Data, error) {
+func (api *Api) AssignRecordingRight(holderId string, percentageShares int, recordingId string, territory []string, validFrom, validTo string) (Data, error) {
 	tx, err := bigchain.GetTx(holderId)
 	if err != nil {
 		return nil, err
@@ -538,7 +537,7 @@ func (api *Api) ReleaseAssignment(holderId string, percentageShares int, recordi
 		return nil, err
 	}
 	assignment := spec.NewAssignment(holderId, rightId, api.agentId)
-	if err = ld.ValidateReleaseAssignment(assignment, api.pub); err != nil {
+	if err = ld.ValidateRecordingRightAssignment(assignment, api.pub); err != nil {
 		return nil, err
 	}
 	tx = bigchain.DefaultIndividualCreateTx(assignment, api.pub)
@@ -547,7 +546,7 @@ func (api *Api) ReleaseAssignment(holderId string, percentageShares int, recordi
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS created release assignment")
+	api.logger.Info("SUCCESS sent tx with recording right assignment")
 	return Data{
 		"id":                id,
 		"releaseAssignment": assignment,
@@ -615,7 +614,7 @@ func (api *Api) TransferCompositionRight(assignmentId, publicationId, recipientI
 		rightId = spec.GetAssignmentRightId(assignment)
 		txId = spec.GetTransferTxId(transfer)
 	} else {
-		assignment, err := ld.ValidatePublicationAssignmentHolder(assignmentId, api.agentId, publicationId)
+		assignment, err := ld.ValidateCompositionRightAssignmentHolder(assignmentId, api.agentId, publicationId)
 		if err != nil {
 			return nil, err
 		}
@@ -682,7 +681,7 @@ func (api *Api) TransferRecordingRight(assignmentId, recipientId string, recipie
 		rightId = spec.GetAssignmentRightId(assignment)
 		txId = spec.GetTransferTxId(transfer)
 	} else {
-		assignment, err := ld.ValidateReleaseAssignmentHolder(assignmentId, api.agentId, releaseId)
+		assignment, err := ld.ValidateRecordingRightAssignmentHolder(assignmentId, api.agentId, releaseId)
 		if err != nil {
 			return nil, err
 		}

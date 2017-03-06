@@ -9,13 +9,13 @@
     <input type="text" name="iswc" placeholder="ISWC CODE" required />
     <input type="text" name="publisherId" placeholder="PUBLISHER ID" required />
     <input type="text" name="title" placeholder="TITLE" required />
-    <input type="submit" value="compose" />
+    <input type="submit" value="COMPOSE" />
 </form>
 <form id="publish-form" name="publish-form">
     <header>PUBLISH</header>
-    <input type="text" name="assignmentIds" placeholder="ASSIGNMENT IDs" required />
+    <input type="text" name="assignmentIds" placeholder="RIGHT ASSIGNMENT IDs" required />
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
-    <input type="submit" value="publish" />
+    <input type="submit" value="PUBLISH" />
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">
     <header>PUBLICATION</header>
@@ -23,13 +23,14 @@
     <label>FIELD</label>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
+        <option value="assignments">RIGHT ASSIGNMENTS</option>
         <option value="composer">COMPOSER</option>
         <option value="composition">COMPOSITION</option>
         <option value="publisher">PUBLISHER</option>
-        <option value="rights">RIGHTS</option>
     </select><br><br>
-    <input type="submit" value="search" />
+    <input type="submit" value="SEARCH" />
 </form>
+<br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
 

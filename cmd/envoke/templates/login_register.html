@@ -7,7 +7,7 @@
   <header>LOGIN</header>
   <input type="text" name="agentId" placeholder="AGENT ID" required />
   <input type="password" name="privateKey" placeholder="PRIVATE KEY" required />
-  <input type="submit" value="login" />
+  <input type="submit" value="LOGIN" />
 </form>
 <form id="register-form">
   <header>REGISTER</header>
@@ -15,7 +15,7 @@
   <input type="text" name="email" placeholder="EMAIL" required />
   <input type="text" name="socialMedia" placeholder="SOCIAL MEDIA" required />
   <input type="password" name="password" placeholder="PASSWORD" required />
-  <input type="submit" value="register"/>
+  <input type="submit" value="REGISTER"/>
 </form>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
@@ -52,7 +52,7 @@ window.onload = function(){
     loginForm.submit(function(event) {
         event.preventDefault();
         var formData = loginForm.serialize();
-        httpPostAsync("http://localhost:8888/login", formData, callback);
+        httpPostAsync("http://localhost:8888/login", formData, redirect);
     });
 
     var registerForm = $("#register-form");

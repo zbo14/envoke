@@ -30,11 +30,14 @@ func ValidateModel(model Data, pub crypto.PublicKey) error {
 	case spec.COMPOSITION:
 		return ValidateComposition(model, pub)
 	case spec.RECORDING:
-		return ValidateRecording(model, pub)
+		_, err := ValidateRecording(model, pub)
+		return err
 	case spec.PUBLICATION:
-		return ValidatePublication(model, pub)
+		_, err := ValidatePublication(model, pub)
+		return err
 	case spec.RELEASE:
-		return ValidateRelease(model, pub)
+		_, err := ValidateRelease(model, pub)
+		return err
 	case spec.LICENSE_MECHANICAL:
 		return ValidateMechanicalLicense(model, pub)
 	case spec.LICENSE_MASTER:
@@ -76,20 +79,20 @@ func QueryModelField(field string, model Data, pub crypto.PublicKey) (interface{
 
 // Composition
 
-func ValidateCompositionById(compositionId string) (Data, crypto.PublicKey, error) {
+func ValidateCompositionById(compositionId string) (Data, error) {
 	tx, err := bigchain.GetTx(compositionId)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	composition := bigchain.GetTxData(tx)
 	if err = spec.ValidComposition(composition); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
 	if err = ValidateComposition(composition, pub); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return composition, pub, nil
+	return composition, nil
 }
 
 func ValidateComposition(composition Data, pub crypto.PublicKey) error {
@@ -135,78 +138,88 @@ func GetCompositionPublisher(composition Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func ValidatePublicationById(publicationId string) (Data, error) {
+func ValidatePublicationById(publicationId string) (Data, []Data, error) {
 	tx, err := bigchain.GetTx(publicationId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	publication := bigchain.GetTxData(tx)
 	if err = spec.ValidPublication(publication); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
-	if err = ValidatePublication(publication, pub); err != nil {
-		return nil, err
+	assignments, err := ValidatePublication(publication, pub)
+	if err != nil {
+		return nil, nil, err
 	}
-	return publication, nil
+	return publication, assignments, nil
 }
 
-func ValidatePublication(publication Data, pub crypto.PublicKey) error {
+func ValidatePublication(publication Data, pub crypto.PublicKey) ([]Data, error) {
 	compositionId := spec.GetPublicationCompositionId(publication)
-	composition, composerPub, err := ValidateCompositionById(compositionId)
+	composition, err := ValidateCompositionById(compositionId)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	composerId := spec.GetCompositionComposerId(composition)
 	publisherId := spec.GetCompositionPublisherId(composition)
 	tx, err := bigchain.GetTx(publisherId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-		return ErrorAppend(ErrCriteriaNotMet, "publication must be signed by publisher")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "publication must be signed by publisher")
 	}
 	totalShares := 0
-	rightHolders := make(map[string]struct{})
-	rightIds := spec.GetCompositionRightIds(publication)
-	for _, rightId := range rightIds {
-		tx, err = bigchain.GetTx(rightId)
+	holderIds := make(map[string]struct{})
+	rightIds := make(map[string]struct{})
+	assignmentIds := spec.GetCompositionRightAssignmentIds(publication)
+	assignments := make([]Data, len(assignmentIds))
+	for i, assignmentId := range assignmentIds {
+		assignments[i], err = ValidateCompositionRightAssignmentById(assignmentId)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		right := bigchain.GetTxData(tx)
-		if err = spec.ValidCompositionRight(right); err != nil {
-			return err
-		}
+		right := spec.GetAssignmentRight(assignments[i])
 		if compositionId != spec.GetRightCompositionId(right) {
-			return ErrorAppend(ErrInvalidId, "wrong compositionId")
+			return nil, ErrorAppend(ErrInvalidId, "right has wrong compositionId")
 		}
-		if !composerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-			return ErrorAppend(ErrCriteriaNotMet, "composition right must be signed by composer signer")
+		if composerId != spec.GetAssignmentSignerId(assignments[i]) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "composer must be assignment signer")
 		}
-		holderPub := bigchain.DefaultGetTxRecipient(tx)
-		if _, ok := rightHolders[holderPub.String()]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "right-holder cannot have multiple rights to composition")
+		holderId := spec.GetAssignmentHolderId(assignments[i])
+		if _, ok := holderIds[holderId]; ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "holder cannot have multiple assignments")
 		}
-		rightHolders[holderPub.String()] = struct{}{}
-		shares := bigchain.GetTxShares(tx)
+		holderIds[holderId] = struct{}{}
+		rightId := spec.GetAssignmentRightId(assignments[i])
+		if _, ok := rightIds[rightId]; ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "multiple assignments link to same right")
+		}
+		rightIds[rightId] = struct{}{}
+		shares := spec.GetRightPercentageShares(right)
 		if shares <= 0 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
 		}
 		if totalShares += shares; totalShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
+		assignments[i].Set("id", assignmentId)
 	}
 	if totalShares != 100 {
-		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
-	return nil
+	return assignments, nil
 }
 
 func QueryPublicationField(field string, publication Data, pub crypto.PublicKey) (interface{}, error) {
-	if err := ValidatePublication(publication, pub); err != nil {
+	assignments, err := ValidatePublication(publication, pub)
+	if err != nil {
 		return nil, err
 	}
 	switch field {
+	case "assignments":
+		return assignments, nil
 	case "composer":
 		composition, err := GetPublicationComposition(publication)
 		if err != nil {
@@ -221,8 +234,6 @@ func QueryPublicationField(field string, publication Data, pub crypto.PublicKey)
 			return nil, err
 		}
 		return GetCompositionPublisher(composition)
-	case "rights":
-		return GetPublicationRights(publication)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
@@ -237,107 +248,94 @@ func GetPublicationComposition(publication Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetPublicationRights(publication Data) ([]Data, error) {
-	rightIds := spec.GetCompositionRightIds(publication)
-	rights := make([]Data, len(rightIds))
-	for i, rightId := range rightIds {
-		tx, err := bigchain.GetTx(rightId)
-		if err != nil {
-			return nil, err
-		}
-		rights[i] = bigchain.GetTxData(tx)
-	}
-	return rights, nil
-}
-
 // Recording
 
-func ValidateRecordingById(recordingId string) (Data, crypto.PublicKey, error) {
+func ValidateRecordingById(recordingId string) (Data, string, error) {
 	tx, err := bigchain.GetTx(recordingId)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	recording := bigchain.GetTxData(tx)
 	if err := spec.ValidRecording(recording); err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
-	if err := ValidateRecording(recording, pub); err != nil {
-		return nil, nil, err
+	signerId, err := ValidateRecording(recording, pub)
+	if err != nil {
+		return nil, "", err
 	}
-	return recording, pub, nil
+	return recording, signerId, nil
 }
 
-func ValidateRecording(recording Data, pub crypto.PublicKey) error {
+func ValidateRecording(recording Data, pub crypto.PublicKey) (string, error) {
 	labelId := spec.GetRecordingLabelId(recording)
 	tx, err := bigchain.GetTx(labelId)
 	if err != nil {
-		return err
+		return "", err
 	}
 	label := bigchain.GetTxData(tx)
 	if err = spec.ValidAgent(label); err != nil {
-		return err
+		return "", err
 	}
 	performerId := spec.GetRecordingPerformerId(recording)
 	tx, err = bigchain.GetTx(performerId)
 	if err != nil {
-		return err
+		return "", err
 	}
 	performer := bigchain.GetTxData(tx)
 	if err = spec.ValidAgent(performer); err != nil {
-		return err
+		return "", err
 	}
-	signed := false
+	var signed bool
+	var signerId string
 	if pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		signed = true
+		signerId = performerId
 	}
 	producerId := spec.GetRecordingProducerId(recording)
 	tx, err = bigchain.GetTx(producerId)
 	if err != nil {
-		return err
+		return "", err
 	}
 	producer := bigchain.GetTxData(tx)
 	if err = spec.ValidAgent(producer); err != nil {
-		return err
+		return "", err
 	}
 	if !signed && pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		signed = true
+		signerId = producerId
 	}
 	if !signed {
-		return ErrorAppend(ErrCriteriaNotMet, "recording must be signed by performer or producer")
+		return "", ErrorAppend(ErrCriteriaNotMet, "recording must be signed by performer or producer")
 	}
 	publicationId := spec.GetRecordingPublicationId(recording)
-	publication, err := ValidatePublicationById(publicationId)
+	publication, assignments, err := ValidatePublicationById(publicationId)
 	if err != nil {
-		return err
+		return "", err
 	}
-	rightId := spec.GetRecordingCompositionRightId(recording)
-	if !EmptyStr(rightId) {
-		rightHolder := false
-		rightIds := spec.GetCompositionRightIds(publication)
-		for i := range rightIds {
-			if rightId == rightIds[i] {
-				tx, err = bigchain.GetTx(rightId)
-				if err != nil {
-					return err
+	assignmentId := spec.GetRecordingAssignmentId(recording)
+	if !EmptyStr(assignmentId) {
+		holder := false
+		assignmentIds := spec.GetCompositionRightAssignmentIds(publication)
+		for i := range assignmentIds {
+			if assignmentId == assignmentIds[i] {
+				if signerId != spec.GetAssignmentHolderId(assignments[i]) {
+					return "", ErrorAppend(ErrCriteriaNotMet, "signer referenced assignment but is not holder")
 				}
-				if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-					return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not right-holder")
-				}
-				rightHolder = true
+				holder = true
 				break
 			}
 		}
-		if !rightHolder {
-			return ErrorAppend(ErrCriteriaNotMet, "signer referenced composition right but is not right-holder")
+		if !holder {
+			return "", ErrorAppend(ErrCriteriaNotMet, "signer referenced assignment but is not holder")
 		}
 	}
-	return nil
+	return signerId, nil
 }
 
-func GetRecordingCompositionRight(recording Data) (Data, error) {
-	compositionRightId := spec.GetRecordingCompositionRightId(recording)
-	tx, err := bigchain.GetTx(compositionRightId)
+func GetRecordingAssignment(recording Data) (Data, error) {
+	assignmentId := spec.GetRecordingAssignmentId(recording)
+	tx, err := bigchain.GetTx(assignmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -380,99 +378,108 @@ func GetRecordingPublication(recording Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func ValidateReleaseById(releaseId string) (Data, error) {
+func ValidateReleaseById(releaseId string) (Data, []Data, error) {
 	tx, err := bigchain.GetTx(releaseId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	release := bigchain.GetTxData(tx)
 	if err = spec.ValidRelease(release); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pub := bigchain.DefaultGetTxSigner(tx)
-	if err = ValidateRelease(release, pub); err != nil {
-		return nil, err
+	assignments, err := ValidateRelease(release, pub)
+	if err != nil {
+		return nil, nil, err
 	}
-	return release, nil
+	return release, assignments, nil
 }
 
-func ValidateRelease(release Data, pub crypto.PublicKey) error {
+func ValidateRelease(release Data, pub crypto.PublicKey) ([]Data, error) {
 	recordingId := spec.GetReleaseRecordingId(release)
-	recording, recorderPub, err := ValidateRecordingById(recordingId)
+	recording, signerId, err := ValidateRecordingById(recordingId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	labelId := spec.GetRecordingLabelId(recording)
 	tx, err := bigchain.GetTx(labelId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-		return ErrorAppend(ErrCriteriaNotMet, "release must be signed by record label")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "release must be signed by record label")
 	}
 	publicationId := spec.GetRecordingPublicationId(recording)
-	rightId := spec.GetRecordingCompositionRightId(recording)
-	if EmptyStr(rightId) {
+	assignmentId := spec.GetRecordingAssignmentId(recording)
+	if EmptyStr(assignmentId) {
 		licenseId := spec.GetReleaseLicenseId(release)
 		license, err := ValidateMechanicalLicenseById(licenseId)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if publicationId != spec.GetLicensePublicationId(license) {
-			return ErrorAppend(ErrCriteriaNotMet, "wrong mechanical license")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "wrong mechanical license")
 		}
 		if labelId != spec.GetLicenseLicenseeId(license) {
-			return ErrorAppend(ErrCriteriaNotMet, "label is not licensee of mechanical license")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "label is not licensee of mechanical license")
 		}
 	}
 	totalShares := 0
-	rightHolders := make(map[string]struct{})
-	rightIds := spec.GetRecordingRightIds(release)
-	for _, rightId := range rightIds {
-		tx, err = bigchain.GetTx(rightId)
+	holderIds := make(map[string]struct{})
+	rightIds := make(map[string]struct{})
+	assignmentIds := spec.GetRecordingRightAssignmentIds(release)
+	assignments := make([]Data, len(assignmentIds))
+	for i, assignmentId := range assignmentIds {
+		assignments[i], err = ValidateRecordingRightAssignmentById(assignmentId)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		right := bigchain.GetTxData(tx)
-		if err = spec.ValidRecordingRight(right); err != nil {
-			return err
-		}
+		right := spec.GetAssignmentRight(assignments[i])
 		if recordingId != spec.GetRightRecordingId(right) {
-			return ErrorAppend(ErrInvalidId, "wrong recordingId")
+			return nil, ErrorAppend(ErrInvalidId, "right has wrong recordingId")
 		}
-		if !recorderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-			return ErrorAppend(ErrCriteriaNotMet, "recording right must be signed by recording signer")
+		if signerId != spec.GetAssignmentSignerId(assignments[i]) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "recording signer must be assignment signer")
 		}
-		holderPub := bigchain.DefaultGetTxRecipient(tx)
-		if _, ok := rightHolders[holderPub.String()]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "rightHolder cannot have multiple rights to recording")
+		holderId := spec.GetAssignmentHolderId(assignments[i])
+		if _, ok := holderIds[holderId]; ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "holder cannot have multiple assignments")
 		}
-		rightHolders[holderPub.String()] = struct{}{}
-		shares := bigchain.GetTxShares(tx)
+		holderIds[holderId] = struct{}{}
+		rightId := spec.GetAssignmentRightId(assignments[i])
+		if _, ok := rightIds[rightId]; ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "multiple assignments link to same right")
+		}
+		rightIds[rightId] = struct{}{}
+		shares := spec.GetRightPercentageShares(right)
 		if shares <= 0 {
-			return ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "percentage shares must be greater than 0")
 		}
 		if totalShares += shares; totalShares > 100 {
-			return ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
+		assignments[i].Set("id", assignmentId)
 	}
 	if totalShares != 100 {
-		return ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
-	return nil
+	return assignments, nil
 }
 
 func QueryReleaseField(field string, release Data, pub crypto.PublicKey) (interface{}, error) {
-	if err := ValidateRelease(release, pub); err != nil {
+	assignments, err := ValidateRelease(release, pub)
+	if err != nil {
 		return nil, err
 	}
 	switch field {
-	case "composition_right":
+	case "assignment":
 		recording, err := GetReleaseRecording(release)
 		if err != nil {
 			return nil, err
 		}
-		return GetRecordingCompositionRight(recording)
+		return GetRecordingAssignment(recording)
+	case "assignments":
+		return assignments, nil
 	case "label":
 		recording, err := GetReleaseRecording(release)
 		if err != nil {
@@ -501,8 +508,6 @@ func QueryReleaseField(field string, release Data, pub crypto.PublicKey) (interf
 		return GetRecordingPublication(recording)
 	case "recording":
 		return GetReleaseRecording(release)
-	case "rights":
-		return GetReleaseRights(release)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
@@ -526,20 +531,16 @@ func GetReleaseRecording(release Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetReleaseRights(release Data) ([]Data, error) {
-	rightIds := spec.GetRecordingRightIds(release)
-	rights := make([]Data, len(rightIds))
-	for i, rightId := range rightIds {
-		tx, err := bigchain.GetTx(rightId)
-		if err != nil {
-			return nil, err
-		}
-		rights[i] = bigchain.GetTxData(tx)
-	}
-	return rights, nil
-}
-
 // License
+
+func GetLicenseAssignment(license Data) (Data, error) {
+	assignmentId := spec.GetLicenseAssignmentId(license)
+	tx, err := bigchain.GetTx(assignmentId)
+	if err != nil {
+		return nil, err
+	}
+	return bigchain.GetTxData(tx), nil
+}
 
 func GetLicenseLicensee(license Data) (Data, error) {
 	licenseeId := spec.GetLicenseLicenseeId(license)
@@ -577,16 +578,7 @@ func GetLicenseRelease(license Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func GetLicenseRight(license Data) (Data, error) {
-	rightId := spec.GetLicenseRightId(license)
-	tx, err := bigchain.GetTx(rightId)
-	if err != nil {
-		return nil, err
-	}
-	return bigchain.GetTxData(tx), nil
-}
-
-// Publishing License
+// Mechanical License
 
 func ValidateMechanicalLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
@@ -618,41 +610,62 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) error {
 		return err
 	}
 	publicationId := spec.GetLicensePublicationId(license)
-	publication, err := ValidatePublicationById(publicationId)
+	_, assignments, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return err
 	}
+	var right Data = nil
 	licenseTerritory := spec.GetTerritory(license)
-	rightHolder := false
-	rightId := spec.GetLicenseRightId(license)
-	rightIds := spec.GetCompositionRightIds(publication)
-	for i := range rightIds {
-		if rightId == rightIds[i] {
-			tx, err := bigchain.GetTx(rightId)
-			if err != nil {
-				return err
-			}
-			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold this composition right")
-			}
-			right := bigchain.GetTxData(tx)
-			rightHolder = true
-			rightTerritory := spec.GetTerritory(right)
-		OUTER:
-			for i := range licenseTerritory {
-				for j := range rightTerritory {
-					if licenseTerritory[i] == rightTerritory[j] {
-						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
-						continue OUTER
-					}
+	assignmentId := spec.GetLicenseAssignmentId(license)
+	if !EmptyStr(assignmentId) {
+		for _, assignment := range assignments {
+			if assignmentId == bigchain.GetId(assignment) {
+				if licenserId != spec.GetAssignmentHolderId(assignment) {
+					return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
 				}
-				return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+				right = spec.GetAssignmentRight(assignment)
+				break
 			}
-			break
+		}
+	} else {
+		transferId := spec.GetLicenseTransferId(license)
+		transfer, err := ValidateCompositionRightTransferById(transferId)
+		if err != nil {
+			return err
+		}
+		if publicationId != spec.GetTransferPublicationId(transfer) {
+			return ErrorAppend(ErrCriteriaNotMet, "transfer does not link to publication")
+		}
+		if licenserId == spec.GetTransferRecipientId(transfer) {
+			//..
+		} else if licenserId == spec.GetTransferSenderId(transfer) {
+			if spec.GetTransferSenderShares(transfer) == 0 {
+				return ErrorAppend(ErrCriteriaNotMet, "licenser does not have sender shares in transfer")
+			}
+		} else {
+			return ErrorAppend(ErrCriteriaNotMet, "licenser is not sender or recipient of transfer")
+		}
+		rightId := spec.GetTransferRightId(transfer)
+		for _, assignment := range assignments {
+			if rightId == spec.GetAssignmentRightId(assignment) {
+				right = spec.GetAssignmentRight(assignment)
+				break
+			}
 		}
 	}
-	if !rightHolder {
-		return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold a composition right")
+	if right == nil {
+		return ErrorAppend(ErrCriteriaNotMet, "could not find underlying composition right")
+	}
+	rightTerritory := spec.GetTerritory(right)
+OUTER:
+	for i := range licenseTerritory {
+		for j := range rightTerritory {
+			if licenseTerritory[i] == rightTerritory[j] {
+				rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+				continue OUTER
+			}
+		}
+		return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
 	}
 	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
@@ -671,20 +684,20 @@ func QueryMechanicalLicenseField(field string, license Data, pub crypto.PublicKe
 		return nil, err
 	}
 	switch field {
+	case "assignment":
+		return GetLicenseAssignment(license)
 	case "licensee":
 		return GetLicenseLicensee(license)
 	case "licenser":
 		return GetLicenseLicenser(license)
 	case "publication":
 		return GetLicensePublication(license)
-	case "right":
-		return GetLicenseRight(license)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
 }
 
-// Release license
+// Master license
 
 func ValidateMasterLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
@@ -716,41 +729,62 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) error {
 		return err
 	}
 	releaseId := spec.GetLicenseReleaseId(license)
-	release, err := ValidateReleaseById(releaseId)
+	_, assignments, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return err
 	}
+	var right Data = nil
 	licenseTerritory := spec.GetTerritory(license)
-	rightHolder := false
-	rightId := spec.GetLicenseRightId(license)
-	rightIds := spec.GetRecordingRightIds(release)
-	for i := range rightIds {
-		if rightId == rightIds[i] {
-			tx, err := bigchain.GetTx(rightId)
-			if err != nil {
-				return err
-			}
-			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold this recording right")
-			}
-			right := bigchain.GetTxData(tx)
-			rightHolder = true
-			rightTerritory := spec.GetTerritory(right)
-		OUTER:
-			for i := range licenseTerritory {
-				for j := range rightTerritory {
-					if licenseTerritory[i] == rightTerritory[j] {
-						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
-						continue OUTER
-					}
+	assignmentId := spec.GetLicenseAssignmentId(license)
+	if !EmptyStr(assignmentId) {
+		for _, assignment := range assignments {
+			if assignmentId == bigchain.GetId(assignment) {
+				if licenserId != spec.GetAssignmentHolderId(assignment) {
+					return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
 				}
-				return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+				right = spec.GetAssignmentRight(assignment)
+				break
 			}
-			break
+		}
+	} else {
+		transferId := spec.GetLicenseTransferId(license)
+		transfer, err := ValidateRecordingRightTransferById(transferId)
+		if err != nil {
+			return err
+		}
+		if releaseId != spec.GetTransferReleaseId(transfer) {
+			return ErrorAppend(ErrCriteriaNotMet, "transfer does not link to release")
+		}
+		if licenserId == spec.GetTransferRecipientId(transfer) {
+			//..
+		} else if licenserId == spec.GetTransferSenderId(transfer) {
+			if spec.GetTransferSenderShares(transfer) == 0 {
+				return ErrorAppend(ErrCriteriaNotMet, "licenser does not have sender shares in transfer")
+			}
+		} else {
+			return ErrorAppend(ErrCriteriaNotMet, "licenser is not sender or recipient of transfer")
+		}
+		rightId := spec.GetTransferRightId(transfer)
+		for _, assignment := range assignments {
+			if rightId == spec.GetAssignmentRightId(assignment) {
+				right = spec.GetAssignmentRight(assignment)
+				break
+			}
 		}
 	}
-	if !rightHolder {
-		return ErrorAppend(ErrCriteriaNotMet, "signer is not a recording right holder")
+	if right == nil {
+		return ErrorAppend(ErrCriteriaNotMet, "could not find underlying recording right")
+	}
+	rightTerritory := spec.GetTerritory(right)
+OUTER:
+	for i := range licenseTerritory {
+		for j := range rightTerritory {
+			if licenseTerritory[i] == rightTerritory[j] {
+				rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+				continue OUTER
+			}
+		}
+		return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
 	}
 	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
@@ -769,14 +803,14 @@ func QueryMasterLicenseField(field string, license Data, pub crypto.PublicKey) (
 		return nil, err
 	}
 	switch field {
+	case "assignment":
+		return GetLicenseAssignment(license)
 	case "licensee":
 		return GetLicenseLicensee(license)
 	case "licenser":
 		return GetLicenseLicenser(license)
 	case "release":
 		return GetLicenseRelease(license)
-	case "right":
-		return GetLicenseRight(license)
 	default:
 		return nil, ErrorAppend(ErrInvalidField, field)
 	}
@@ -801,8 +835,20 @@ func ValidateCompositionRightAssignmentById(assignmentId string) (Data, error) {
 }
 
 func ValidateCompositionRightAssignment(assignment Data, pub crypto.PublicKey) error {
+	signerId := spec.GetAssignmentSignerId(assignment)
+	tx, err := bigchain.GetTx(signerId)
+	if err != nil {
+		return err
+	}
+	signer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(signer); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrorAppend(ErrCriteriaNotMet, "publication assignment must be signed by composition right signer")
+	}
 	holderId := spec.GetAssignmentHolderId(assignment)
-	tx, err := bigchain.GetTx(holderId)
+	tx, err = bigchain.GetTx(holderId)
 	if err != nil {
 		return err
 	}
@@ -810,19 +856,7 @@ func ValidateCompositionRightAssignment(assignment Data, pub crypto.PublicKey) e
 	if err = spec.ValidAgent(holder); err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-		return ErrInvalidKey
-	}
-	issuerId := spec.GetAssignmentIssuerId(assignment)
-	tx, err = bigchain.GetTx(issuerId)
-	if err != nil {
-		return err
-	}
-	issuer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(issuer); err != nil {
-		return err
-	}
-	issuerPub := bigchain.DefaultGetTxSigner(tx)
+	holderPub := bigchain.DefaultGetTxSigner(tx)
 	rightId := spec.GetAssignmentRightId(assignment)
 	tx, err = bigchain.GetTx(rightId)
 	if err != nil {
@@ -833,10 +867,10 @@ func ValidateCompositionRightAssignment(assignment Data, pub crypto.PublicKey) e
 	if err = spec.ValidCompositionRight(right); err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+	if !holderPub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
 		return ErrInvalidKey
 	}
-	if !issuerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrInvalidKey
 	}
 	right.Set("percentageShares", percentageShares)
@@ -861,8 +895,20 @@ func ValidateRecordingRightAssignmentById(assignmentId string) (Data, error) {
 }
 
 func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) error {
+	signerId := spec.GetAssignmentSignerId(assignment)
+	tx, err := bigchain.GetTx(signerId)
+	if err != nil {
+		return err
+	}
+	signer := bigchain.GetTxData(tx)
+	if err = spec.ValidAgent(signer); err != nil {
+		return err
+	}
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+		return ErrorAppend(ErrCriteriaNotMet, "release assignment must be signed by recording right signer")
+	}
 	holderId := spec.GetAssignmentHolderId(assignment)
-	tx, err := bigchain.GetTx(holderId)
+	tx, err = bigchain.GetTx(holderId)
 	if err != nil {
 		return err
 	}
@@ -870,19 +916,7 @@ func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) err
 	if err = spec.ValidAgent(holder); err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
-		return ErrInvalidKey
-	}
-	issuerId := spec.GetAssignmentIssuerId(assignment)
-	tx, err = bigchain.GetTx(issuerId)
-	if err != nil {
-		return err
-	}
-	issuer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(issuer); err != nil {
-		return err
-	}
-	issuerPub := bigchain.DefaultGetTxSigner(tx)
+	holderPub := bigchain.DefaultGetTxSigner(tx)
 	rightId := spec.GetAssignmentRightId(assignment)
 	tx, err = bigchain.GetTx(rightId)
 	if err != nil {
@@ -893,10 +927,10 @@ func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) err
 	if err = spec.ValidRecordingRight(right); err != nil {
 		return err
 	}
-	if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
+	if !holderPub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
 		return ErrInvalidKey
 	}
-	if !issuerPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+	if !pub.Equals(bigchain.DefaultGetTxSigner(tx)) {
 		return ErrInvalidKey
 	}
 	right.Set("percentageShares", percentageShares)
@@ -904,58 +938,38 @@ func ValidateRecordingRightAssignment(assignment Data, pub crypto.PublicKey) err
 	return nil
 }
 
-// Right Holders
+// Assignment Holders
 
-func ValidateCompositionRightHolder(pub crypto.PublicKey, publicationId, rightId string) (Data, error) {
-	publication, err := ValidatePublicationById(publicationId)
+func ValidateCompositionRightAssignmentHolder(assignmentId, holderId, publicationId string) (Data, error) {
+	_, assignments, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return nil, err
 	}
-	var right Data = nil
-	for _, id := range spec.GetCompositionRightIds(publication) {
-		if rightId == id {
-			tx, err := bigchain.GetTx(rightId)
-			if err != nil {
-				return nil, err
+	for _, assignment := range assignments {
+		if assignmentId == bigchain.GetId(assignment) {
+			if holderId != spec.GetAssignmentHolderId(assignment) {
+				return nil, ErrorAppend(ErrCriteriaNotMet, "agent does not hold assignment")
 			}
-			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "does not hold composition right")
-			}
-			right = bigchain.GetTxData(tx)
-			right.Set("percentageShares", bigchain.GetTxShares(tx))
-			break
+			return assignment, nil
 		}
 	}
-	if right == nil {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to composition right")
-	}
-	return right, nil
+	return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 }
 
-func ValidateRecordingRightHolder(pub crypto.PublicKey, releaseId, rightId string) (Data, error) {
-	release, err := ValidateReleaseById(releaseId)
+func ValidateRecordingRightAssignmentHolder(assignmentId, holderId, releaseId string) (Data, error) {
+	_, assignments, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return nil, err
 	}
-	var right Data = nil
-	for _, id := range spec.GetRecordingRightIds(release) {
-		if rightId == id {
-			tx, err := bigchain.GetTx(rightId)
-			if err != nil {
-				return nil, err
+	for _, assignment := range assignments {
+		if assignmentId == bigchain.GetId(assignment) {
+			if holderId != spec.GetAssignmentHolderId(assignment) {
+				return nil, ErrorAppend(ErrCriteriaNotMet, "agent does not hold assignment")
 			}
-			if !pub.Equals(bigchain.DefaultGetTxRecipient(tx)) {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "does not hold recording right")
-			}
-			right = bigchain.GetTxData(tx)
-			right.Set("percentageShares", bigchain.GetTxShares(tx))
-			break
+			return assignment, nil
 		}
 	}
-	if right == nil {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
-	}
-	return right, nil
+	return nil, ErrorAppend(ErrCriteriaNotMet, "release does not link to assignment")
 }
 
 // Transfer
@@ -986,7 +1000,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	if err = spec.ValidAgent(recipient); err != nil {
 		return err
 	}
-	holderPub := bigchain.DefaultGetTxSigner(tx)
+	recipientPub := bigchain.DefaultGetTxSigner(tx)
 	senderId := spec.GetTransferSenderId(transfer)
 	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
@@ -997,52 +1011,53 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 		return err
 	}
 	senderPub := bigchain.DefaultGetTxSigner(tx)
-	if holderPub.Equals(senderPub) {
+	if recipientPub.Equals(senderPub) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
 	}
 	publicationId := spec.GetTransferPublicationId(transfer)
-	publication, err := ValidatePublicationById(publicationId)
+	_, assignments, err := ValidatePublicationById(publicationId)
 	if err != nil {
 		return err
 	}
 	txId := spec.GetTransferTxId(transfer)
-	tx, err = bigchain.GetTx(txId)
+	txTransfer, err := bigchain.GetTx(txId)
 	if err != nil {
 		return err
 	}
-	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
+	if bigchain.TRANSFER != bigchain.GetTxOperation(txTransfer) {
+		Println(txTransfer)
 		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
 	}
-	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+	if !senderPub.Equals(bigchain.DefaultGetTxSigner(txTransfer)) {
 		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
 	}
-	n := len(bigchain.GetTxOutputs(tx))
+	n := len(bigchain.GetTxOutputs(txTransfer))
 	if n != 1 && n != 2 {
 		return ErrorAppend(ErrInvalidSize, "tx outputs must have size 1 or 2")
 	}
-	if !holderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+	if !recipientPub.Equals(bigchain.GetTxRecipient(txTransfer, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
 	if n == 2 {
-		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		if !senderPub.Equals(bigchain.GetTxRecipient(txTransfer, 1)) {
 			return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
 		}
 	}
-	rightId := bigchain.GetTxAssetId(tx)
 	found := false
-	for _, id := range spec.GetCompositionRightIds(publication) {
-		if rightId == id {
+	rightId := bigchain.GetTxAssetId(txTransfer)
+	for _, assignment := range assignments {
+		if rightId == spec.GetAssignmentRightId(assignment) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to composition right")
+		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 	}
 	transfer.Set("rightId", rightId)
-	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
+	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(txTransfer, 0))
 	if n == 2 {
-		transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+		transfer.Set("senderShares", bigchain.GetTxOutputAmount(txTransfer, 1))
 	}
 	return nil
 }
@@ -1073,7 +1088,7 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	if err = spec.ValidAgent(recipient); err != nil {
 		return err
 	}
-	holderPub := bigchain.DefaultGetTxSigner(tx)
+	recipientPub := bigchain.DefaultGetTxSigner(tx)
 	senderId := spec.GetTransferSenderId(transfer)
 	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
@@ -1084,52 +1099,52 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 		return err
 	}
 	senderPub := bigchain.DefaultGetTxSigner(tx)
-	if holderPub.Equals(senderPub) {
+	if recipientPub.Equals(senderPub) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient key and sender key must be different")
 	}
 	releaseId := spec.GetTransferReleaseId(transfer)
-	release, err := ValidateReleaseById(releaseId)
+	_, assignments, err := ValidateReleaseById(releaseId)
 	if err != nil {
 		return err
 	}
 	txId := spec.GetTransferTxId(transfer)
-	tx, err = bigchain.GetTx(txId)
+	txTransfer, err := bigchain.GetTx(txId)
 	if err != nil {
 		return err
 	}
-	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
+	if bigchain.TRANSFER != bigchain.GetTxOperation(txTransfer) {
 		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
 	}
-	n := len(bigchain.GetTxOutputs(tx))
+	n := len(bigchain.GetTxOutputs(txTransfer))
 	if n != 1 && n != 2 {
 		return ErrorAppend(ErrInvalidSize, "outputs must have size 1 or 2")
 	}
-	if !senderPub.Equals(bigchain.DefaultGetTxSigner(tx)) {
+	if !senderPub.Equals(bigchain.DefaultGetTxSigner(txTransfer)) {
 		return ErrorAppend(ErrCriteriaNotMet, "sender is not signer of TRANSFER tx")
 	}
-	if !holderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+	if !recipientPub.Equals(bigchain.GetTxRecipient(txTransfer, 0)) {
 		return ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
 	}
 	if n == 2 {
-		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		if !senderPub.Equals(bigchain.GetTxRecipient(txTransfer, 1)) {
 			return ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
 		}
 	}
-	rightId := bigchain.GetTxAssetId(tx)
 	found := false
-	for _, id := range spec.GetRecordingRightIds(release) {
-		if rightId == id {
+	rightId := bigchain.GetTxAssetId(txTransfer)
+	for _, assignment := range assignments {
+		if rightId == spec.GetAssignmentRightId(assignment) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
+		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 	}
 	transfer.Set("rightId", rightId)
-	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(tx, 0))
+	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(txTransfer, 0))
 	if n == 2 {
-		transfer.Set("senderShares", bigchain.GetTxOutputAmount(tx, 1))
+		transfer.Set("senderShares", bigchain.GetTxOutputAmount(txTransfer, 1))
 	}
 	return nil
 }

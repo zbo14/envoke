@@ -58,34 +58,34 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose("B3107S", "T-034.524.680-1", publisherId, "untitled")
+	composition, err := api.Compose("B3107S", "123456789", "T-034.524.680-1", "ASCAP", publisherId, "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composition)
 	compositionId := bigchain.GetId(composition)
-	composerRight, err := api.CompositionRight(compositionId, 20, composerId, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	composerAssignment, err := api.AssignCompositionRight(compositionId, composerId, 20, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, composerRight)
-	composerRightId := bigchain.GetId(composerRight)
-	publisherRight, err := api.CompositionRight(compositionId, 80, publisherId, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	WriteJSON(output, composerAssignment)
+	composerAssignmentId := bigchain.GetId(composerAssignment)
+	publisherAssignment, err := api.AssignCompositionRight(compositionId, publisherId, 80, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, publisherRight)
-	publisherRightId := bigchain.GetId(publisherRight)
+	WriteJSON(output, publisherAssignment)
+	publisherAssignmentId := bigchain.GetId(publisherAssignment)
 	if err = api.Login(publisherId, publisherPriv); err != nil {
 		t.Fatal(err)
 	}
-	publication, err := api.Publish(compositionId, []string{composerRightId, publisherRightId})
+	publication, err := api.Publish([]string{composerAssignmentId, publisherAssignmentId}, compositionId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, publication)
 	publicationId := bigchain.GetId(publication)
-	mechanicalLicense, err := api.MechanicalLicense(labelId, publicationId, publisherRightId, []string{"US"}, "2020-01-01", "2025-01-01")
+	mechanicalLicense, err := api.MechanicalLicense(publisherAssignmentId, labelId, publicationId, []string{"US"}, "", "2020-01-01", "2025-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,34 +104,34 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, recording)
 	recordingId := bigchain.GetId(recording)
-	performerRight, err := api.RecordingRight(20, recordingId, performerId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	performerAssignment, err := api.AssignRecordingRight(performerId, 20, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, performerRight)
-	performerRightId := bigchain.GetId(performerRight)
-	producerRight, err := api.RecordingRight(10, recordingId, producerId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	WriteJSON(output, performerAssignment)
+	performerAssignmentId := bigchain.GetId(performerAssignment)
+	producerAssignment, err := api.AssignRecordingRight(producerId, 10, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, producerRight)
-	producerRightId := bigchain.GetId(producerRight)
-	labelRight, err := api.RecordingRight(70, recordingId, labelId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	WriteJSON(output, producerAssignment)
+	producerAssignmentId := bigchain.GetId(producerAssignment)
+	labelAssignment, err := api.AssignRecordingRight(labelId, 70, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, labelRight)
-	labelRightId := bigchain.GetId(labelRight)
+	WriteJSON(output, labelAssignment)
+	labelAssignmentId := bigchain.GetId(labelAssignment)
 	if err = api.Login(labelId, labelPriv); err != nil {
 		t.Fatal(err)
 	}
-	release, err := api.Release(mechanicalLicenseId, recordingId, []string{labelRightId, performerRightId, producerRightId})
+	release, err := api.Release([]string{labelAssignmentId, performerAssignmentId, producerAssignmentId}, mechanicalLicenseId, recordingId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, release)
 	releaseId := bigchain.GetId(release)
-	masterLicense, err := api.MasterLicense(radioId, releaseId, labelRightId, []string{"US"}, "2020-01-01", "2022-01-01")
+	masterLicense, err := api.MasterLicense(labelAssignmentId, radioId, releaseId, []string{"US"}, "", "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	compositionRightTransfer, err := api.TransferCompositionRight(publicationId, publisherId, 10, composerRightId, "")
+	compositionRightTransfer, err := api.TransferCompositionRight(composerAssignmentId, publicationId, publisherId, 10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,15 +149,16 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv); err != nil {
 		t.Fatal(err)
 	}
-	compositionRightTransfer, err = api.TransferCompositionRight(publicationId, composerId, 5, composerRightId, compositionRightTransferId)
+	compositionRightTransfer, err = api.TransferCompositionRight(composerAssignmentId, publicationId, composerId, 5, compositionRightTransferId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, compositionRightTransfer)
+	compositionRightTransferId = bigchain.GetId(compositionRightTransfer)
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
-	recordingRightTransfer, err := api.TransferRecordingRight(labelId, 10, releaseId, performerRightId, "")
+	recordingRightTransfer, err := api.TransferRecordingRight(performerAssignmentId, labelId, 10, releaseId, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,9 +167,17 @@ func TestApi(t *testing.T) {
 	if err = api.Login(labelId, labelPriv); err != nil {
 		t.Fatal(err)
 	}
-	recordingRightTransfer, err = api.TransferRecordingRight(performerId, 5, releaseId, performerRightId, recordingRightTransferId)
+	recordingRightTransfer, err = api.TransferRecordingRight(performerAssignmentId, performerId, 5, releaseId, recordingRightTransferId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordingRightTransfer)
+	if err = api.Login(composerId, composerPriv); err != nil {
+		t.Fatal(err)
+	}
+	mechanicalLicenseFromTransfer, err := api.MechanicalLicense("", producerId, publicationId, []string{"US"}, compositionRightTransferId, "2020-01-01", "2030-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, mechanicalLicenseFromTransfer)
 }

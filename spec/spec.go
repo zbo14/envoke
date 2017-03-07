@@ -22,43 +22,33 @@ const (
 	// LICENSE_SYNCHRONIZATION
 	// LICENSE_BLANKET
 
-	INSTANCE_SIZE    = 2
-	AGENT_SIZE       = 4
-	COMPOSITION_SIZE = 6
-	RECORDING_SIZE   = 6
-	PUBLICATION_SIZE = 3
-	RELEASE_SIZE     = 3
-	RIGHT_SIZE       = 5
-	LICENSE_SIZE     = 8
-	ASSIGNMENT_SIZE  = 4
-	TRANSFER_SIZE    = 5
+	AGENT_SIZE           = 4
+	ASSIGNMENT_SIZE      = 5
+	INSTANCE_SIZE        = 2
+	MIN_COMPOSITION_SIZE = 4
+	MIN_RECORDING_SIZE   = 5
+	MIN_RELEASE_SIZE     = 3
+	MIN_RIGHT_SIZE       = 4
+	MIN_LICENSE_SIZE     = 7
+	PUBLICATION_SIZE     = 3
+	TRANSFER_SIZE        = 5
 
 	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
 	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
 	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
 	HFA_REGEX             = `^[A-Z0-9]{6}$`
 	ID_REGEX              = `^[A-Fa-f0-9]{64}$` // hex
+	IPI_REGEX             = `^[0-9]{9}$`
 	ISRC_REGEX            = `^[A-Z]{2}-[A-Z0-9]{3}-[7890][0-9]-[0-9]{5}$`
 	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
+	PRO_REGEX             = `^ASCAP|BMI|SESAC$`
 	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
 	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
 	TERRITORY_REGEX       = `^[A-Z]{2}$`
 )
 
-func MatchEmail(email string) bool {
-	return MatchStr(EMAIL_REGEX, email)
-}
-
-func MatchFingerprint(fingerprint string) bool {
-	return MatchStr(FINGERPRINT_URL_REGEX, fingerprint)
-}
-
 func MatchId(id string) bool {
 	return MatchStr(ID_REGEX, id)
-}
-
-func MatchTerritory(territory string) bool {
-	return MatchStr(TERRITORY_REGEX, territory)
 }
 
 // Instance
@@ -114,10 +104,10 @@ func ValidInstance(instance Data) error {
 		PUBLICATION,
 		RELEASE,
 		RIGHT,
+		ASSIGNMENT,
 		LICENSE_MECHANICAL,
 		LICENSE_MASTER,
 		TRANSFER:
-		// ASSIGNMENT
 		//..
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
@@ -164,7 +154,7 @@ func ValidAgent(agent Data) error {
 		return ErrorAppend(ErrInvalidType, GetType(agent))
 	}
 	email := GetAgentEmail(agent)
-	if !MatchEmail(email) {
+	if !MatchStr(EMAIL_REGEX, email) {
 		return ErrorAppend(ErrInvalidEmail, email)
 	}
 	name := GetAgentName(agent)
@@ -183,15 +173,26 @@ func ValidAgent(agent Data) error {
 
 // Composition
 
-func NewComposition(composerId, hfa, iswc, publisherId, title string) Data {
-	return Data{
+func NewComposition(composerId, hfa, ipi, iswc, pro, publisherId, title string) Data {
+	composition := Data{
 		"composerId":  composerId,
-		"hfa":         hfa,
 		"instance":    NewInstance(COMPOSITION),
-		"iswc":        iswc,
 		"publisherId": publisherId,
 		"title":       title,
 	}
+	if !EmptyStr(hfa) {
+		composition.Set("hfa", hfa)
+	}
+	if !EmptyStr(ipi) {
+		composition.Set("ipi", ipi)
+	}
+	if !EmptyStr(iswc) {
+		composition.Set("iswc", iswc)
+	}
+	if !EmptyStr(pro) {
+		composition.Set("pro", pro)
+	}
+	return composition
 }
 
 func GetCompositionComposerId(composition Data) string {
@@ -202,8 +203,16 @@ func GetCompositionHFA(composition Data) string {
 	return composition.GetStr("hfa")
 }
 
+func GetCompositionIPI(composition Data) string {
+	return composition.GetStr("ipi")
+}
+
 func GetCompositionISWC(composition Data) string {
 	return composition.GetStr("iswc")
+}
+
+func GetCompositionPRO(composition Data) string {
+	return composition.GetStr("pro")
 }
 
 func GetCompositionPublisherId(composition Data) string {
@@ -222,17 +231,38 @@ func ValidComposition(composition Data) error {
 	if !HasType(composition, COMPOSITION) {
 		return ErrorAppend(ErrInvalidType, GetType(composition))
 	}
+	size := MIN_COMPOSITION_SIZE
 	composerId := GetCompositionComposerId(composition)
 	if !MatchId(composerId) {
 		return ErrorAppend(ErrInvalidId, composerId)
 	}
 	hfa := GetCompositionHFA(composition)
-	if !MatchStr(HFA_REGEX, hfa) {
-		return Error("Invalid HFA song code")
+	if !EmptyStr(hfa) {
+		if !MatchStr(HFA_REGEX, hfa) {
+			return Error("Invalid HFA song code")
+		}
+		size++
+	}
+	ipi := GetCompositionIPI(composition)
+	if !EmptyStr(ipi) {
+		if !MatchStr(IPI_REGEX, ipi) {
+			return Error("Invalid IPI number")
+		}
+		size++
 	}
 	iswc := GetCompositionISWC(composition)
-	if !MatchStr(ISWC_REGEX, iswc) {
-		return Error("Invalid ISWC code")
+	if !EmptyStr(iswc) {
+		if !MatchStr(ISWC_REGEX, iswc) {
+			return Error("Invalid ISWC code")
+		}
+		size++
+	}
+	pro := GetCompositionPRO(composition)
+	if !EmptyStr(pro) {
+		if !MatchStr(PRO_REGEX, pro) {
+			return Error("Invalid PRO name")
+		}
+		size++
 	}
 	publisherId := GetCompositionPublisherId(composition)
 	if !MatchId(publisherId) {
@@ -242,26 +272,26 @@ func ValidComposition(composition Data) error {
 	if EmptyStr(title) {
 		return ErrEmptyStr
 	}
-	if len(composition) != COMPOSITION_SIZE {
+	if len(composition) != size {
 		return ErrorAppend(ErrInvalidSize, COMPOSITION)
 	}
 	return nil
 }
 
-func NewPublication(compositionId string, rightIds []string) Data {
+func NewPublication(assignmentIds []string, compositionId string) Data {
 	return Data{
+		"assignmentIds": assignmentIds,
 		"compositionId": compositionId,
 		"instance":      NewInstance(PUBLICATION),
-		"rightIds":      rightIds,
 	}
+}
+
+func GetCompositionRightAssignmentIds(publication Data) []string {
+	return publication.GetStrSlice("assignmentIds")
 }
 
 func GetPublicationCompositionId(publication Data) string {
 	return publication.GetStr("compositionId")
-}
-
-func GetCompositionRightIds(publication Data) []string {
-	return publication.GetStrSlice("rightIds")
 }
 
 func ValidPublication(publication Data) error {
@@ -272,20 +302,20 @@ func ValidPublication(publication Data) error {
 	if !HasType(publication, PUBLICATION) {
 		return ErrorAppend(ErrInvalidType, GetType(publication))
 	}
+	assignmentIds := GetCompositionRightAssignmentIds(publication)
+	seen := make(map[string]struct{})
+	for _, assignmentId := range assignmentIds {
+		if _, ok := seen[assignmentId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to assignment")
+		}
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
+		}
+		seen[assignmentId] = struct{}{}
+	}
 	compositionId := GetPublicationCompositionId(publication)
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, compositionId)
-	}
-	rightIds := GetCompositionRightIds(publication)
-	seen := make(map[string]struct{})
-	for _, rightId := range rightIds {
-		if _, ok := seen[rightId]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
-		}
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
-		}
-		seen[rightId] = struct{}{}
 	}
 	if len(publication) != PUBLICATION_SIZE {
 		return ErrorAppend(ErrInvalidSize, PUBLICATION)
@@ -295,23 +325,25 @@ func ValidPublication(publication Data) error {
 
 // Recording
 
-func NewRecording(compositionRightId, isrc, labelId, performerId, producerId, publicationId string) Data {
+func NewRecording(assignmentId, isrc, labelId, performerId, producerId, publicationId string) Data {
 	recording := Data{
 		"instance":      NewInstance(RECORDING),
-		"isrc":          isrc,
 		"labelId":       labelId,
 		"performerId":   performerId,
 		"producerId":    producerId,
 		"publicationId": publicationId,
 	}
-	if !EmptyStr(compositionRightId) {
-		recording.Set("compositionRightId", compositionRightId)
+	if !EmptyStr(assignmentId) {
+		recording.Set("assignmentId", assignmentId)
+	}
+	if !EmptyStr(isrc) {
+		recording.Set("isrc", isrc)
 	}
 	return recording
 }
 
-func GetRecordingCompositionRightId(recording Data) string {
-	return recording.GetStr("compositionRightId")
+func GetRecordingAssignmentId(recording Data) string {
+	return recording.GetStr("assignmentId")
 }
 
 func GetRecordingISRC(recording Data) string {
@@ -342,9 +374,20 @@ func ValidRecording(recording Data) error {
 	if !HasType(recording, RECORDING) {
 		return ErrorAppend(ErrInvalidType, GetType(recording))
 	}
+	size := MIN_RECORDING_SIZE
+	assignmentId := GetRecordingAssignmentId(recording)
+	if !EmptyStr(assignmentId) {
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
+		}
+		size++
+	}
 	isrc := GetRecordingISRC(recording)
-	if !MatchStr(ISRC_REGEX, isrc) {
-		return Error("Invalid ISRC code")
+	if !EmptyStr(isrc) {
+		if !MatchStr(ISRC_REGEX, isrc) {
+			return Error("Invalid ISRC code")
+		}
+		size++
 	}
 	labelId := GetRecordingLabelId(recording)
 	if !MatchId(labelId) {
@@ -362,32 +405,26 @@ func ValidRecording(recording Data) error {
 	if !MatchId(publicationId) {
 		return ErrorAppend(ErrInvalidId, publicationId)
 	}
-	rightId := GetRecordingCompositionRightId(recording)
-	if !EmptyStr(rightId) {
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
-		}
-		if len(recording) != RECORDING_SIZE+1 {
-			return ErrorAppend(ErrInvalidSize, RECORDING)
-		}
-		return nil
-	}
-	if len(recording) != RECORDING_SIZE {
+	if len(recording) != size {
 		return ErrorAppend(ErrInvalidSize, RECORDING)
 	}
 	return nil
 }
 
-func NewRelease(licenseId, recordingId string, rightIds []string) Data {
+func NewRelease(assignmentIds []string, licenseId, recordingId string) Data {
 	release := Data{
-		"instance":    NewInstance(RELEASE),
-		"recordingId": recordingId,
-		"rightIds":    rightIds,
+		"assignmentIds": assignmentIds,
+		"instance":      NewInstance(RELEASE),
+		"recordingId":   recordingId,
 	}
-	if licenseId != "" {
+	if !EmptyStr(licenseId) {
 		release.Set("licenseId", licenseId)
 	}
 	return release
+}
+
+func GetRecordingRightAssignmentIds(release Data) []string {
+	return release.GetStrSlice("assignmentIds")
 }
 
 func GetReleaseLicenseId(release Data) string {
@@ -398,10 +435,6 @@ func GetReleaseRecordingId(release Data) string {
 	return release.GetStr("recordingId")
 }
 
-func GetRecordingRightIds(release Data) []string {
-	return release.GetStrSlice("rightIds")
-}
-
 func ValidRelease(release Data) error {
 	instance := GetInstance(release)
 	if err := ValidInstance(instance); err != nil {
@@ -410,6 +443,7 @@ func ValidRelease(release Data) error {
 	if !HasType(release, RELEASE) {
 		return ErrorAppend(ErrInvalidType, GetType(release))
 	}
+	size := MIN_RELEASE_SIZE
 	recordingId := GetReleaseRecordingId(release)
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, recordingId)
@@ -419,44 +453,37 @@ func ValidRelease(release Data) error {
 		if !MatchId(licenseId) {
 			return ErrorAppend(ErrInvalidId, licenseId)
 		}
-		if len(release) != RELEASE_SIZE+1 {
-			return ErrorAppend(ErrInvalidSize, RELEASE)
-		}
-		return nil
+		size++
 	}
-	rightIds := GetRecordingRightIds(release)
+	assignmentIds := GetRecordingRightAssignmentIds(release)
 	seen := make(map[string]struct{})
-	for _, rightId := range rightIds {
-		if _, ok := seen[rightId]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "multiple references to right")
+	for _, assignmentId := range assignmentIds {
+		if _, ok := seen[assignmentId]; ok {
+			return ErrorAppend(ErrCriteriaNotMet, "multiple references to assignment")
 		}
-		if !MatchId(rightId) {
-			return ErrorAppend(ErrInvalidId, rightId)
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
 		}
-		seen[rightId] = struct{}{}
+		seen[assignmentId] = struct{}{}
 	}
-	if len(release) != RELEASE_SIZE {
+	if len(release) != size {
 		return ErrorAppend(ErrInvalidSize, RELEASE)
 	}
 	return nil
 }
 
 // Assignment
-func NewAssignment(holderId, issuerId, rightId string) Data {
+func NewAssignment(holderId, rightId, signerId string) Data {
 	return Data{
 		"holderId": holderId,
 		"instance": NewInstance(ASSIGNMENT),
-		"issuerId": issuerId,
 		"rightId":  rightId,
+		"signerId": signerId,
 	}
 }
 
 func GetAssignmentHolderId(assignment Data) string {
 	return assignment.GetStr("holderId")
-}
-
-func GetAssignmentIssuerId(assignment Data) string {
-	return assignment.GetStr("issuerId")
 }
 
 func GetAssignmentRight(assignment Data) Data {
@@ -465,6 +492,10 @@ func GetAssignmentRight(assignment Data) Data {
 
 func GetAssignmentRightId(assignment Data) string {
 	return assignment.GetStr("rightId")
+}
+
+func GetAssignmentSignerId(assignment Data) string {
+	return assignment.GetStr("signerId")
 }
 
 func ValidAssignment(assignment Data) error {
@@ -479,16 +510,16 @@ func ValidAssignment(assignment Data) error {
 	if !MatchId(holderId) {
 		return ErrorAppend(ErrInvalidId, holderId)
 	}
-	issuerId := GetAssignmentIssuerId(assignment)
-	if !MatchId(issuerId) {
-		return ErrorAppend(ErrInvalidId, issuerId)
-	}
 	rightId := GetAssignmentRightId(assignment)
 	if !MatchId(rightId) {
 		return ErrorAppend(ErrInvalidId, rightId)
 	}
+	signerId := GetAssignmentSignerId(assignment)
+	if !MatchId(signerId) {
+		return ErrorAppend(ErrInvalidId, signerId)
+	}
 	if len(assignment) != ASSIGNMENT_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, ASSIGNMENT)
 	}
 	return nil
 }
@@ -496,12 +527,15 @@ func ValidAssignment(assignment Data) error {
 // Right
 
 func NewRight(territory []string, validFrom, validTo string) Data {
-	return Data{
+	right := Data{
 		"instance":  NewInstance(RIGHT),
-		"territory": territory,
 		"validFrom": validFrom,
 		"validTo":   validTo,
 	}
+	if territory != nil {
+		right.Set("territory", territory)
+	}
+	return right
 }
 
 func NewCompositionRight(compositionId string, territory []string, validFrom, validTo string) Data {
@@ -540,58 +574,65 @@ func GetValidTo(right Data) time.Time {
 	return MustParseDateStr(right.GetStr("validTo"))
 }
 
-func ValidRight(right Data) error {
+func ValidRight(right Data) (int, error) {
 	instance := GetInstance(right)
 	if err := ValidInstance(instance); err != nil {
-		return err
+		return 0, err
 	}
 	if !HasType(right, RIGHT) {
-		return ErrorAppend(ErrInvalidType, GetType(right))
+		return 0, ErrorAppend(ErrInvalidType, GetType(right))
 	}
-	seen := make(map[string]struct{})
-	for _, territory := range GetTerritory(right) {
-		if !MatchTerritory(territory) {
-			return ErrInvalidTerritory
+	size := MIN_RIGHT_SIZE
+	territory := GetTerritory(right)
+	if territory != nil {
+		seen := make(map[string]struct{})
+		for i := range territory {
+			if !MatchStr(TERRITORY_REGEX, territory[i]) {
+				return 0, ErrInvalidTerritory
+			}
+			if _, ok := seen[territory[i]]; ok {
+				return 0, ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
+			}
+			seen[territory[i]] = struct{}{}
 		}
-		if _, ok := seen[territory]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
-		}
-		seen[territory] = struct{}{}
+		size++
 	}
 	validFrom := GetValidFrom(right)
 	validTo := GetValidTo(right)
-	if !validFrom.Before(validTo) {
-		return ErrorAppend(ErrInvalidTime, "range")
+	if validFrom.After(validTo) {
+		return 0, ErrorAppend(ErrInvalidTime, "range")
 	}
 	if validTo.Before(Now()) {
-		return ErrorAppend(ErrInvalidTime, "expired")
+		return 0, ErrorAppend(ErrInvalidTime, "expired")
 	}
-	return nil
+	return size, nil
 }
 
 func ValidCompositionRight(right Data) error {
-	if err := ValidRight(right); err != nil {
+	size, err := ValidRight(right)
+	if err != nil {
 		return err
 	}
 	compositionId := GetRightCompositionId(right)
 	if !MatchId(compositionId) {
 		return ErrorAppend(ErrInvalidId, "compositionId")
 	}
-	if len(right) != RIGHT_SIZE {
+	if len(right) != size {
 		return ErrorAppend(ErrInvalidSize, RIGHT)
 	}
 	return nil
 }
 
 func ValidRecordingRight(right Data) error {
-	if err := ValidRight(right); err != nil {
+	size, err := ValidRight(right)
+	if err != nil {
 		return err
 	}
 	recordingId := GetRightRecordingId(right)
 	if !MatchId(recordingId) {
 		return ErrorAppend(ErrInvalidId, "recordingId")
 	}
-	if len(right) != RIGHT_SIZE {
+	if len(right) != size {
 		return ErrorAppend(ErrInvalidSize, RIGHT)
 	}
 	return nil
@@ -599,13 +640,11 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(licenseeId, licenserId, publicationId, releaseId, rightId string, territory []string, _type, validFrom, validTo string) Data {
+func NewLicense(assignmentId, licenseeId, licenserId, publicationId, releaseId string, territory []string, transferId, _type, validFrom, validTo string) Data {
 	license := Data{
 		"instance":   NewInstance(_type),
 		"licenseeId": licenseeId,
 		"licenserId": licenserId,
-		"rightId":    rightId,
-		"territory":  territory,
 		"validFrom":  validFrom,
 		"validTo":    validTo,
 	}
@@ -617,7 +656,21 @@ func NewLicense(licenseeId, licenserId, publicationId, releaseId, rightId string
 	default:
 		panic(ErrorAppend(ErrInvalidType, _type))
 	}
+	if !EmptyStr(assignmentId) {
+		license.Set("assignmentId", assignmentId)
+	} else if !EmptyStr(transferId) {
+		license.Set("transferId", transferId)
+	} else {
+		panic("Expected assignmentId or transferId")
+	}
+	if territory != nil {
+		license.Set("territory", territory)
+	}
 	return license
+}
+
+func GetLicenseAssignmentId(license Data) string {
+	return license.GetStr("assignmentId")
 }
 
 func GetLicenseLicenseeId(license Data) string {
@@ -632,12 +685,12 @@ func GetLicenseReleaseId(license Data) string {
 	return license.GetStr("releaseId")
 }
 
-func GetLicenseRightId(license Data) string {
-	return license.GetStr("rightId")
-}
-
 func GetLicensePublicationId(license Data) string {
 	return license.GetStr("publicationId")
+}
+
+func GetLicenseTransferId(license Data) string {
+	return license.GetStr("transferId")
 }
 
 func ValidLicense(license Data) error {
@@ -660,6 +713,18 @@ func ValidLicense(license Data) error {
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
+	size := MIN_LICENSE_SIZE
+	assignmentId := GetLicenseAssignmentId(license)
+	if !EmptyStr(assignmentId) {
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
+		}
+	} else {
+		transferId := GetLicenseTransferId(license)
+		if !MatchId(transferId) {
+			return ErrorAppend(ErrInvalidId, transferId)
+		}
+	}
 	licenseeId := GetLicenseLicenseeId(license)
 	if !MatchId(licenseeId) {
 		return ErrorAppend(ErrInvalidId, licenseeId)
@@ -668,27 +733,27 @@ func ValidLicense(license Data) error {
 	if !MatchId(licenserId) {
 		return ErrorAppend(ErrInvalidId, licenserId)
 	}
-	rightId := GetLicenseRightId(license)
-	if !MatchId(rightId) {
-		return ErrorAppend(ErrInvalidId, rightId)
-	}
-	seen := make(map[string]struct{})
-	for _, territory := range GetTerritory(license) {
-		if !MatchTerritory(territory) {
-			return ErrInvalidTerritory
+	territory := GetTerritory(license)
+	if territory != nil {
+		seen := make(map[string]struct{})
+		for i := range territory {
+			if !MatchStr(TERRITORY_REGEX, territory[i]) {
+				return ErrInvalidTerritory
+			}
+			if _, ok := seen[territory[i]]; ok {
+				return ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
+			}
+			seen[territory[i]] = struct{}{}
 		}
-		if _, ok := seen[territory]; ok {
-			return ErrorAppend(ErrCriteriaNotMet, "territory listed multiple times")
-		}
-		seen[territory] = struct{}{}
+		size++
 	}
 	validFrom := GetValidFrom(license)
 	validTo := GetValidTo(license)
 	if validFrom.After(validTo) {
 		return ErrInvalidTime
 	}
-	if len(license) != LICENSE_SIZE {
-		return ErrInvalidSize
+	if len(license) != size {
+		return ErrorAppend(ErrInvalidSize, "license")
 	}
 	return nil
 }
@@ -714,6 +779,10 @@ func NewRecordingRightTransfer(recipientId, releaseId, senderId, txId string) Da
 	transfer := NewTransfer(recipientId, senderId, txId)
 	transfer.Set("releaseId", releaseId)
 	return transfer
+}
+
+func GetTransferAssignmentId(transfer Data) string {
+	return transfer.GetStr("assignmentId")
 }
 
 func GetTransferRecipientShares(transfer Data) int {
@@ -757,7 +826,7 @@ func ValidCompositionRightTransfer(transfer Data) error {
 		return ErrorAppend(ErrInvalidId, publicationId)
 	}
 	if len(transfer) != TRANSFER_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, TRANSFER)
 	}
 	return nil
 }
@@ -771,7 +840,7 @@ func ValidRecordingRightTransfer(transfer Data) error {
 		return ErrorAppend(ErrInvalidId, releaseId)
 	}
 	if len(transfer) != TRANSFER_SIZE {
-		return ErrInvalidSize
+		return ErrorAppend(ErrInvalidSize, TRANSFER)
 	}
 	return nil
 }

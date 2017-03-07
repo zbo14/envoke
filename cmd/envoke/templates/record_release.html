@@ -6,21 +6,21 @@
 <br><br>
 <form id="record-form" name="record-form" enctype="multipart/form-data">
     <header>RECORD</header>
-    <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" />
-    <input type="text" name="isrc" placeholder="ISRC CODE" required />
+    <input type="text" name="assignmentId" placeholder="COMPOSITION RIGHT ASSIGNMENT ID" />
+    <input type="text" name="isrc" placeholder="ISRC CODE" />
     <input type="text" name="labelId" placeholder="LABEL ID" required />
     <input type="text" name="performerId" placeholder="PERFORMER ID" required />
     <input type="text" name="producerId" placeholder="PRODUCER ID" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
     <input accept="audio" type="file" name="recording" required />
-    <input type="submit" value="submit" />
+    <input type="submit" value="RECORD" />
 </form>
 <form id="release-form" name="release-form">
     <header>RELEASE</header>
-    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" />
+    <input type="text" name="assignmentIds" placeholder="RECORDING RIGHT ASSIGNMENT IDs" required />
+    <input type="text" name="licenseId" placeholder="MECHANICAL LICENSE ID" />
     <input type="text" name="recordingId" placeholder="RECORDING ID" required />
-    <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
-    <input type="submit" value="release" />
+    <input type="submit" value="RELEASE" />
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">
     <header>RELEASE DETAILS</header>
@@ -28,17 +28,18 @@
     <label>FIELD</label>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
-        <option value="composition_right">COMPOSITION RIGHT</option>
+        <option value="assignment">COMPOSITION RIGHT ASSIGNMENT</option>
+        <option value="assignments">RIGHT ASSIGNMENTS</option>
+        <option value="label">RECORD LABEL</option>
         <option value="mechanical_license">MECHANICAL LICENSE</option>
         <option value="performer">PERFORMER</option>
         <option value="producer">PRODUCER</option>
-		<option value="label">RECORD LABEL</option>
         <option value="publication">PUBLICATION</option>
         <option value="recording">RECORDING</option>
-        <option value="rights">RIGHTS</option>
     </select><br><br>
-    <input type="submit" value="search" />
+    <input type="submit" value="SEARCH" />
 </form>
+<br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
 
@@ -85,7 +86,6 @@ window.onload = function() {
  	searchForm.submit(function(event){
    		event.preventDefault();
     	var formData = searchForm.serialize();
-    	formData.set("type", "release");
     	httpPostAsync("http://localhost:8888/search", formData, callback);
   	});
 }

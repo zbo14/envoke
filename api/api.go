@@ -134,10 +134,12 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	hfa := values.Get("hfa")
+	ipi := values.Get("ipi")
 	iswc := values.Get("iswc")
+	pro := values.Get("pro")
 	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	info, err := api.Compose(hfa, iswc, publisherId, title)
+	info, err := api.Compose(hfa, ipi, iswc, pro, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -415,8 +417,8 @@ func (api *Api) Register(email, name, password, socialMedia string) (Data, error
 	}, nil
 }
 
-func (api *Api) Compose(hfa, iswc, publisherId, title string) (Data, error) {
-	composition := spec.NewComposition(api.agentId, hfa, iswc, publisherId, title)
+func (api *Api) Compose(hfa, ipi, iswc, pro, publisherId, title string) (Data, error) {
+	composition := spec.NewComposition(api.agentId, hfa, ipi, iswc, pro, publisherId, title)
 	if err := ld.ValidateComposition(composition, api.pub); err != nil {
 		return nil, err
 	}

@@ -58,7 +58,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose("B3107S", "T-034.524.680-1", publisherId, "untitled")
+	composition, err := api.Compose("B3107S", "123456789", "T-034.524.680-1", "ASCAP", publisherId, "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}

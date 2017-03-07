@@ -85,7 +85,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, publication)
 	publicationId := bigchain.GetId(publication)
-	mechanicalLicense, err := api.MechanicalLicense(publisherAssignmentId, labelId, publicationId, []string{"US"}, "2020-01-01", "2025-01-01")
+	mechanicalLicense, err := api.MechanicalLicense(publisherAssignmentId, labelId, publicationId, []string{"US"}, "", "2020-01-01", "2025-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, release)
 	releaseId := bigchain.GetId(release)
-	masterLicense, err := api.MasterLicense(labelAssignmentId, radioId, releaseId, []string{"US"}, "2020-01-01", "2022-01-01")
+	masterLicense, err := api.MasterLicense(labelAssignmentId, radioId, releaseId, []string{"US"}, "", "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,6 +154,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, compositionRightTransfer)
+	compositionRightTransferId = bigchain.GetId(compositionRightTransfer)
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
@@ -171,4 +172,12 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordingRightTransfer)
+	if err = api.Login(composerId, composerPriv); err != nil {
+		t.Fatal(err)
+	}
+	mechanicalLicenseFromTransfer, err := api.MechanicalLicense("", producerId, publicationId, []string{"US"}, compositionRightTransferId, "2020-01-01", "2030-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, mechanicalLicenseFromTransfer)
 }

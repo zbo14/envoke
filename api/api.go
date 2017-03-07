@@ -249,14 +249,14 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	publicationId := values.Get("publicationId")
 	releaseId := values.Get("releaseId")
 	territory := SplitStr(values.Get("territory"), ",")
+	transferId := values.Get("transferId")
 	validFrom := values.Get("validFrom")
 	validTo := values.Get("validTo")
-	switch {
-	case !EmptyStr(publicationId):
-		license, err = api.MechanicalLicense(assignmentId, licenseeId, publicationId, territory, validFrom, validTo)
-	case !EmptyStr(releaseId):
-		license, err = api.MasterLicense(assignmentId, licenseeId, releaseId, territory, validFrom, validTo)
-	default:
+	if !EmptyStr(publicationId) {
+		license, err = api.MechanicalLicense(assignmentId, licenseeId, publicationId, territory, transferId, validFrom, validTo)
+	} else if !EmptyStr(releaseId) {
+		license, err = api.MasterLicense(assignmentId, licenseeId, releaseId, territory, transferId, validFrom, validTo)
+	} else {
 		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
 		return
 	}
@@ -555,8 +555,8 @@ func (api *Api) AssignRecordingRight(holderId string, percentageShares int, reco
 	}, nil
 }
 
-func (api *Api) MechanicalLicense(assignmentId, licenseeId, publicationId string, territory []string, validFrom, validTo string) (Data, error) {
-	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, publicationId, "", territory, spec.LICENSE_MECHANICAL, validFrom, validTo)
+func (api *Api) MechanicalLicense(assignmentId, licenseeId, publicationId string, territory []string, transferId, validFrom, validTo string) (Data, error) {
+	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, publicationId, "", territory, transferId, spec.LICENSE_MECHANICAL, validFrom, validTo)
 	if err := ld.ValidateMechanicalLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -573,8 +573,8 @@ func (api *Api) MechanicalLicense(assignmentId, licenseeId, publicationId string
 	}, nil
 }
 
-func (api *Api) MasterLicense(assignmentId, licenseeId, releaseId string, territory []string, validFrom, validTo string) (Data, error) {
-	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, "", releaseId, territory, spec.LICENSE_MASTER, validFrom, validTo)
+func (api *Api) MasterLicense(assignmentId, licenseeId, releaseId string, territory []string, transferId, validFrom, validTo string) (Data, error) {
+	license := spec.NewLicense(assignmentId, licenseeId, api.agentId, "", releaseId, territory, transferId, spec.LICENSE_MASTER, validFrom, validTo)
 	if err := ld.ValidateMasterLicense(license, api.pub); err != nil {
 		return nil, err
 	}
@@ -607,13 +607,7 @@ func (api *Api) TransferCompositionRight(assignmentId, publicationId, recipientI
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
 		}
-		assignmentId = spec.GetTransferAssignmentId(transfer)
-		tx, err := bigchain.GetTx(assignmentId)
-		if err != nil {
-			return nil, err
-		}
-		assignment := bigchain.GetTxData(tx)
-		rightId = spec.GetAssignmentRightId(assignment)
+		rightId = spec.GetTransferRightId(transfer)
 		txId = spec.GetTransferTxId(transfer)
 	} else {
 		assignment, err := ld.ValidateCompositionRightAssignmentHolder(assignmentId, api.agentId, publicationId)
@@ -674,13 +668,7 @@ func (api *Api) TransferRecordingRight(assignmentId, recipientId string, recipie
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
 		}
-		assignmentId = spec.GetTransferAssignmentId(transfer)
-		tx, err := bigchain.GetTx(assignmentId)
-		if err != nil {
-			return nil, err
-		}
-		assignment := bigchain.GetTxData(tx)
-		rightId = spec.GetAssignmentRightId(assignment)
+		rightId = spec.GetTransferRightId(transfer)
 		txId = spec.GetTransferTxId(transfer)
 	} else {
 		assignment, err := ld.ValidateRecordingRightAssignmentHolder(assignmentId, api.agentId, releaseId)

@@ -578,7 +578,7 @@ func GetLicenseRelease(license Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-// Publishing License
+// Mechanical License
 
 func ValidateMechanicalLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
@@ -614,32 +614,58 @@ func ValidateMechanicalLicense(license Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	holder := false
+	var right Data = nil
 	licenseTerritory := spec.GetTerritory(license)
 	assignmentId := spec.GetLicenseAssignmentId(license)
-	for _, assignment := range assignments {
-		if assignmentId == bigchain.GetId(assignment) {
-			if licenserId != spec.GetAssignmentHolderId(assignment) {
-				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
-			}
-			holder = true
-			right := spec.GetAssignmentRight(assignment)
-			rightTerritory := spec.GetTerritory(right)
-		OUTER:
-			for i := range licenseTerritory {
-				for j := range rightTerritory {
-					if licenseTerritory[i] == rightTerritory[j] {
-						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
-						continue OUTER
-					}
+	if !EmptyStr(assignmentId) {
+		for _, assignment := range assignments {
+			if assignmentId == bigchain.GetId(assignment) {
+				if licenserId != spec.GetAssignmentHolderId(assignment) {
+					return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
 				}
-				return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+				right = spec.GetAssignmentRight(assignment)
+				break
 			}
-			break
+		}
+	} else {
+		transferId := spec.GetLicenseTransferId(license)
+		transfer, err := ValidateCompositionRightTransferById(transferId)
+		if err != nil {
+			return err
+		}
+		if publicationId != spec.GetTransferPublicationId(transfer) {
+			return ErrorAppend(ErrCriteriaNotMet, "transfer does not link to publication")
+		}
+		if licenserId == spec.GetTransferRecipientId(transfer) {
+			//..
+		} else if licenserId == spec.GetTransferSenderId(transfer) {
+			if spec.GetTransferSenderShares(transfer) == 0 {
+				return ErrorAppend(ErrCriteriaNotMet, "licenser does not have sender shares in transfer")
+			}
+		} else {
+			return ErrorAppend(ErrCriteriaNotMet, "licenser is not sender or recipient of transfer")
+		}
+		rightId := spec.GetTransferRightId(transfer)
+		for _, assignment := range assignments {
+			if rightId == spec.GetAssignmentRightId(assignment) {
+				right = spec.GetAssignmentRight(assignment)
+				break
+			}
 		}
 	}
-	if !holder {
-		return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
+	if right == nil {
+		return ErrorAppend(ErrCriteriaNotMet, "could not find underlying composition right")
+	}
+	rightTerritory := spec.GetTerritory(right)
+OUTER:
+	for i := range licenseTerritory {
+		for j := range rightTerritory {
+			if licenseTerritory[i] == rightTerritory[j] {
+				rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+				continue OUTER
+			}
+		}
+		return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
 	}
 	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
@@ -671,7 +697,7 @@ func QueryMechanicalLicenseField(field string, license Data, pub crypto.PublicKe
 	}
 }
 
-// Release license
+// Master license
 
 func ValidateMasterLicenseById(licenseId string) (Data, error) {
 	tx, err := bigchain.GetTx(licenseId)
@@ -707,32 +733,58 @@ func ValidateMasterLicense(license Data, pub crypto.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	holder := false
+	var right Data = nil
 	licenseTerritory := spec.GetTerritory(license)
 	assignmentId := spec.GetLicenseAssignmentId(license)
-	for _, assignment := range assignments {
-		if assignmentId == bigchain.GetId(assignment) {
-			if licenserId != spec.GetAssignmentHolderId(assignment) {
-				return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
-			}
-			holder = true
-			right := spec.GetAssignmentRight(assignment)
-			rightTerritory := spec.GetTerritory(right)
-		OUTER:
-			for i := range licenseTerritory {
-				for j := range rightTerritory {
-					if licenseTerritory[i] == rightTerritory[j] {
-						rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
-						continue OUTER
-					}
+	if !EmptyStr(assignmentId) {
+		for _, assignment := range assignments {
+			if assignmentId == bigchain.GetId(assignment) {
+				if licenserId != spec.GetAssignmentHolderId(assignment) {
+					return ErrorAppend(ErrCriteriaNotMet, "licenser does not hold assignment")
 				}
-				return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
+				right = spec.GetAssignmentRight(assignment)
+				break
 			}
-			break
+		}
+	} else {
+		transferId := spec.GetLicenseTransferId(license)
+		transfer, err := ValidateRecordingRightTransferById(transferId)
+		if err != nil {
+			return err
+		}
+		if releaseId != spec.GetTransferReleaseId(transfer) {
+			return ErrorAppend(ErrCriteriaNotMet, "transfer does not link to release")
+		}
+		if licenserId == spec.GetTransferRecipientId(transfer) {
+			//..
+		} else if licenserId == spec.GetTransferSenderId(transfer) {
+			if spec.GetTransferSenderShares(transfer) == 0 {
+				return ErrorAppend(ErrCriteriaNotMet, "licenser does not have sender shares in transfer")
+			}
+		} else {
+			return ErrorAppend(ErrCriteriaNotMet, "licenser is not sender or recipient of transfer")
+		}
+		rightId := spec.GetTransferRightId(transfer)
+		for _, assignment := range assignments {
+			if rightId == spec.GetAssignmentRightId(assignment) {
+				right = spec.GetAssignmentRight(assignment)
+				break
+			}
 		}
 	}
-	if !holder {
-		return ErrorAppend(ErrCriteriaNotMet, "signer does not hold assignment")
+	if right == nil {
+		return ErrorAppend(ErrCriteriaNotMet, "could not find underlying recording right")
+	}
+	rightTerritory := spec.GetTerritory(right)
+OUTER:
+	for i := range licenseTerritory {
+		for j := range rightTerritory {
+			if licenseTerritory[i] == rightTerritory[j] {
+				rightTerritory = append(rightTerritory[:j], rightTerritory[j+1:]...)
+				continue OUTER
+			}
+		}
+		return ErrorAppend(ErrCriteriaNotMet, "license territory not part of right territory")
 	}
 	licenseeId := spec.GetLicenseLicenseeId(license)
 	tx, err = bigchain.GetTx(licenseeId)
@@ -973,6 +1025,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 		return err
 	}
 	if bigchain.TRANSFER != bigchain.GetTxOperation(txTransfer) {
+		Println(txTransfer)
 		return ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSigner(txTransfer)) {
@@ -1001,6 +1054,7 @@ func ValidateCompositionRightTransfer(pub crypto.PublicKey, transfer Data) error
 	if !found {
 		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 	}
+	transfer.Set("rightId", rightId)
 	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(txTransfer, 0))
 	if n == 2 {
 		transfer.Set("senderShares", bigchain.GetTxOutputAmount(txTransfer, 1))
@@ -1087,6 +1141,7 @@ func ValidateRecordingRightTransfer(pub crypto.PublicKey, transfer Data) error {
 	if !found {
 		return ErrorAppend(ErrCriteriaNotMet, "publication does not link to assignment")
 	}
+	transfer.Set("rightId", rightId)
 	transfer.Set("recipientShares", bigchain.GetTxOutputAmount(txTransfer, 0))
 	if n == 2 {
 		transfer.Set("senderShares", bigchain.GetTxOutputAmount(txTransfer, 1))

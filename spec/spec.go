@@ -640,14 +640,13 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(assignmentId, licenseeId, licenserId, publicationId, releaseId string, territory []string, _type, validFrom, validTo string) Data {
+func NewLicense(assignmentId, licenseeId, licenserId, publicationId, releaseId string, territory []string, transferId, _type, validFrom, validTo string) Data {
 	license := Data{
-		"assignmentId": assignmentId,
-		"instance":     NewInstance(_type),
-		"licenseeId":   licenseeId,
-		"licenserId":   licenserId,
-		"validFrom":    validFrom,
-		"validTo":      validTo,
+		"instance":   NewInstance(_type),
+		"licenseeId": licenseeId,
+		"licenserId": licenserId,
+		"validFrom":  validFrom,
+		"validTo":    validTo,
 	}
 	switch _type {
 	case LICENSE_MECHANICAL:
@@ -656,6 +655,13 @@ func NewLicense(assignmentId, licenseeId, licenserId, publicationId, releaseId s
 		license.Set("releaseId", releaseId)
 	default:
 		panic(ErrorAppend(ErrInvalidType, _type))
+	}
+	if !EmptyStr(assignmentId) {
+		license.Set("assignmentId", assignmentId)
+	} else if !EmptyStr(transferId) {
+		license.Set("transferId", transferId)
+	} else {
+		panic("Expected assignmentId or transferId")
 	}
 	if territory != nil {
 		license.Set("territory", territory)
@@ -683,6 +689,10 @@ func GetLicensePublicationId(license Data) string {
 	return license.GetStr("publicationId")
 }
 
+func GetLicenseTransferId(license Data) string {
+	return license.GetStr("transferId")
+}
+
 func ValidLicense(license Data) error {
 	instance := GetInstance(license)
 	if err := ValidInstance(instance); err != nil {
@@ -705,8 +715,15 @@ func ValidLicense(license Data) error {
 	}
 	size := MIN_LICENSE_SIZE
 	assignmentId := GetLicenseAssignmentId(license)
-	if !MatchId(assignmentId) {
-		return ErrorAppend(ErrInvalidId, assignmentId)
+	if !EmptyStr(assignmentId) {
+		if !MatchId(assignmentId) {
+			return ErrorAppend(ErrInvalidId, assignmentId)
+		}
+	} else {
+		transferId := GetLicenseTransferId(license)
+		if !MatchId(transferId) {
+			return ErrorAppend(ErrInvalidId, transferId)
+		}
 	}
 	licenseeId := GetLicenseLicenseeId(license)
 	if !MatchId(licenseeId) {
@@ -786,6 +803,10 @@ func GetTransferRecipientId(transfer Data) string {
 
 func GetTransferReleaseId(transfer Data) string {
 	return transfer.GetStr("releaseId")
+}
+
+func GetTransferRightId(transfer Data) string {
+	return transfer.GetStr("rightId")
 }
 
 func GetTransferSenderId(transfer Data) string {

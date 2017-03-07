@@ -53,11 +53,11 @@ A composition represents the written music and lyrics of a musical work.
 
 * **Required**
 
-`publisherId=[hexadecimal]` | `title=[alphanumeric]`
+`composerId,publisherId=[hexadecimal]` | `title=[alphanumeric]`
 
 * **Optional**
 
-`hfa=[HFA_code]` | `ipi=[IPI_number]` | `iswc=[ISWC_code]` | `pro=[alphanumeric]`
+`hfa=[HFA_code]` | `ipi=[IPI_number]` | `iswc=[ISWC_code]` | `pro=[PRO_name]`
 
 Example: 
 ```javascript
@@ -174,12 +174,15 @@ A mechanical license, issued by a composition right-holder to a licensee, permit
 
 * **Required**
 
-	`assignmentId,licenseeId,licenserId,publicationId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
+	`licenseeId,licenserId,publicationId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
     
 * **Optional**
 
-	`territory=[country_codes]`
+	`assignmentId=[hexadecimal]` | `territory=[country_codes]` | `transferId=[hexadecimal]`
 
+* **Notes**
+    
+    Mechanical license must contain assignmentId or transferId
 
 Example:
 
@@ -363,11 +366,15 @@ A master license, issued by a recording right-holder to a licensee, permits use 
 
 * **Required**
 
-	`assignmentId,licenseeId,licenserId,releaseId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
+	`licenseeId,licenserId,releaseId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
     
 * **Optional**
 
-	`territory=[country_codes]`
+	`assignmentId=[hexadecimal]` | `territory=[country_codes]` | `transferId=[hexadecimal]`
+
+* **Notes**
+    
+    Master license must contain assignmentId or transferId
 
 Example:
 ```javascript

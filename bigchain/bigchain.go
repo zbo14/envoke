@@ -209,17 +209,17 @@ func GetTxOperation(tx Data) string {
 	return tx.GetStr("operation")
 }
 
-func GetTxSigners(tx Data) [][]crypto.PublicKey {
+func GetTxSenders(tx Data) [][]crypto.PublicKey {
 	inputs := GetTxInputs(tx)
 	return GetInputsPublicKeys(inputs)
 }
 
-func DefaultGetTxSigner(tx Data) crypto.PublicKey {
-	return GetTxSigner(tx, 0)
+func DefaultGetTxSender(tx Data) crypto.PublicKey {
+	return GetTxSender(tx, 0)
 }
 
-func GetTxSigner(tx Data, n int) crypto.PublicKey {
-	pubs := GetTxSigners(tx)
+func GetTxSender(tx Data, n int) crypto.PublicKey {
+	pubs := GetTxSenders(tx)
 	return pubs[n][0]
 }
 

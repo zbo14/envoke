@@ -1,0 +1,77 @@
+{
+	"@context": {
+		"id": "@id",
+		"type": "@type",
+
+		"coala": "<coalaip placeholder>",
+		"envoke": "<envoke placeholder>",
+		"owl": "http://www.w3.org/2002/07/owl#",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "schema": "http://schema.org/",
+
+		"MusicPublication": "envoke:MusicPublication",
+
+        "Right": "envoke:Right",
+        "CompositionRight": "envoke:CompositionRight",
+        "RecordingRight": "envoke:RecordingRight",
+
+    	"RightTransfer": "envoke:RightTransfer",
+        "CompositionRightTransfer": "envoke:CompositionRightTransfer",
+        "RecordingRightTransfer": "envoke:RecordingRightTransfer",
+
+      	"License": "envoke:License",
+      	"MechanicalLicense": "envoke:MechanicalLicense",
+      	"SynchronizationLicense": "envoke:SynchronizationLicense",
+      	"MasterLicense": "envoke:MasterLicense",
+
+      	"composition": {
+      		"@id": "envoke:composition",
+      		"@type": "@id",
+      	},
+      	"compositionRight": {
+      		"@id": "envoke:compositionRight",
+      		"@type": "@id",
+      	},
+      	"compositionRightTransfer": {
+      		"@id": "envoke:compositionRightTransfer",
+      		"@type": "@id",
+      	},
+      	"hfaCode": "envoke:hfaCode",
+      	"ipiNumber": "envoke:ipiNumber",
+     	"pro": "envoke:pro",
+      	"publication": {
+      		"@id": "envoke:publication",
+      		"@type": "@id"
+      	},
+      	"publisher": {
+      		"@id": "envoke:publisher",
+      		"@type": "@id"
+      	},
+      	"recipient": {
+      		"@id": "envoke:recipient",
+      		"@type": "@id"
+      	},
+      	"recording": {
+      		"@id": "envoke:recording",
+      		"@type": "@id",
+      	},
+      	"recordingRight": {
+      		"@id": "envoke:recordingRight",
+      		"@type": "@id",
+      	},
+      	"recordingRightTransfer": {
+      		"@id": "envoke:recordingRightTransfer",
+      		"@type": "@id",
+      	},
+      	"sender": {
+      		"@id": "envoke:sender",
+      		"@type": "@id"
+      	},
+      	"territory": "envoke:territory",
+      	"txId": "envoke:txId",
+      	"usage": "envoke:usage",
+      	"validFrom": "envoke:validFrom",
+      	"validThrough": "envoke:validThrough"
+	}
+}

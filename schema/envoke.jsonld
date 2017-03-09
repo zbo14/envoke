@@ -82,14 +82,6 @@
 			"rdfs:label": "MechanicalLicense"
 		},
 		{
-			"@id": "<envoke placeholder>/SynchronizationLicense",
-			"@type": "rdfs:Class",
-			"rdfs:subClassOf": {
-				"@id": "envoke:License"
-			},
-			"rdfs:label": "SynchronizationLicense"
-		},
-		{
 			"@id": "<envoke placeholder>/MasterLicense",
 			"@type": "rdfs:Class",
 			"rdfs:subClassOf": {
@@ -102,10 +94,10 @@
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:MusicPublication"
+					"@id": "envoke:CompositionRight"
 				},
 				{
-					"@id": "envoke:CompositionRight"
+					"@id": "envoke:MusicPublication"
 				}
 			],
 			"schema:rangeIncludes": {
@@ -118,16 +110,16 @@
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:MusicPublication"
-				},
-				{
 					"@id": "envoke:CompositionRightTransfer"
 				},
 				{
 					"@id": "envoke:MechanicalLicense"
 				},
 				{
-					"@id": "envoke:SynchronizationLicense"
+					"@id": "envoke:MusicPublication"
+				},
+				{
+					"@id": "schema:MusicRecording"
 				}
 			],
 			"schema:rangeIncludes": [
@@ -145,11 +137,11 @@
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:MechanicalLicense"
+					"@id": "envoke:CompositionRightTransfer"
 				},
 				{
-					"@id": "envoke:SynchronizationLicense"
-				},
+					"@id": "envoke:MechanicalLicense"
+				}
 			],
 			"schema:rangeIncludes": {
 				"@id": "envoke:CompositionRightTransfer"
@@ -190,6 +182,27 @@
 			"rdfs:label": "pro"
 		},
 		{
+			"@id": "<envoke placeholder>/publication",
+			"@type": "rdf:Property",
+			"schema:domainIncludes": [
+				{
+					"@id": "envoke:CompositionRightTransfer"
+				},
+				{
+					"@id": "envoke:MasterLicense"
+				},
+				{
+					"@id": "envoke:MechanicalLicense"
+				},
+				{
+					"@id": "schema:MusicRecording"
+				}
+			],
+			"schema:rangeIncludes": {
+				"@id": "envoke:MusicPublication"
+			}
+		},
+		{
 			"@id": "<envoke placeholder>/publisher",
 			"@type": "rdf:Property",
 			"owl:equivalentClass": {
@@ -207,24 +220,6 @@
 				}
 			],
 			"rdfs:label": "publisher"
-		},
-		{
-			"@id": "<envoke placeholder>/publication",
-			"@type": "rdf:Property",
-			"schema:domainIncludes": [
-				{
-					"@id": "schema:MusicRecording"
-				},
-				{
-					"@id": "envoke:MechanicalLicense"
-				},
-				{
-					"@id": "envoke:MasterLicense"
-				}
-			],
-			"schema:rangeIncludes": {
-				"@id": "envoke:MusicPublication"
-			}
 		},
 		{
 			"@id": "<envoke placeholder>/recipient",
@@ -253,12 +248,25 @@
 		{
 			"@id": "<envoke placeholder>/recording",
 			"@type": "rdf:Property",
-			"schema:domainIncludes": {
-				"@id": "envoke:RecordingRight"
+			"owl:equivalentProperty": {
+				"@id": "schema:track"
 			},
-			"schema:rangeIncludes": {
-				"@id": "schema:MusicRecording"
-			},
+			"schema:domainIncludes": [
+				{
+					"@id": "envoke:RecordingRight"
+				},
+				{
+					"@id": "schema:MusicRelease"
+				}
+			],
+			"schema:rangeIncludes": [
+				{
+					"@id": "schema:ItemList"
+				},
+				{
+					"@id": "schema:MusicRecording"
+				}
+			],
 			"rdfs:label": "recording"
 		},
 		{
@@ -266,13 +274,13 @@
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [
 				{
-					"@id": "schema:MusicRelease"
+					"@id": "envoke:MasterLicense"
 				},
 				{
 					"@id": "envoke:RecordingRightTransfer"
 				},
 				{
-					"@id": "envoke:MasterLicense"
+					"@id": "schema:MusicRelease"
 				}
 			],
 			"schema:rangeIncludes": [
@@ -288,13 +296,35 @@
 		{
 			"@id": "<envoke placeholder>/recordingRightTransfer",
 			"@type": "rdf:Property",
-			"schema:domainIncludes": {
-				"@id": "envoke:MasterLicense"
-			},
+			"schema:domainIncludes": [
+				{
+					"@id": "envoke:MasterLicense"
+				},
+				{
+					"@id": "envoke:RecordingRightTransfer"
+				}
+			],
 			"schema:rangeIncludes": {
 				"@id": "envoke:RecordingRightTransfer"
 			},
 			"rdfs:label": "recordingRightTransfer"
+		},
+		{
+			"@id": "<envoke placeholder>/release",
+			"@type": "rdf:Property",
+			"schema:domainIncludes": [
+				{
+					"@id": "envoke:MasterLicense"
+				},
+				{
+					"@id": "schema:MusicRelease"
+				}
+			],
+			"schema:rangeIncludes": {
+				"@id": "envoke:Release"
+			},
+			"rdfs:label": "release"
+
 		},
 		{
 			"@id": "<envoke placeholder>/sender",
@@ -328,10 +358,10 @@
 			},
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:Right"
+					"@id": "envoke:License"	
 				},
 				{
-					"@id": "envoke:License"	
+					"@id": "envoke:Right"
 				}
 			],
 			"schema:rangeIncludes": {
@@ -355,10 +385,10 @@
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:Right"
+					"@id": "envoke:License"
 				},
 				{
-					"@id": "envoke:License"
+					"@id": "envoke:Right"
 				}
 			],
 			"schema:rangeIncludes": {
@@ -374,10 +404,10 @@
 			},
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:Right"
+					"@id": "envoke:License"	
 				},
 				{
-					"@id": "envoke:License"	
+					"@id": "envoke:Right"
 				}
 			],
 			"schema:rangeIncludes": {
@@ -393,10 +423,10 @@
 			},
 			"schema:domainIncludes": [
 				{
-					"@id": "envoke:Right"
+					"@id": "envoke:License"	
 				},
 				{
-					"@id": "envoke:License"	
+					"@id": "envoke:Right"
 				}
 			],
 			"schema:rangeIncludes": {

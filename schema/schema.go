@@ -1,14 +1,16 @@
 package schema
 
-import (
-	. "github.com/zbo14/envoke/common"
-)
+import . "github.com/zbo14/envoke/common"
 
 const (
 	ENVOKE = "<envoke placeholder>"
 	COALA  = "<coalaip placeholder>"
 	SCHEMA = "http://schema.org/"
 )
+
+func GetId(data Data) string {
+	return data.GetStr("@id")
+}
 
 func NewPerson(birthDate, deathDate, familyName, givenName string) Data {
 	person := Data{
@@ -70,8 +72,6 @@ func NewMusicGroup(description, email, genre, memberNames []string, name, sameAs
 	return musicGroup
 }
 
-// publisher
-
 func NewComposition(composerId, hfa, ipi, iswc, name, proId string) Data {
 	return Data{
 		"@context": []string{ENVOKE, SCHEMA},
@@ -89,10 +89,20 @@ func NewComposition(composerId, hfa, ipi, iswc, name, proId string) Data {
 	}
 }
 
+func GetComposerId(data Data) string {
+	composer := data.GetData("composer")
+	return GetId(composer)
+}
+
+func GetProId(data Data) string {
+	pro := data.GetData("pro")
+	return GetId(pro)
+}
+
 func NewPublication(compositionId string, compositionRightIds []string, publisherId string) Data {
 	n := len(compositionRightIds)
 	compositionRights := make([]Data, n)
-	for i, recordingRightId := range compositionRightIds {
+	for i, compositionRightId := range compositionRightIds {
 		compositionRights[i] = Data{
 			"@type":    "ListItem",
 			"position": i + 1,
@@ -119,19 +129,41 @@ func NewPublication(compositionId string, compositionRightIds []string, publishe
 	}
 }
 
-func NewRecording(isrc, performerId, producerId, publicationId) Data {
+func GetCompositionId(data Data) string {
+	compositon := data.GetData("composition")
+	return GetId(compositon)
+}
+
+func GetCompositionRightIds(data Data) []string {
+	compositionRights := data.GetData("compositionRights")
+	n := compositionRights.GetInt("numberOfItems")
+	compositionRightIds := make([]string, n)
+	itemListElement := compositionRights.GetInterfaceSlice("itemListElement")
+	for i, elem := range itemListElement {
+		item := AssertData(elem).GetData("item")
+		compositionRightIds[i] = GetId(item)
+	}
+	return compositionRightIds
+}
+
+func GetPublisherId(data Data) string {
+	publisher := data.GetData("publisher")
+	return GetId(publisher)
+}
+
+func NewRecording(compositionRightId, isrc, performerId, producerId, publicationId string) Data {
 	return Data{
 		"@context": SCHEMA,
 		"@type":    "MusicRecording",
 		"byArtist": Data{
 			"@id": performerId,
 		},
+		"compositionRight": Data{
+			"@id": compositionRightId,
+		},
 		"isrcCode": isrc,
 		"producer": Data{
 			"@id": producerId,
-		},
-		"recordingOf": Data{
-			"@id": compositionId,
 		},
 		"publication": Data{
 			"@id": publicationId,
@@ -139,11 +171,28 @@ func NewRecording(isrc, performerId, producerId, publicationId) Data {
 	}
 }
 
-// genre
-// name
+func GetCompositionRightId(data Data) string {
+	compositionRight := data.GetData("compositionRight")
+	return GetId(compositionRight)
+}
 
-func NewRelease(recordingId, recordLabelId string, recordingRightIds []string) {
-	n := len(recordingIds)
+func GetPerformerId(data Data) string {
+	performer := data.GetData("byArtist")
+	return GetId(performer)
+}
+
+func GetProducerId(data Data) string {
+	producer := data.GetData("producer")
+	return GetId(producer)
+}
+
+func GetPublicationId(data Data) string {
+	publication := data.GetData("publication")
+	return GetId(publication)
+}
+
+func NewRelease(recordingId, recordLabelId string, recordingRightIds []string) Data {
+	n := len(recordingRightIds)
 	recordingRights := make([]Data, n)
 	for i, recordingRightId := range recordingRightIds {
 		recordingRights[i] = Data{
@@ -163,18 +212,40 @@ func NewRelease(recordingId, recordLabelId string, recordingRightIds []string) {
 			"numberOfItems":   n,
 			"itemListElement": recordingRights,
 		},
+		"recording": Data{
+			"@id": recordingId,
+		},
 		"recordLabel": Data{
 			"@id": recordLabelId,
-		},
-		"track": Data{
-			"@id": recordingId,
 		},
 	}
 }
 
+func GetRecordingId(data Data) string {
+	recording := data.GetData("recording")
+	return GetId(recording)
+}
+
+func GetRecordingRightIds(data Data) []string {
+	recordingRights := data.GetData("recordingRights")
+	n := recordingRights.GetInt("numberOfItems")
+	recordingRightIds := make([]string, n)
+	itemListElement := recordingRights.GetInterfaceSlice("itemListElement")
+	for i, elem := range itemListElement {
+		item := AssertData(elem).GetData("item")
+		recordingRightIds[i] = GetId(item)
+	}
+	return recordingRightIds
+}
+
+func GetRecordLabelId(data Data) string {
+	recordLabel := data.GetData("recordLabel")
+	return GetId(recordLabel)
+}
+
 // Note: percentageShares is taken from the tx output amount so it's not included in the data model
 
-func NewCompositionRight(compositionId, recipientId, senderId string, territory []string, validFrom, validThrough string) Data {
+func NewCompositionRight(compositionId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	return Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/CompositionRight",
@@ -187,11 +258,21 @@ func NewCompositionRight(compositionId, recipientId, senderId string, territory 
 		"sender": Data{
 			"@id": senderId,
 		},
-		"usage":        usage,
 		"territory":    territory,
+		"usage":        usage,
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
+}
+
+func GetRecipientId(data Data) string {
+	recipient := data.GetData("recipient")
+	return GetId(recipient)
+}
+
+func GetSenderId(data Data) string {
+	sender := data.GetData("sender")
+	return GetId(sender)
 }
 
 func NewRecordingRight(recipientId, recordingId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
@@ -207,8 +288,8 @@ func NewRecordingRight(recipientId, recordingId, senderId string, territory, usa
 		"sender": Data{
 			"@id": senderId,
 		},
-		"usage":        usage,
 		"territory":    territory,
+		"usage":        usage,
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
@@ -217,12 +298,12 @@ func NewRecordingRight(recipientId, recordingId, senderId string, territory, usa
 // Note: txId is the hex id of a TRANSFER tx in Bigchain/IPDB
 // the output amount(s) will specify shares transferred/kept
 
-func NewCompositionRightTransfer(compositionRightId, recipientId, senderId, txId string) Data {
-	return Data{
+func NewCompositionRightTransfer(compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId, txId string) Data {
+	compositionRightTransfer := Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/CompositionRightTransfer",
-		"compositionRight": Data{
-			"@id": compositionRightId,
+		"publication": Data{
+			"@id": publicationId,
 		},
 		"recipient": Data{
 			"@id": recipientId,
@@ -232,37 +313,75 @@ func NewCompositionRightTransfer(compositionRightId, recipientId, senderId, txId
 		},
 		"txId": txId,
 	}
+	if !EmptyStr(compositionRightId) {
+		compositionRightTransfer.Set("compositionRight", Data{"@id": compositionRightId})
+	} else if !EmptyStr(compositionRightTransferId) {
+		compositionRightTransfer.Set("compositionRightTransfer", Data{"@id": compositionRightTransferId})
+	} else {
+		panic("Expected compositionRightId or compositionRightTransferId")
+	}
+	return compositionRightTransfer
 }
 
-func NewRecordingRightTransfer(recipientId, recordingRightId, senderId, txId string) Data {
-	return Data{
+func GetCompositionRightTransferId(data Data) string {
+	compositionRightTransfer := data.GetData("compositionRightTransfer")
+	return GetId(compositionRightTransfer)
+}
+
+func GetTxId(data Data) string {
+	return data.GetStr("txId")
+}
+
+func NewRecordingRightTransfer(recipientId, recordingRightId, recordingRightTransferId, releaseId, senderId, txId string) Data {
+	recordingRightTransfer := Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/RecordingRightTransfer",
 		"recipient": Data{
 			"@id": recipientId,
 		},
-		"recordingRight": Data{
-			"@id": recordingRightId,
+		"release": Data{
+			"@id": releaseId,
 		},
 		"sender": Data{
 			"@id": senderId,
 		},
 		"txId": txId,
 	}
+	if !EmptyStr(recordingRightId) {
+		recordingRightTransfer.Set("recordingRight", Data{"@id": recordingRightId})
+	} else if !EmptyStr(recordingRightTransferId) {
+		recordingRightTransfer.Set("recordingRightTransfer", Data{"@id": recordingRightTransferId})
+	} else {
+		panic("Expected recordingRightId or recordingRightTransferId")
+	}
+	return recordingRightTransfer
 }
 
-func NewMechanicalLicense(compositionRightId, compositionRightTransferId, recipientId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
+func GetReleaseId(data Data) string {
+	release := data.GetData("release")
+	return GetId(release)
+}
+
+func GetRecordingRightTransferId(data Data) string {
+	recordingRightTransfer := data.GetData("recordingRightTransfer")
+	return GetId(recordingRightTransfer)
+}
+
+func NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	license := Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/MechanicalLicense",
+		"publication": Data{
+			"@id": publicationId,
+		},
 		"recipient": Data{
 			"@id": recipientId,
 		},
 		"sender": Data{
 			"@id": senderId,
 		},
-		"usage":        usage,
 		"territory":    territory,
+		"usage":        usage,
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
@@ -276,37 +395,15 @@ func NewMechanicalLicense(compositionRightId, compositionRightTransferId, recipi
 	return license
 }
 
-func NewSynchronizationLicense(compositionRightId, compositionRightTransferId, recipientId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
+func NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	license := Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/SynchronizationLicense",
 		"recipient": Data{
 			"@id": recipientId,
 		},
-		"sender": Data{
-			"@id": senderId,
-		},
-		"usage":        usage,
-		"territory":    territory,
-		"validFrom":    validFrom,
-		"validThrough": validThrough,
-	}
-	if !EmptyStr(compositionRightId) {
-		license.Set("compositionRight", Data{"@id": compositionRightId})
-	} else if !EmptyStr(compositionRightTransferId) {
-		license.Set("compositionRightTransfer", Data{"@id": compositionRightTransferId})
-	} else {
-		panic("Expected compositionRightId or compositionRightTransferId")
-	}
-	return license
-}
-
-func NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
-	license := Data{
-		"@context": []string{ENVOKE, SCHEMA},
-		"@type":    ENVOKE + "/SynchronizationLicense",
-		"recipient": Data{
-			"@id": recipientId,
+		"release": Data{
+			"@id": releaseId,
 		},
 		"sender": Data{
 			"@id": senderId,

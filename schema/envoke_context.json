@@ -1,6 +1,6 @@
 {
 	"@context": {
-		"id": "@id",
+        "id": "@id",
 		"type": "@type",
 
 		"coala": "<coalaip placeholder>",

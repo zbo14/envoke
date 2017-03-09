@@ -288,7 +288,7 @@ func GetTxOutput(tx Data, n int) Data {
 }
 
 func GetOutputAmount(output Data) int {
-	return int(output.GetFloat64("amount"))
+	return output.GetInt("amount")
 }
 
 func GetOutputCondition(output Data) Data {

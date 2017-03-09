@@ -10,6 +10,9 @@ func AssertData(v interface{}) Data {
 	if d, ok := v.(Data); ok {
 		return d
 	}
+	if d, ok := v.(map[string]interface{}); ok {
+		return Data(d)
+	}
 	return nil
 }
 
@@ -20,15 +23,25 @@ func AssertDataSlice(v interface{}) []Data {
 	return nil
 }
 
-func AssertFloat64(v interface{}) float64 {
-	if n, ok := v.(float64); ok {
+func AssertInt(v interface{}) int {
+	if n, ok := v.(int); ok {
 		return n
+	}
+	if n, ok := v.(float64); ok {
+		return int(n)
 	}
 	return 0
 }
 
-func AssertInt(v interface{}) int {
-	if n, ok := v.(int); ok {
+func AssertInterfaceSlice(v interface{}) []interface{} {
+	if slice, ok := v.([]interface{}); ok {
+		return slice
+	}
+	return nil
+}
+
+func AssertFloat64(v interface{}) float64 {
+	if n, ok := v.(float64); ok {
 		return n
 	}
 	return 0
@@ -53,13 +66,6 @@ func AssertInt64(v interface{}) int64 {
 		return n
 	}
 	return 0
-}
-
-func AssertInterfaceSlice(v interface{}) []interface{} {
-	if slice, ok := v.([]interface{}); ok {
-		return slice
-	}
-	return nil
 }
 
 func AssertMap(v interface{}) map[string]interface{} {

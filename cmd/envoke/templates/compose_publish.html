@@ -8,15 +8,20 @@
     <input type="text" name="hfa" placeholder="HFA SONG CODE" />
     <input type="text" name="ipi" placeholder="IPI NUMBER" />
     <input type="text" name="iswc" placeholder="ISWC CODE" />
-    <input type="text" name="pro" placeholder="PRO" />
-    <input type="text" name="publisherId" placeholder="PUBLISHER ID" required />
+    <label>PRO</label>
+    <select form="compose-form" name="pro" required>
+        <option value="" disabled selected></option>
+        <option value="ASCAP">ASCAP</option>
+        <option value="BMI">BMI</option>
+        <option value="SESAC">SESAC</option>
+    </select><br><br>
     <input type="text" name="title" placeholder="TITLE" required />
     <input type="submit" value="COMPOSE" />
 </form>
 <form id="publish-form" name="publish-form">
     <header>PUBLISH</header>
-    <input type="text" name="assignmentIds" placeholder="COMPOSITION RIGHT ASSIGNMENT IDs" required />
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="compositionRightIds" placeholder="COMPOSITION RIGHT IDs" required />
     <input type="submit" value="PUBLISH" />
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">
@@ -25,9 +30,9 @@
     <label>FIELD</label>
     <select form="search-form" name="field" required>
         <option value="" disabled selected></option>
-        <option value="assignments">RIGHT ASSIGNMENTS</option>
         <option value="composer">COMPOSER</option>
         <option value="composition">COMPOSITION</option>
+        <option value="composition_rights">COMPOSITION RIGHTS</option>
         <option value="publisher">PUBLISHER</option>
     </select><br><br>
     <input type="submit" value="SEARCH" />

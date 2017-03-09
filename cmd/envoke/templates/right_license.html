@@ -4,13 +4,14 @@
 
 {{define "body"}}
 <br><br>
-<form id="assign-form" name="assign-form">
-    <header>ASSIGNMENT</header>
+<form id="right-form" name="right-form">
+    <header>RIGHT</header>
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" />
-    <input type="text" name="holderId" placeholder="RIGHT HOLDER ID" required />
-    <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
+    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
+    <input type="number" name="recipientShares" placeholder="RECIPIENT SHARES" min=1 max=100 required />
     <input type="text" name="recordingId" placeholder="RECORDING ID" />
-    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
+    <input type="text" name="territory" placeholder="TERRITORY" required />
+    <input type="text" name="usage" placeholder="USAGE" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
@@ -19,12 +20,13 @@
 </form>
 <form id="license-form" name="license-form">
     <header>LICENSE</header>
-    <input type="text" name="assignmentId" placeholder="RIGHT ASSIGNMENT ID" />
-    <input type="text" name="licenseeId" placeholder="LICENSEE ID" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
+    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
     <input type="text" name="releaseId" placeholder="RELEASE ID" />
-    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" /><br><br>
-    <input type="text" name="transferId" placeholder=" RIGHT TRANSFER ID" />
+    <input type="text" name="rightId" placeholder="RIGHT ID" />
+    <input type="text" name="rightTransferId" placeholder="RIGHT TRANSFER ID" />
+    <input type="text" name="territory" placeholder="TERRITORY" required />
+    <input type="text" name="usage" placeholder="USAGE" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
@@ -32,13 +34,13 @@
     <input type="submit" value="LICENSE" />
 </form>
 <form id="transfer-form" name="transform-form" style="margin-top: -240px">
-    <header>TRANSFER</header>
-    <input type="text" name="assignmentId" placeholder="RIGHT ASSIGNMENT ID" />
-    <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
+    <header>RIGHT TRANSFER</header>
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" />
     <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
+    <input type="number" name="recipientShares" placeholder="RECIPIENT SHARES" min=1 max=100 required />
     <input type="text" name="releaseId" placeholder="RELEASE ID" />
-    <input type="text" name="transferId" placeholder="TRANSFER ID" />
+    <input type="text" name="rightId" placeholder="RIGHT ID" />
+    <input type="text" name="rightTransferId" placeholder="RIGHT TRANSFER ID" />
     <input type="submit" value="TRANSFER" />
 </form>
 <br><br>
@@ -70,18 +72,11 @@ var callback = function(responseText) {
 
 window.onload = function() {
 
-    var assignForm = $("#assign-form");
-    assignForm.submit(function(event) {
+    var rightForm = $("#right-form");
+    rightForm.submit(function(event) {
         event.preventDefault();
-        var formData = assignForm.serialize();
-        httpPostAsync("http://localhost:8888/assign", formData, callback);
-    });
-
-    var transferForm = $("#transfer-form");
-    transferForm.submit(function(event) {
-        event.preventDefault();
-        var formData = transferForm.serialize();
-        httpPostAsync("http://localhost:8888/transfer", formData, callback);
+        var formData = rightForm.serialize();
+        httpPostAsync("http://localhost:8888/right", formData, callback);
     });
 
     var licenseForm = $("#license-form");
@@ -89,6 +84,13 @@ window.onload = function() {
         event.preventDefault();
         var formData = licenseForm.serialize();
         httpPostAsync("http://localhost:8888/license", formData, callback);
+    });
+
+    var transferForm = $("#transfer-form");
+    transferForm.submit(function(event) {
+        event.preventDefault();
+        var formData = transferForm.serialize();
+        httpPostAsync("http://localhost:8888/transfer", formData, callback);
     });
 }
 </script>

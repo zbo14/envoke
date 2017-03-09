@@ -343,7 +343,7 @@ func QueryReleaseField(field string, releaseId string) (interface{}, error) {
 		return nil, err
 	}
 	switch field {
-	case "compositionRight":
+	case "composition_right":
 		recording, err := GetRecording(release)
 		if err != nil {
 			return nil, err
@@ -693,6 +693,7 @@ func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey
 		return nil, nil, nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxRecipient(tx)
+	recipientShares := bigchain.GetTxShares(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	senderId := spec.GetSenderId(compositionRight)
 	tx, err = bigchain.GetTx(senderId)
@@ -718,7 +719,6 @@ func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
 	}
-	recipientShares := bigchain.GetTxShares(tx)
 	compositionRight.Set("recipientShares", recipientShares)
 	return compositionRight, recipientPub, senderPub, nil
 }
@@ -733,6 +733,7 @@ func ValidateRecordingRight(recordingRightId string) (Data, crypto.PublicKey, cr
 		return nil, nil, nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxRecipient(tx)
+	recipientShares := bigchain.GetTxShares(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	senderId := spec.GetSenderId(recordingRight)
 	tx, err = bigchain.GetTx(senderId)
@@ -758,14 +759,13 @@ func ValidateRecordingRight(recordingRightId string) (Data, crypto.PublicKey, cr
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
 	}
-	recipientShares := bigchain.GetTxShares(tx)
 	recordingRight.Set("recipientShares", recipientShares)
 	return recordingRight, recipientPub, senderPub, nil
 }
 
 // Right Holders
 
-func ValidateCompositionRightHolder(compositionRightId, recipientId, publicationId string) (Data, error) {
+func ValidateCompositionRightHolder(compositionRightId, publicationId, recipientId string) (Data, error) {
 	_, compositionRights, err := ValidatePublication(publicationId)
 	if err != nil {
 		return nil, err

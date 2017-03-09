@@ -484,7 +484,7 @@ func NewCompositionRight(compositionId string, recipientId, senderId string, ter
 	return right
 }
 
-func NewRecordingRight(recordingId string, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
+func NewRecordingRight(recipientId, recordingId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	right := NewRight(recipientId, senderId, territory, usage, validFrom, validThrough)
 	right.Set("recordingId", recordingId)
 	return right
@@ -532,6 +532,7 @@ func ValidRight(right Data) error {
 	}
 	territory := GetTerritory(right)
 	if len(territory) == 0 {
+		Println(right)
 		return Error("no territory listed")
 	}
 	seen := make(map[string]struct{})
@@ -585,7 +586,7 @@ func ValidRecordingRight(right Data) error {
 
 // License
 
-func NewLicense(recipientId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
+func NewLicense(recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	return Data{
 		"instance":     NewInstance(LICENSE),
 		"recipientId":  recipientId,
@@ -597,8 +598,8 @@ func NewLicense(recipientId, senderId string, usage, territory []string, validFr
 	}
 }
 
-func NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
-	license := NewLicense(recipientId, senderId, usage, territory, validFrom, validThrough)
+func NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
+	license := NewLicense(recipientId, senderId, territory, usage, validFrom, validThrough)
 	license.Set("publicationId", publicationId)
 	if !EmptyStr(compositionRightId) {
 		license.Set("compositionRightId", compositionRightId)
@@ -610,8 +611,8 @@ func NewMechanicalLicense(compositionRightId, compositionRightTransferId, public
 	return license
 }
 
-func NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, senderId string, usage, territory []string, validFrom, validThrough string) Data {
-	license := NewLicense(recipientId, senderId, usage, territory, validFrom, validThrough)
+func NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
+	license := NewLicense(recipientId, senderId, territory, usage, validFrom, validThrough)
 	license.Set("releaseId", releaseId)
 	if !EmptyStr(recordingRightId) {
 		license.Set("recordingRightId", recordingRightId)
@@ -703,6 +704,7 @@ func ValidLicense(license Data) error {
 	}
 	territory := GetTerritory(license)
 	if len(territory) == 0 {
+		Println(license)
 		return Error("no territory listed")
 	}
 	seen := make(map[string]struct{})

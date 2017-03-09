@@ -14,8 +14,8 @@ import (
 )
 
 type Api struct {
-	agent   Data
-	agentId string
+	party   Data
+	partyId string
 	logger  Logger
 	priv    crypto.PrivateKey
 	pub     crypto.PublicKey
@@ -50,9 +50,9 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrInvalidRequest.Error(), http.StatusBadRequest)
 		return
 	}
-	agentId := values.Get("agentId")
+	partyId := values.Get("partyId")
 	privstr := values.Get("privateKey")
-	if err := api.Login(agentId, privstr); err != nil {
+	if err := api.Login(partyId, privstr); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -339,10 +339,10 @@ func (api *Api) TransferHandler(w http.ResponseWriter, req *http.Request) {
 
 func (api *Api) LoggedIn() bool {
 	switch {
-	case api.agent == nil:
-		api.logger.Warn("Agent profile is not set")
-	case api.agentId == "":
-		api.logger.Warn("Agent ID is not set")
+	case api.party == nil:
+		api.logger.Warn("Party profile is not set")
+	case api.partyId == "":
+		api.logger.Warn("Party ID is not set")
 	case api.priv == nil:
 		api.logger.Warn("Private-key is not set")
 	case api.pub == nil:
@@ -354,47 +354,47 @@ func (api *Api) LoggedIn() bool {
 	return false
 }
 
-func (api *Api) Login(agentId, privstr string) error {
+func (api *Api) Login(partyId, privstr string) error {
 	priv := new(ed25519.PrivateKey)
 	if err := priv.FromString(privstr); err != nil {
 		return err
 	}
-	tx, err := bigchain.GetTx(agentId)
+	tx, err := bigchain.GetTx(partyId)
 	if err != nil {
 		return err
 	}
-	agent := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(agent); err != nil {
+	party := bigchain.GetTxData(tx)
+	if err = spec.ValidParty(party); err != nil {
 		return err
 	}
 	pub := bigchain.DefaultGetTxSender(tx)
 	if !pub.Equals(priv.Public()) {
 		return ErrInvalidKey
 	}
-	api.agent = agent
-	api.agentId = agentId
+	api.party = party
+	api.partyId = partyId
 	api.priv = priv
 	api.pub = pub
-	agentName := spec.GetName(agent)
-	api.logger.Info(Sprintf("SUCCESS %s is logged in", agentName))
+	partyName := spec.GetName(party)
+	api.logger.Info(Sprintf("SUCCESS %s is logged in", partyName))
 	return nil
 }
 
 func (api *Api) Register(email, name, password, socialMedia string) (Data, error) {
 	priv, pub := ed25519.GenerateKeypairFromPassword(password)
-	agent := spec.NewAgent(email, name, socialMedia)
-	if err := spec.ValidAgent(agent); err != nil {
+	party := spec.NewParty(email, name, socialMedia)
+	if err := spec.ValidParty(party); err != nil {
 		return nil, err
 	}
-	tx := bigchain.DefaultIndividualCreateTx(agent, pub)
+	tx := bigchain.DefaultIndividualCreateTx(party, pub)
 	bigchain.FulfillTx(tx, priv)
 	id, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
-	api.logger.Info("SUCCESS registered new agent: " + name)
+	api.logger.Info("SUCCESS registered new party: " + name)
 	return Data{
-		"agent": Data{
+		"party": Data{
 			"name":       name,
 			"privateKey": priv.String(),
 			"publicKey":  pub.String(),
@@ -404,7 +404,7 @@ func (api *Api) Register(email, name, password, socialMedia string) (Data, error
 }
 
 func (api *Api) Compose(hfa, ipi, iswc, pro, title string) (Data, error) {
-	composition := spec.NewComposition(api.agentId, hfa, ipi, iswc, pro, title)
+	composition := spec.NewComposition(api.partyId, hfa, ipi, iswc, pro, title)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -440,7 +440,7 @@ func (api *Api) Record(compositionRightId string, file io.Reader, isrc, performe
 }
 
 func (api *Api) Publish(compositionId string, compositionRightIds []string) (Data, error) {
-	publication := spec.NewPublication(compositionId, compositionRightIds, api.agentId)
+	publication := spec.NewPublication(compositionId, compositionRightIds, api.partyId)
 	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -455,7 +455,7 @@ func (api *Api) Publish(compositionId string, compositionRightIds []string) (Dat
 }
 
 func (api *Api) Release(mechanicalLicenseId, recordingId string, recordingRightIds []string) (Data, error) {
-	release := spec.NewRelease(mechanicalLicenseId, recordingId, recordingRightIds, api.agentId)
+	release := spec.NewRelease(mechanicalLicenseId, recordingId, recordingRightIds, api.partyId)
 	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -475,7 +475,7 @@ func (api *Api) CompositionRight(compositionId, recipientId string, recipientSha
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	compositionRight := spec.NewCompositionRight(compositionId, recipientId, api.agentId, territory, usage, validFrom, validThrough)
+	compositionRight := spec.NewCompositionRight(compositionId, recipientId, api.partyId, territory, usage, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, compositionRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -495,7 +495,7 @@ func (api *Api) RecordingRight(recipientId string, recipientShares int, recordin
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	recordingRight := spec.NewRecordingRight(recipientId, recordingId, api.agentId, territory, usage, validFrom, validThrough)
+	recordingRight := spec.NewRecordingRight(recipientId, recordingId, api.partyId, territory, usage, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, recordingRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -510,7 +510,7 @@ func (api *Api) RecordingRight(recipientId string, recipientShares int, recordin
 }
 
 func (api *Api) MechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
-	mechanicalLicense := spec.NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, api.agentId, territory, usage, validFrom, validThrough)
+	mechanicalLicense := spec.NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, api.partyId, territory, usage, validFrom, validThrough)
 	tx := bigchain.DefaultIndividualCreateTx(mechanicalLicense, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -525,7 +525,7 @@ func (api *Api) MechanicalLicense(compositionRightId, compositionRightTransferId
 }
 
 func (api *Api) MasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
-	masterLicense := spec.NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, api.agentId, territory, usage, validFrom, validThrough)
+	masterLicense := spec.NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, api.partyId, territory, usage, validFrom, validThrough)
 	tx := bigchain.DefaultIndividualCreateTx(masterLicense, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -547,18 +547,18 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 		if err != nil {
 			return nil, err
 		}
-		if api.agentId == spec.GetRecipientId(compositionRightTransfer) {
+		if api.partyId == spec.GetRecipientId(compositionRightTransfer) {
 			totalShares = spec.GetRecipientShares(compositionRightTransfer)
-		} else if api.agentId == spec.GetSenderId(compositionRightTransfer) {
+		} else if api.partyId == spec.GetSenderId(compositionRightTransfer) {
 			totalShares = spec.GetSenderShares(compositionRightTransfer)
 			output = 1
 		} else {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "partyId does not match recipientId or senderId of TRANSFER tx")
 		}
 		compositionRightId = spec.GetCompositionRightId(compositionRightTransfer)
 		txId = spec.GetTxId(compositionRightTransfer)
 	} else {
-		compositionRight, err := ld.ValidateCompositionRightHolder(compositionRightId, publicationId, api.agentId)
+		compositionRight, err := ld.ValidateCompositionRightHolder(compositionRightId, publicationId, api.partyId)
 		if err != nil {
 			return nil, err
 		}
@@ -584,7 +584,7 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 	if err != nil {
 		return nil, err
 	}
-	compositionRightTransfer := spec.NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, api.agentId, txId)
+	compositionRightTransfer := spec.NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, api.partyId, txId)
 	tx = bigchain.DefaultIndividualCreateTx(compositionRightTransfer, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -606,18 +606,18 @@ func (api *Api) TransferRecordingRight(recordingRightId, recordingRightTransferI
 		if err != nil {
 			return nil, err
 		}
-		if api.agentId == spec.GetRecipientId(recordingRightTransfer) {
+		if api.partyId == spec.GetRecipientId(recordingRightTransfer) {
 			totalShares = spec.GetRecipientShares(recordingRightTransfer)
-		} else if api.agentId == spec.GetSenderId(recordingRightTransfer) {
+		} else if api.partyId == spec.GetSenderId(recordingRightTransfer) {
 			totalShares = spec.GetSenderShares(recordingRightTransfer)
 			output = 1
 		} else {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "agentId does not match recipientId or senderId of TRANSFER tx")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "partyId does not match recipientId or senderId of TRANSFER tx")
 		}
 		recordingRightId = spec.GetRecordingRightId(recordingRightTransfer)
 		txId = spec.GetTxId(recordingRightTransfer)
 	} else {
-		recordingRight, err := ld.ValidateRecordingRightHolder(api.agentId, recordingRightId, releaseId)
+		recordingRight, err := ld.ValidateRecordingRightHolder(api.partyId, recordingRightId, releaseId)
 		if err != nil {
 			return nil, err
 		}
@@ -643,7 +643,7 @@ func (api *Api) TransferRecordingRight(recordingRightId, recordingRightTransferI
 	if err != nil {
 		return nil, err
 	}
-	recordingRightTransfer := spec.NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, api.agentId, txId)
+	recordingRightTransfer := spec.NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, api.partyId, txId)
 	tx = bigchain.DefaultIndividualCreateTx(recordingRightTransfer, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

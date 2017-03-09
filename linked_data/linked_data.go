@@ -35,7 +35,7 @@ func ValidateComposition(composition Data, pub crypto.PublicKey) error {
 		return ErrorAppend(ErrCriteriaNotMet, "composition must be signed by composer")
 	}
 	composer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(composer); err != nil {
+	if err = spec.ValidParty(composer); err != nil {
 		return err
 	}
 	return nil
@@ -178,7 +178,7 @@ func ValidateRecording(recordingId string) (Data, string, error) {
 		return nil, "", err
 	}
 	performer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(performer); err != nil {
+	if err = spec.ValidParty(performer); err != nil {
 		return nil, "", err
 	}
 	var senderId string
@@ -191,7 +191,7 @@ func ValidateRecording(recordingId string) (Data, string, error) {
 		return nil, "", err
 	}
 	producer := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(producer); err != nil {
+	if err = spec.ValidParty(producer); err != nil {
 		return nil, "", err
 	}
 	if EmptyStr(senderId) && senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -492,7 +492,7 @@ OUTER:
 		return nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, err
 	}
 	return mechanicalLicense, nil
@@ -627,7 +627,7 @@ OUTER:
 		return nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, err
 	}
 	return masterLicense, nil
@@ -701,7 +701,7 @@ func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey
 		return nil, nil, nil, err
 	}
 	sender := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(sender); err != nil {
+	if err = spec.ValidParty(sender); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -713,7 +713,7 @@ func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey
 		return nil, nil, nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, nil, nil, err
 	}
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -741,7 +741,7 @@ func ValidateRecordingRight(recordingRightId string) (Data, crypto.PublicKey, cr
 		return nil, nil, nil, err
 	}
 	sender := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(sender); err != nil {
+	if err = spec.ValidParty(sender); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -753,7 +753,7 @@ func ValidateRecordingRight(recordingRightId string) (Data, crypto.PublicKey, cr
 		return nil, nil, nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, nil, nil, err
 	}
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -815,7 +815,7 @@ func ValidateCompositionRightTransfer(transferId string) (Data, error) {
 		return nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
@@ -828,7 +828,7 @@ func ValidateCompositionRightTransfer(transferId string) (Data, error) {
 		return nil, err
 	}
 	sender := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(sender); err != nil {
+	if err = spec.ValidParty(sender); err != nil {
 		return nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -899,7 +899,7 @@ func ValidateRecordingRightTransfer(transferId string) (Data, error) {
 		return nil, err
 	}
 	recipient := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(recipient); err != nil {
+	if err = spec.ValidParty(recipient); err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
@@ -912,7 +912,7 @@ func ValidateRecordingRightTransfer(transferId string) (Data, error) {
 		return nil, err
 	}
 	sender := bigchain.GetTxData(tx)
-	if err = spec.ValidAgent(sender); err != nil {
+	if err = spec.ValidParty(sender); err != nil {
 		return nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {

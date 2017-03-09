@@ -2,31 +2,15 @@
 
 ### Transaction 
 
-A JSON-encoded transaction wraps every data model sent to/queried in the database. A transaction includes a 64-character hexadecimal ID, the public keys of the signer/holder encoded as base58 strings, and other information. To learn more about the transaction model, please refer to the BigchainDB [doc](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) or check out the `bigchain` module in the repo. In the following examples, the transaction id and public keys are included. Note: output amount and holder key are only included in the right models. The remaining transaction information is omitted.
+A JSON-encoded transaction wraps every data model sent to/queried in the database. A transaction includes a 64-character hexadecimal ID, the public keys of the sender/recipient encoded as base58 strings, and other information. To learn more about the transaction model, please refer to the BigchainDB [doc](https://docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html) or check out the `bigchain` module in the repo. In the following examples, the transaction id and public keys are included. Note: output amount and recipient key are included in the right models. The remaining transaction information is omitted.
 
-### Instance
+### Party
 
-Every data model in the envoke spec wraps an instance, which contains the unix timestamp when the model was created and the type of model. 
-
-Example:
-```javascript
-{
-	...
-    "instance": {
-        "time": "1487034702", 
-        "type": "agent"
-    }
-    ...
-}
-```
-
-### Agent
-
-The agent model represents an envoke user, e.g. a composer, performer, producer, publisher, or record label. 
+The party model represents a right-holder of musical content, e.g. composer, performer, producer, publisher, or record label. 
 
 * **Required** 
   
-  `email=[email_address]` | `name=[alphanumeric]` | `socialMedia=[url]` 
+  `email=[email_address]` | `name=[alphanumeric]` | `sameAs=[url]` 
 
 Example:
 
@@ -34,15 +18,12 @@ Example:
 {
     "data": {
         "email": "composer@email.com"
-        "instance": {
-          "type": "agent",
-          "time": "1488486588"
-        },
         "name": "composer_name",
-        "socialMedia": "www.composer.com"
+        "sameAs": "www.composer.com"
+        "type": "party",
     },
     "id": "<composer_id>",
-    "signer_key": "<composer_key>"
+    "sender_key": "<composer_key>"
 }
 ```
 
@@ -53,7 +34,7 @@ A composition represents the written music and lyrics of a musical work.
 
 * **Required**
 
-`composerId,publisherId=[hexadecimal]` | `title=[alphanumeric]`
+`composerId=[hexadecimal]` | `title=[alphanumeric]`
 
 * **Optional**
 
@@ -65,33 +46,28 @@ Example:
     "data": {
         "composerId": "<composer_id>",
         "hfa": "B3107S",
-        "instance": {
-            "time": "1488768059",
-            "type": "composition"
-        },
         "ipi": "678175698",
         "iswc": "T-034.524.680-1",
         "pro": "ASCAP",
-        "publisherId": "<publisher_id>",
-        "title": "untitled"
+        "title": "untitled",
+        "type": "composition"
     },
     "id": "<composition_id>",
-    "signer_key": "<composer_key>"
+    "sender_key": "<composer_key>"
 }
 ```
 
 
 ### Composition Right 
-A composition right indicates ownership of a composition. The amount in the transaction output specifies the percentage shares.
+A composition right indicates a recipient's ownership of a composition. 
 
 * **Required**
-	
-	`compositionId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
     
+    `compositionId,recipientId,senderId=[hexadecimal]` | `territory=[country_codes]` | `validFrom,validTo=[yyyy-mm-dd]`
 
-* **Optional**
+* **Notes**
 
-	`territory=[country_codes]`
+    The amount in the transaction output specifies the percentage shares.
 
 Example:
 ```javascript
@@ -99,138 +75,115 @@ Example:
     "amount": 80,
     "data": {
         "compositionId": "<composition_id>",
-        "instance": {
-            "time": "1488768060",
-            "type": "right"
-        },
+        "recipientId": "<publisher_id>",
+        "senderId": "<composer_id>"
         "territory": [
             "GB",
             "US"
         ],
+        "type": "right",
+        // usage
         "validFrom": "2020-01-01",
         "validTo": "3000-01-01"
     },
-    "holder_key": "<publisher_key>",
+    "recipient_key": "<publisher_key>",
     "id": "<publisher_right_id>",
-    "signer_key": "<composer_key>"
+    "sender_key": "<composer_key>"
 }
 ```
-
-### Composition Right Assignment
-A composition right assignment links a signer and holder agent to a composition right.
-
-* **Required**
-
-	`holderId,rightId,signerId=[hexadecimal]`
-
-Example:
-```javascript
-{
-    "data": {
-        "holderId": "<publisher_id>",
-        "instance": {
-            "time": "1488768060",
-            "type": "assignment"
-        },
-        "rightId": "<publisher_right_id>",
-        "signerId": "<composer_id>"
-    },
-    "id": "<publisher_right_assignment_id>",
-    "signer_key": "<composer_key>"
-}
-```
-
 
 ### Publication
 
-The publication model describes the relationship of composition right assignments to a composition.  
+The publication model describes the relationship of composition rights to a composition.  
 
 * **Required**
-	
-    `assignmentIds,compositionId=[hexadecimal]`
+    
+    `compositionId,compositionRightIds,publisherId=[hexadecimal]`
 
 Example:
 ```javascript
 {
     "data": {
-        "assignmentIds": [
-            "<composer_right_assignment_id>",
-            "<publisher_right_assignment_id>"
-        ],
         "compositionId": "<composition_id>",
-        "instance": {
-            "time": "1488768061",
-            "type": "publication"
-        }
+        "compositionRightIds": [
+            "<composer_right_id>",
+            "<publisher_right_id>"
+        ],
+        "publisherId": "<publisher_id>",
+        "type": "publication"
     },
     "id": "<publication_id>",
-    "signer_key": "<publisher_key>"
+    "sender_key": "<publisher_key>"
 }
 ```
 
 ### Mechanical License
 
-A mechanical license, issued by a composition right-holder to a licensee, permits use of a publication.
+A mechanical license, sent by a composition right-holder to a recipient, permits use of a publication.
 
 * **Required**
 
-	`licenseeId,licenserId,publicationId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
+    `publicationId,recipientId,senderId=[hexadecimal]` | `territory=[country_codes]` | `validFrom,validTo=[yyyy-mm-dd]`
     
 * **Optional**
 
-	`assignmentId=[hexadecimal]` | `territory=[country_codes]` | `transferId=[hexadecimal]`
+    `compositionRightId,compositionRightTransferId=[hexadecimal]`
 
 * **Notes**
     
-    Mechanical license must contain assignmentId or transferId
+    Mechanical license should link to composition right or composition right transfer.
 
 Example:
 
 ```javascript
 {
     "data": {
-        "assignmentId": "<publisher_right_assignment_id>",
-        "instance": {
-            "time": "1488768063",
-            "type": "mechanical_license"
-        },
-        "licenseeId": "<label_id>",
-        "licenserId": "<publisher_id>",
+        "compositionRightId": "<publisher_right_id>",
         "publicationId": "<publication_id>",
+        "recipientId": "<label_id>",
+        "senderId": "<publisher_id>",
         "territory": [
             "US"
         ],
+        "type": "license",
+        // usage
         "validFrom": "2020-01-01",
         "validTo": "2025-01-01"
     },
     "id": "<mechanical_license_id>",
-    "signer_key": "<publisher_key>"
+    "sender_key": "<publisher_key>"
 }
 ```
 
 ### Composition Right Transfer 
 
-A composition right transfer indicates a transfer of ownership shares from a sender to a recipient.
+A composition right transfer indicates a transfer of composition right shares from a sender to a recipient.
 
 * **Required**
 
-	`publicationId,recipientId,senderId,txId=[hexadecimal]`
+    `compositionRightId,publicationId,recipientId,senderId,txId=[hexadecimal]`
+
+* **Optional**
+
+    `compositionRightTransferId=[hexadecimal]`
+
+* Notes 
+
+    The output amount(s) in the linked TRANSFER tx should specify recipient/sender shares.
 
 Example:
 ```javascript 
 {
     "data": {
-        "instance": {
-            "time": "1488768090",
-            "type": "transfer"
-        },
+        "compositionRightId": "<composer_right_id>"
         "publicationId": "<publication_id>",
         "recipientId": "<publisher_id>",
         "senderId": "<composer_id>",
-        "txId": "<TRANSFER_tx_id>"
+        "txId": "<TRANSFER_tx_id>",
+        "type": "transfer"
     },
     "id": "<publisher_transfer_id>",
-    "signer_key": "<composer_key>"
+    "sender_key": "<composer_key>"
 }
 ```
 
@@ -240,189 +193,169 @@ A recording represents a digitally recorded performance of a composition.
 
 * **Required**
 
-	`labelId,performerId,producerId,publicationId=[hexadecimal`
+    `performerId,producerId,publicationId=[hexadecimal]`
     
 * **Optional**
-	
-    `assignmentId=[hexadecimal]` | 	`isrc=[ISRC_code]` 
+    
+    `compositionRightId=[hexadecimal]` | `isrc=[ISRC_code]` 
 
 Example:
 ```javascript
 {
     "data": {
-        "instance": {
-            "time": "1488768066",
-            "type": "recording"
-        },
         "isrc": "US-S1Z-99-00001",
-        "labelId": "<label_id>",
         "performerId": "<performer_id>",
         "producerId": "<producer_id>",
-        "publicationId": "<publication_id>"
+        "publicationId": "<publication_id>",
+        "type": "recording"
     },
     "id": "<recording_id>",
-    "signer_key": "<performer_key>" // or producer_key
+    "sender_key": "<performer_key>" // or producer_key
 }
 ```
 
 ### Recording Right 
-A recording right indicates ownership of a recording.
+A recording right indicates a recipient's ownership of a recording.
 
 * **Required**
-	
-	`recordingId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
     
-* **Optional**
+    `recordingId=[hexadecimal]` | `territory=[country_codes]` | `validFrom,validTo=[yyyy-mm-dd]`
 
-	`territory=[country_codes]`
+* **Notes**
+
+    The amount in the transaction output specifies the percentage shares.
 
 Example:
 ```javascript
 {
     "amount": 70,
     "data": {
-        "instance": {
-            "time": "1488768070",
-            "type": "right"
-        },
+        "recipientId": "<label_id>",
         "recordingId": "<recording_id>",
+        "senderId": "<performer_id>",
         "territory": [
             "GB",
             "US"
         ],
+        "type": "right",
+        // usage
         "validFrom": "2020-01-01",
         "validTo": "2080-01-01"
     },
-    "holder_key": "<label_key>",
+    "recipient_key": "<label_key>",
     "id": "<label_right_id>",
-    "signer_key": "<performer_key>"
-}
-```
-
-### Recording Right Assignment
-
-A recording right assignment links a signer and holder agent to a recording right.
-
-* **Required**
-	
-    `holderId,rightId,senderId=[hexadecimal]`
-
-Example:
-```javascript
-{
-    "data": {
-        "holderId": "<label_id>",
-        "instance": {
-            "time": "1488768070",
-            "type": "assignment"
-        },
-        "rightId": "<label_right_id>",
-        "signerId": "<performer_id>"
-    },
-    "id": "<label_right_assignment_id>",
-    "signer_key": "<performer_key>"
+    "sender_key": "<performer_key>"
 }
 ```
 
 ### Release
 
-A release describes the relationship of recording right assignments to a recording.
+A release describes the relationship of recording rights to a recording.
 
 * **Required**
-	
-    `assignmentIds,recordingId=[hexadecimal]`
-   
+    
+    `recordingId,recordingRightIds,recordLabelId=[hexadecimal]`
     
 * **Optional**
 
-	`licenseId=[hexadecimal]`
+    `mechanicalLicenseId=[hexadecimal]`
+
+* **Notes**
+
+    Release should link to mechanical license if underlying recording does not link to composition right.
 
 Example:
 
 ```javascript
 {
     "data": {
-        "assignmentIds": [
-            "<label_right_assignment_id>",
-            "<performer_right_assignment_id>",
-            "<producer_right_assignment_id>"
-         ],
-        "instance": {
-            "time": "1488768071",
-            "type": "release"
-         },
-        "licenseId": "<mechanical_license_id>",
-        "recordingId": "<recording_id>"
+        "mechanicalLicenseId": "<mechanical_license_id>",
+        "recordingId": "<recording_id>",
+        "recordingRightIds": [
+            "<label_right_id>",
+            "<performer_right_id>",
+            "<producer_right_id>"
+        ],
+        "recordLabelId": "<label_id>",
+        "type": "release"
     },
     "id": "<release_id>",
-    "signer_key": "<label_key>"
+    "sender_key": "<label_key>"
 }
 ```
 
 
 ### Master License
 
-A master license, issued by a recording right-holder to a licensee, permits use of a release.
+A master license, sent by a recording right-holder to a recipient, permits use of a release.
 
 * **Required**
 
-	`licenseeId,licenserId,releaseId=[hexadecimal]` | `validFrom,validTo=[yyyy-mm-dd]`
+    `recipientId,releaseId,senderId=[hexadecimal]` | `territory=[country_codes]` | `validFrom,validTo=[yyyy-mm-dd]`
     
 * **Optional**
 
-	`assignmentId=[hexadecimal]` | `territory=[country_codes]` | `transferId=[hexadecimal]`
+    `recordingRightId,recordingRightTransferId=[hexadecimal]`
 
 * **Notes**
     
-    Master license must contain assignmentId or transferId
+    Master license should link to recording right or recording right transfer.
 
 Example:
 ```javascript
 {
     "data": {
-        "assignmentId": "<label_right_assignment_id>",
         "instance": {
             "time": "1488768079",
             "type": "master_license"
         },
-        "licenseeId": "<radio_station_id>",
-        "licenserId": "<label_id>",
+        "recipientId": "<radio_station_id>",
+        "recordingRightId": "<label_right_id>",
         "releaseId": "<release_id>",
+        "senderId": "<label_id>",
         "territory": [
             "US"
         ],
+        "type": "license"
+        // usage
         "validFrom": "2020-01-01",
         "validTo": "2022-01-01"
     },
     "id": "<master_license_id>",
-    "signer_key": "<label_key>"
+    "sender_key": "<label_key>"
 }
 ```
 
 
 ### Recording Right Transfer
 
-A recording right transfer indicates a transfer of ownership shares from a sender to a recipient.
+A recording right transfer indicates a transfer of recording right shares from a sender to a recipient.
 
 * **Required**
 
-	`recipientId,releaseId,senderId,txId=[hexadecimal]`
+    `recipientId,recordingRightId,releaseId,senderId,txId=[hexadecimal]`
+
+* **Optional**
+
+    `recordingRightTransferId=[hexadecimal]`
+
+* Notes 
+
+    The output amount(s) in the linked TRANSFER tx should specify recipient/sender shares.
 
 Example:
 ```javascript
 {
     "data": {
-        "instance": {
-            "time": "1488768102",
-            "type": "transfer"
-        },
         "recipientId": "<label_id>",
+        "recordingRightId": "<performer_right_id>",
         "releaseId": "<release_id>",
         "senderId": "<performer_id>",
-        "txId": "<TRANSFER_tx_id>"
+        "txId": "<TRANSFER_tx_id>",
+        "type": "transfer"
     },
     "id": "<label_transfer_id>",
-    "signer_key": "<performer_key>"
+    "sender_key": "<performer_key>"
 }
 ``` 
 

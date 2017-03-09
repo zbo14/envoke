@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	AGENT       = "agent"
+	PARTY       = "party"
 	COMPOSITION = "composition"
 	RECORDING   = "recording"
 	PUBLICATION = "publication"
@@ -17,7 +17,7 @@ const (
 	LICENSE     = "license"
 	TRANSFER    = "transfer"
 
-	AGENT_SIZE           = 4
+	PARTY_SIZE           = 4
 	INSTANCE_SIZE        = 2
 	LICENSE_SIZE         = 9
 	MIN_COMPOSITION_SIZE = 3
@@ -92,7 +92,7 @@ func ValidInstance(instance Data) error {
 	_type := GetInstanceType(instance)
 	switch _type {
 	case
-		AGENT,
+		PARTY,
 		COMPOSITION,
 		RECORDING,
 		PUBLICATION,
@@ -110,55 +110,55 @@ func ValidInstance(instance Data) error {
 	return nil
 }
 
-// Agent
+// Party
 
-func NewAgent(email, name, socialMedia string) Data {
+func NewParty(email, name, socialMedia string) Data {
 	return Data{
 		"email":       email,
-		"instance":    NewInstance(AGENT),
+		"instance":    NewInstance(PARTY),
 		"name":        name,
 		"socialMedia": socialMedia,
 	}
 }
 
-func GetEmail(agent Data) string {
-	return agent.GetStr("email")
+func GetEmail(data Data) string {
+	return data.GetStr("email")
 }
 
-func GetName(agent Data) string {
-	return agent.GetStr("name")
+func GetName(data Data) string {
+	return data.GetStr("name")
 }
 
-func GetSocialMediaStr(agent Data) string {
-	return agent.GetStr("socialMedia")
+func GetSocialMediaStr(data Data) string {
+	return data.GetStr("socialMedia")
 }
 
-func GetSocialMedia(agent Data) *url.URL {
-	return MustParseUrl(GetSocialMediaStr(agent))
+func GetSocialMedia(data Data) *url.URL {
+	return MustParseUrl(GetSocialMediaStr(data))
 }
 
-func ValidAgent(agent Data) error {
-	instance := GetInstance(agent)
+func ValidParty(party Data) error {
+	instance := GetInstance(party)
 	if err := ValidInstance(instance); err != nil {
 		return err
 	}
-	if !HasType(agent, AGENT) {
-		return ErrorAppend(ErrInvalidType, GetType(agent))
+	if !HasType(party, PARTY) {
+		return ErrorAppend(ErrInvalidType, GetType(party))
 	}
-	email := GetEmail(agent)
+	email := GetEmail(party)
 	if !MatchStr(EMAIL_REGEX, email) {
 		return ErrorAppend(ErrInvalidEmail, email)
 	}
-	name := GetName(agent)
+	name := GetName(party)
 	if EmptyStr(name) {
 		return ErrorAppend(ErrEmptyStr, name)
 	}
-	socialMedia := GetSocialMediaStr(agent)
+	socialMedia := GetSocialMediaStr(party)
 	if !MatchUrlRelaxed(socialMedia) {
 		return ErrorAppend(ErrInvalidUrl, socialMedia)
 	}
-	if len(agent) != AGENT_SIZE {
-		return ErrorAppend(ErrInvalidSize, AGENT)
+	if len(party) != PARTY_SIZE {
+		return ErrorAppend(ErrInvalidSize, PARTY)
 	}
 	return nil
 }

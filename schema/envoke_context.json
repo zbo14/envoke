@@ -25,27 +25,59 @@
       	"SynchronizationLicense": "envoke:SynchronizationLicense",
       	"MasterLicense": "envoke:MasterLicense",
 
+        "byArist": {
+            "@id": "schema:byArtist",
+            "@type": "@id"
+        },
       	"composition": {
       		"@id": "envoke:composition",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
       	"compositionRight": {
       		"@id": "envoke:compositionRight",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
       	"compositionRightTransfer": {
       		"@id": "envoke:compositionRightTransfer",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
+        "description": {
+            "@id": "schema:description",
+            "@type": "@id"
+        },
+        "email": {
+            "@id": "schema:email",
+            "@type": "@id"
+        },
       	"hfaCode": "envoke:hfaCode",
       	"ipiNumber": "envoke:ipiNumber",
+        "isrcCode": {
+            "@id": "schema:isrcCode",
+            "@type": "@id"
+        },
+         "iswcCode": {
+            "@id": "schema:iswcCode",
+            "@type": "@id"
+        },
+        "member": {
+            "@id": "schema:member",
+            "@type": "@id"
+        }, 
+        "name": {
+            "@id": "schema:name",
+            "@type": "@id"
+        },     
      	"pro": "envoke:pro",
+        "producer": {
+            "@id": "schema:producer",
+            "@type": "@id"
+        },
       	"publication": {
       		"@id": "envoke:publication",
       		"@type": "@id"
       	},
       	"publisher": {
-      		"@id": "envoke:publisher",
+      		"@id": "schema:publisher",
       		"@type": "@id"
       	},
       	"recipient": {
@@ -54,16 +86,28 @@
       	},
       	"recording": {
       		"@id": "envoke:recording",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
       	"recordingRight": {
       		"@id": "envoke:recordingRight",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
       	"recordingRightTransfer": {
       		"@id": "envoke:recordingRightTransfer",
-      		"@type": "@id",
+      		"@type": "@id"
       	},
+        "recordLabel": {
+            "@id": "schema:recordLabel",
+            "@type": "@id"
+        },
+        "release": {
+            "@id": "envoke:release",
+            "@type": "@id"
+        },
+        "sameAs": {
+            "@id": "schema:sameAs",
+            "@type": "@id"
+        },
       	"sender": {
       		"@id": "envoke:sender",
       		"@type": "@id"

@@ -203,25 +203,6 @@
 			}
 		},
 		{
-			"@id": "<envoke placeholder>/publisher",
-			"@type": "rdf:Property",
-			"owl:equivalentClass": {
-				"@id": "schema:publisher"
-			},
-			"schema:domainIncludes": {
-				"@id": "envoke:MusicPublication"
-			},
-			"schema:rangeIncludes": [
-				{
-					"@id": "schema:Organization"
-				},
-				{
-					"@id": "schema:Person"
-				}
-			],
-			"rdfs:label": "publisher"
-		},
-		{
 			"@id": "<envoke placeholder>/recipient",
 			"@type": "rdf:Property",
 			"schema:domainIncludes": [

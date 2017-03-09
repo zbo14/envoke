@@ -270,9 +270,21 @@ func GetRecipientId(data Data) string {
 	return GetId(recipient)
 }
 
+func GetRecipientShares(data Data) int {
+	return data.GetInt("recipientShares")
+}
+
 func GetSenderId(data Data) string {
 	sender := data.GetData("sender")
 	return GetId(sender)
+}
+
+func GetSenderShares(data Data) int {
+	return data.GetInt("senderShares")
+}
+
+func GetTerritory(data Data) []string {
+	return data.GetStrSlice("territory")
 }
 
 func NewRecordingRight(recipientId, recordingId, senderId string, territory, usage []string, validFrom, validThrough string) Data {

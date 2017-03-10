@@ -1,6 +1,5 @@
 {
 	"@context": {
-		"coala": "<coalaip placeholder>",
 		"dc": "http://purl.org/dc/terms/",
 		"envoke": "<envoke placeholder>",
 		"owl": "http://www.w3.org/2002/07/owl#",
@@ -169,6 +168,17 @@
 				"@id": "schema:Number"
 			},
 			"rdfs:label": "ipiNumber"
+		},
+		{
+			"@id": "<envoke placeholder>/mechanicalLicense",
+			"@type": "rdf:Property",
+			"schema:domainIncludes": {
+				"@id": "schema:MusicRelease"
+			},
+			"schema:rangeIncludes": {
+				"@id": "envoke:MechanicalLicense"
+			},
+			"rdfs:label": "mechanicalLicense"
 		},
 		{
 			"@id": "<envoke placeholder>/pro",

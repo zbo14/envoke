@@ -1,0 +1,124 @@
+{
+	"@context": {
+		"id": "@id",
+		"type": "@type",
+
+		"envoke": "<envoke placeholder>",
+		"owl": "http://www.w3.org/2002/07/owl#",
+		"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+		"rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+		"schema": "http://schema.org/",
+
+		"MusicPublication": "envoke:MusicPublication",
+
+		"Right": "envoke:Right",
+		"CompositionRight": "envoke:CompositionRight",
+		"RecordingRight": "envoke:RecordingRight",
+
+		"RightTransfer": "envoke:RightTransfer",
+		"CompositionRightTransfer": "envoke:CompositionRightTransfer",
+		"RecordingRightTransfer": "envoke:RecordingRightTransfer",
+
+		"License": "envoke:License",
+		"MechanicalLicense": "envoke:MechanicalLicense",
+		"SynchronizationLicense": "envoke:SynchronizationLicense",
+		"MasterLicense": "envoke:MasterLicense",
+
+		"byArist": {
+			"@id": "schema:byArtist",
+			"@type": "@id"
+		},
+		"composition": {
+			"@id": "envoke:composition",
+			"@type": "@id"
+		},
+		"compositionRight": {
+			"@id": "envoke:compositionRight",
+			"@type": "@id"
+		},
+		"compositionRightTransfer": {
+			"@id": "envoke:compositionRightTransfer",
+			"@type": "@id"
+		},
+		"description": {
+			"@id": "schema:description",
+			"@type": "@id"
+		},
+		"email": {
+			"@id": "schema:email",
+			"@type": "@id"
+		},
+		"hfaCode": "envoke:hfaCode",
+		"ipiNumber": "envoke:ipiNumber",
+		"isrcCode": {
+			"@id": "schema:isrcCode",
+			"@type": "@id"
+		},
+		"iswcCode": {
+			"@id": "schema:iswcCode",
+			"@type": "@id"
+		},
+		"mechanicalLicense": {
+			"@id": "envoke:mechanicalLicense",
+			"@type": "@id"
+		},
+		"member": {
+			"@id": "schema:member",
+			"@type": "@id"
+		}, 
+		"name": {
+			"@id": "schema:name",
+			"@type": "@id"
+		},     
+		"pro": "envoke:pro",
+		"producer": {
+			"@id": "schema:producer",
+			"@type": "@id"
+		},
+		"publication": {
+			"@id": "envoke:publication",
+			"@type": "@id"
+		},
+		"publisher": {
+			"@id": "schema:publisher",
+			"@type": "@id"
+		},
+		"recipient": {
+			"@id": "envoke:recipient",
+			"@type": "@id"
+		},
+		"recording": {
+			"@id": "envoke:recording",
+			"@type": "@id"
+		},
+		"recordingRight": {
+			"@id": "envoke:recordingRight",
+			"@type": "@id"
+		},
+		"recordingRightTransfer": {
+			"@id": "envoke:recordingRightTransfer",
+			"@type": "@id"
+		},
+		"recordLabel": {
+			"@id": "schema:recordLabel",
+			"@type": "@id"
+		},
+		"release": {
+			"@id": "envoke:release",
+			"@type": "@id"
+		},
+		"sameAs": {
+			"@id": "schema:sameAs",
+			"@type": "@id"
+		},
+		"sender": {
+			"@id": "envoke:sender",
+			"@type": "@id"
+		},
+		"territory": "envoke:territory",
+		"txId": "envoke:txId",
+		"usage": "envoke:usage",
+		"validFrom": "envoke:validFrom",
+		"validThrough": "envoke:validThrough"
+	}
+}

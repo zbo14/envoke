@@ -16,81 +16,72 @@ func GetType(data Data) string {
 	return data.GetStr("@type")
 }
 
-func NewPerson(birthDate, deathDate, familyName, givenName string) Data {
-	person := Data{
-		"@context":   SCHEMA,
-		"@type":      "Person",
-		"birthDate":  birthDate,
-		"familyName": familyName,
-		"givenName":  givenName,
+func NewParty(email, ipi, isni string, memberIds []string, name, proId, sameAs, _type string) Data {
+	party := Data{
+		"@context": []string{ENVOKE, SCHEMA},
+		"@type":    _type,
+		"email":    email,
+		"name":     name,
+		"sameAs":   sameAs,
 	}
-	if !EmptyStr(deathDate) {
-		person.Set("deathDate", deathDate)
-	}
-	return person
-}
-
-/*
-func NewOrganization(description, email, memberIds []string, name, sameAs string) Data {
-	member := make([]Data, len(memberIds))
-	for i, memberId := range memberIds {
-		member[i] = Data{"@id": memberId}
-	}
-	return Data{
-		"@context":    SCHEMA,
-		"@type":       "Organization",
-		"description": description,
-		"email":       email,
-		"member":      member,
-		"name":        name,
-		"sameAs":      sameAs,
-	}
-}
-*/
-
-func NewOrganization(description, email, memberNames []string, name, sameAs string) Data {
-	org := Data{
-		"@context":    SCHEMA,
-		"@type":       "Organization",
-		"description": description,
-		"email":       email,
-		"name":        name,
-		"sameAs":      sameAs,
-	}
-	if memberNames != nil {
-		member := make([]Data, len(memberNames))
-		for i, name := range memberNames {
-			member[i] = Data{
-				"@type": "Person",
-				"name":  name,
+	switch _type {
+	case "MusicGroup", "Organization":
+		if len(memberIds) > 0 {
+			member := make([]Data, len(memberIds))
+			for i, memberId := range memberIds {
+				member[i] = Data{"@id": memberId}
 			}
+			party.Set("member", member)
 		}
-		org.Set("member", member)
+	case "Person":
+		//..
+	default:
+		panic(ErrorAppend(ErrInvalidType, _type))
 	}
-	return org
+	if !EmptyStr(ipi) {
+		party.Set("ipiNumber", ipi)
+	}
+	if !EmptyStr(isni) {
+		party.Set("isniNumber", isni)
+	}
+	if !EmptyStr(proId) {
+		party.Set("pro", Data{"@id": proId})
+	}
+	return party
 }
 
-func NewMusicGroup(description, email, genre, memberNames []string, name, sameAs string) Data {
-	musicGroup := NewOrganization(description, email, memberNames, name, sameAs)
-	musicGroup.Set("genre", genre)
-	return musicGroup
+func GetDescription(data Data) string {
+	return data.GetStr("description")
 }
 
-func NewComposition(composerId, hfa, ipi, iswc, name, proId string) Data {
-	return Data{
+func GetEmail(data Data) string {
+	return data.GetStr("email")
+}
+
+func GetName(data Data) string {
+	return data.GetStr("name")
+}
+
+func GetSameAs(data Data) string {
+	return data.GetStr("sameAs")
+}
+
+func NewComposition(composerId, hfa, iswc, name string) Data {
+	composition := Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    "MusicComposition",
 		"composer": Data{
 			"@id": composerId,
 		},
-		"hfaCode":   hfa,
-		"ipiNumber": ipi,
-		"iswcCode":  iswc,
-		"name":      name,
-		"pro": Data{
-			"@id": proId,
-		},
+		"name": name,
 	}
+	if !EmptyStr(hfa) {
+		composition.Set("hfaCode", hfa)
+	}
+	if !EmptyStr(iswc) {
+		composition.Set("iswcCode", iswc)
+	}
+	return composition
 }
 
 func GetComposerId(data Data) string {
@@ -157,7 +148,7 @@ func GetPublisherId(data Data) string {
 
 func NewRecording(compositionRightId, isrc, performerId, producerId, publicationId string) Data {
 	return Data{
-		"@context": SCHEMA,
+		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    "MusicRecording",
 		"byArtist": Data{
 			"@id": performerId,
@@ -195,7 +186,7 @@ func GetPublicationId(data Data) string {
 	return GetId(publication)
 }
 
-func NewRelease(mechanicalLicenseId, recordingId, recordLabelId string, recordingRightIds []string) Data {
+func NewRelease(mechanicalLicenseId, recordingId string, recordingRightIds []string, recordLabelId string) Data {
 	n := len(recordingRightIds)
 	recordingRights := make([]Data, n)
 	for i, recordingRightId := range recordingRightIds {
@@ -209,7 +200,7 @@ func NewRelease(mechanicalLicenseId, recordingId, recordLabelId string, recordin
 		}
 	}
 	return Data{
-		"@context": SCHEMA,
+		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    "MusicRelease",
 		"mechanicalLicense": Data{
 			"@id": mechanicalLicenseId,
@@ -322,10 +313,13 @@ func NewRecordingRight(recipientId, recordingId, senderId string, territory, usa
 // Note: txId is the hex id of a TRANSFER tx in Bigchain/IPDB
 // the output amount(s) will specify shares transferred/kept
 
-func NewCompositionRightTransfer(compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId, txId string) Data {
-	compositionRightTransfer := Data{
+func NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, senderId, txId string) Data {
+	return Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/CompositionRightTransfer",
+		"compositionRight": Data{
+			"@id": compositionRightId,
+		},
 		"publication": Data{
 			"@id": publicationId,
 		},
@@ -337,14 +331,6 @@ func NewCompositionRightTransfer(compositionRightId, compositionRightTransferId,
 		},
 		"txId": txId,
 	}
-	if !EmptyStr(compositionRightId) {
-		compositionRightTransfer.Set("compositionRight", Data{"@id": compositionRightId})
-	} else if !EmptyStr(compositionRightTransferId) {
-		compositionRightTransfer.Set("compositionRightTransfer", Data{"@id": compositionRightTransferId})
-	} else {
-		panic("Expected compositionRightId or compositionRightTransferId")
-	}
-	return compositionRightTransfer
 }
 
 func GetCompositionRightTransferId(data Data) string {
@@ -356,12 +342,15 @@ func GetTxId(data Data) string {
 	return data.GetStr("txId")
 }
 
-func NewRecordingRightTransfer(recipientId, recordingRightId, recordingRightTransferId, releaseId, senderId, txId string) Data {
-	recordingRightTransfer := Data{
+func NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, senderId, txId string) Data {
+	return Data{
 		"@context": []string{ENVOKE, SCHEMA},
 		"@type":    ENVOKE + "/RecordingRightTransfer",
 		"recipient": Data{
 			"@id": recipientId,
+		},
+		"recordingRight": Data{
+			"@id": recordingRightId,
 		},
 		"release": Data{
 			"@id": releaseId,
@@ -371,14 +360,6 @@ func NewRecordingRightTransfer(recipientId, recordingRightId, recordingRightTran
 		},
 		"txId": txId,
 	}
-	if !EmptyStr(recordingRightId) {
-		recordingRightTransfer.Set("recordingRight", Data{"@id": recordingRightId})
-	} else if !EmptyStr(recordingRightTransferId) {
-		recordingRightTransfer.Set("recordingRightTransfer", Data{"@id": recordingRightTransferId})
-	} else {
-		panic("Expected recordingRightId or recordingRightTransferId")
-	}
-	return recordingRightTransfer
 }
 
 func GetReleaseId(data Data) string {

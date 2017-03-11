@@ -5,16 +5,19 @@
 {{define "body"}}
 <form id="login-form">
   <header>LOGIN</header>
-  <input type="text" name="agentId" placeholder="AGENT ID" required />
-  <input type="password" name="privateKey" placeholder="PRIVATE KEY" required />
+  <input accept="application/json" type="file" name="credentials" required />
   <input type="submit" value="LOGIN" />
 </form>
 <form id="register-form">
   <header>REGISTER</header>
-  <input type="text" name="name" placeholder="NAME" required />
   <input type="text" name="email" placeholder="EMAIL" required />
-  <input type="text" name="socialMedia" placeholder="SOCIAL MEDIA" required />
+  <input type="text" name="ipi" placeholder="IPI NUMBER">
+  <input type="text" name="isni" placeholder="ISNI NUMBER" />
+  <input type="text" name="name" placeholder="NAME" required />
   <input type="password" name="password" placeholder="PASSWORD" required />
+  <input type="text" name="path" placeholder="PATH" required>
+  <input type="text" name="pro" placeholder="PRO ID" />
+  <input type="text" name="sameAs" placeholder="URL" required />
   <input type="submit" value="REGISTER"/>
 </form>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>

@@ -56,6 +56,10 @@
             "@type": "@id"
         },
         "hfaCode": "envoke:hfaCode",
+        "inLanguage": {
+            "@id": "schema:inLanguage",
+            "@type": "@id"
+        },
         "ipiNumber": "envoke:ipiNumber",
         "isniNumber": "envoke:isniNumber",
         "isrcCode":
@@ -66,6 +70,10 @@
         "iswcCode":
         {
             "@id": "schema:iswcCode",
+            "@type": "@id"
+        },
+        "lyrics": {
+            "@id": "schema:lyrics",
             "@type": "@id"
         },
         "mechanicalLicense":

@@ -84,7 +84,6 @@ window.onload = function() {
     proveForm.submit(function(event){
         event.preventDefault();
         var formData = proveForm.serialize();
-        formData.set("type", "right");
         httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
     });
 
@@ -92,7 +91,6 @@ window.onload = function() {
     verifyForm.submit(function(event){
         event.preventDefault();
         var formData = verifyForm.serialize();
-        formData.set("type", "right");
         httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
     });
 

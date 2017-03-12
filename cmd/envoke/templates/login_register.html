@@ -3,13 +3,19 @@
 {{end}}
 
 {{define "body"}}
-<form id="login-form">
+<form id="login-form" enctype="multipart/form">
   <header>LOGIN</header>
-  <input accept="application/json" type="file" name="credentials" required />
+  <input type="file" name="credentials" required />
   <input type="submit" value="LOGIN" />
 </form>
 <form id="register-form">
   <header>REGISTER</header>
+  <select form="register-form" name="type" required>
+      <option value="" disabled selected>--TYPE--</option>
+      <option value="MusicGroup">MUSIC GROUP</option>
+      <option value="Organization">ORGANIZATION</option>
+      <option value="Person">PERSON</option>
+  </select><br><br>
   <input type="text" name="email" placeholder="EMAIL" required />
   <input type="text" name="ipi" placeholder="IPI NUMBER">
   <input type="text" name="isni" placeholder="ISNI NUMBER" />
@@ -46,7 +52,7 @@ var callback = function(responseText) {
 
 var redirect = function(responseText) {
     console.log(responseText)
-    location.replace("http://localhost:8888/compose_publish");
+    location.replace("http://localhost:8888/compose");
 }
 
 window.onload = function(){
@@ -54,15 +60,15 @@ window.onload = function(){
     var loginForm = $("#login-form");
     loginForm.submit(function(event) {
         event.preventDefault();
-        var formData = loginForm.serialize();
-        httpPostAsync("http://localhost:8888/login", formData, redirect);
+        var formData = new FormData(event.target);
+        httpPostAsync("http://localhost:8888/login_handler", formData, redirect);
     });
 
     var registerForm = $("#register-form");
     registerForm.submit(function(event) {
         event.preventDefault();
         var formData = registerForm.serialize();   
-        httpPostAsync("http://localhost:8888/register", formData, callback); 
+        httpPostAsync("http://localhost:8888/register_handler", formData, callback); 
     });
 }
 </script>

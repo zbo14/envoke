@@ -81,18 +81,27 @@ func GetSameAs(data Data) string {
 
 // TODO: add lyricist
 
-func NewComposition(composerId, hfa, iswc, name string) Data {
+func NewComposition(composerId, hfa, iswc, lang, lyrics, name, sameAs string) Data {
 	composition := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicComposition",
-		"composer": Data{"@id": composerId},
-		"name":     name,
+		"@context":   CONTEXT,
+		"@type":      "MusicComposition",
+		"composer":   Data{"@id": composerId},
+		"inLanguage": lang,
+		"name":       name,
+	}
+	if !EmptyStr(lyrics) {
+		composition.Set("lyrics", lyrics)
+	} else if EmptyStr(sameAs) {
+		panic("Expected lyrics or url")
 	}
 	if !EmptyStr(hfa) {
 		composition.Set("hfaCode", hfa)
 	}
 	if !EmptyStr(iswc) {
 		composition.Set("iswcCode", iswc)
+	}
+	if !EmptyStr(sameAs) {
+		composition.Set("sameAs", sameAs)
 	}
 	return composition
 }
@@ -108,6 +117,10 @@ func GetHFA(data Data) string {
 
 func GetISWC(data Data) string {
 	return data.GetStr("iswcCode")
+}
+
+func GetLanguage(data Data) string {
+	return data.GetStr("inLanguage")
 }
 
 func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId string) Data {

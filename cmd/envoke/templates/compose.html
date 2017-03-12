@@ -7,11 +7,15 @@
     <header>COMPOSE</header>
     <input type="text" name="hfa" placeholder="HFA SONG CODE" />
     <input type="text" name="iswc" placeholder="ISWC CODE" />
+    <input type="text" name="lang" placeholder="LANGUAGE" />
+    <textarea name="lyrics" form="compose-form">LYRICS</textarea>
     <input type="text" name="title" placeholder="TITLE" required />
+    <input type="text" name="sameAs" placeholder="URL" required />
     <input type="submit" value="COMPOSE" />
 </form>
 <form id="search-form" name="search-form">
     <header>SEARCH COMPOSITION</header>
+    <input type="text" name="type" value="composition" hidden />
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" style="border-bottom: solid 1px #025768" required /><br><br>
     <select form="search-form" name="field" required>
         <option value="" disabled selected>--FIELD--</option>
@@ -21,12 +25,14 @@
 </form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
     <header>PROVE COMPOSER</header>
+    <input type="text" name="type" value="composition" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY COMPOSER</header>
+    <input type="text" name="type" value="composition" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
@@ -70,7 +76,6 @@ window.onload = function() {
   searchForm.submit(function(event){
     event.preventDefault();
     var formData = searchForm.serialize();
-    formData.set("type", "composition");
     httpPostAsync("http://localhost:8888/search_handler", formData, callback);
   });
 
@@ -78,7 +83,6 @@ window.onload = function() {
   proveForm.submit(function(event){
     event.preventDefault();
     var formData = proveForm.serialize();
-    formData.set("type", "composition");
     httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
   });
 
@@ -86,7 +90,6 @@ window.onload = function() {
   verifyForm.submit(function(event){
     event.preventDefault();
     var formData = verifyForm.serialize();
-    formData.set("type", "composition");
     httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
   });
 }

@@ -19,6 +19,11 @@
 </form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
     <header>PROVE TRANSFER-HOLDER</header>
+    <select form="transfer-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right_transfer">COMPOSITION RIGHT TRANSFER</option>
+        <option value="recording_right_transfer">RECORDING RIGHT TRANSFER</option>
+    </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
     <input type="text" name="transferId" placeholder="TRANSFER ID" required />
@@ -26,6 +31,11 @@
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY TRANSFER-HOLDER</header>
+    <select form="transfer-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right_transfer">COMPOSITION RIGHT TRANSFER</option>
+        <option value="recording_right_transfer">RECORDING RIGHT TRANSFER</option>
+    </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION/RELEASE ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
@@ -72,7 +82,6 @@ window.onload = function() {
     proveForm.submit(function(event){
         event.preventDefault();
         var formData = proveForm.serialize();
-        formData.set("type", "transfer");
         httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
     });
 
@@ -80,7 +89,6 @@ window.onload = function() {
     verifyForm.submit(function(event){
         event.preventDefault();
         var formData = verifyForm.serialize();
-        formData.set("type", "transfer");
         httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
     });
 }

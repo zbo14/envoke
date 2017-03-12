@@ -11,6 +11,7 @@
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">
     <header>PUBLICATION</header>
+    <input type="text" name="type" value="publication" hidden />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" style="border-bottom: solid 1px #025768" required /><br><br>
     <select form="search-form" name="field" required>
         <option value="" disabled selected>--FIELD--</option>
@@ -22,12 +23,15 @@
 </form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
     <header>PROVE PUBLISHER</header>
+    <input type="text" name="type" value="publication" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY PUBLISHER</header>
+    <input type="text" name="type" value="publication" hidden />
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
@@ -77,7 +81,6 @@ window.onload = function() {
   proveForm.submit(function(event){
     event.preventDefault();
     var formData = proveForm.serialize();
-    formData.set("type", "publication");
     httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
   });
 
@@ -85,7 +88,6 @@ window.onload = function() {
   verifyForm.submit(function(event){
     event.preventDefault();
     var formData = verifyForm.serialize();
-    formData.set("type", "publication");
     httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
   });
 }

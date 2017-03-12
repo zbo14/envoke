@@ -9,13 +9,15 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
+var SALT = balloon.GenerateSalt()
+
 func DefaultBalloonHash(challenge string) ([]byte, error) {
 	p, err := Base64UrlDecode(challenge)
 	if err != nil {
 		return nil, err
 	}
-	salt := balloon.GenerateSalt()
-	return balloon.BalloonHash(p, salt, 256, 32, 2), nil
+	// TODO: adjust params
+	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
 func ValidateModel(model Data, source string) (bool, error) {
@@ -33,15 +35,18 @@ func QueryAndValidateModel(id string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	model := bigchain.GetTxData(tx)
-	source := spec.GetType(model)
-	success, err := ValidateModel(model, source)
-	if err != nil {
-		return nil, err
-	}
-	if !success {
-		return nil, Error("Validation failed")
-	}
+	/*
+		model := bigchain.GetTxData(tx)
+		source := spec.GetType(model)
+			success, err := ValidateModel(model, source)
+			if err != nil {
+				return nil, err
+			}
+			if !success {
+				return nil, Error("Validation failed")
+			}
+			return tx, nil
+	*/
 	return tx, nil
 }
 

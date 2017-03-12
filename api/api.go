@@ -48,6 +48,7 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	form, err := MultipartForm(req)
 	if err != nil {
+
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -56,11 +57,16 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	v := struct {
+	v := &struct {
 		PartyId    string `json:"partyId"`
 		PrivateKey string `json:"privateKey"`
 	}{}
-	if err = ReadJSON(credentials, &v); err != nil {
+	p, err := ReadAll(credentials)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err = UnmarshalJSON(p, v); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -149,11 +155,12 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	hfa := values.Get("hfa")
-	ipi := values.Get("ipi")
 	iswc := values.Get("iswc")
-	pro := values.Get("pro")
+	lang := values.Get("lang")
+	lyrics := values.Get("lyrics")
+	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	composition, err := api.Compose(hfa, ipi, iswc, pro, title)
+	composition, err := api.Compose(hfa, iswc, lang, lyrics, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -345,7 +352,7 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(sig.String()))
+	WriteJSON(w, sig)
 }
 
 func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
@@ -413,7 +420,7 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	WriteJSON(w, "Verified signature!")
 }
 
 func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
@@ -548,7 +555,7 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 		return err
 	}
 	api.logger.Info("SUCCESS registered new party: " + name)
-	file, err := CreateFile(path)
+	file, err := CreateFile(path + "/credentials.json")
 	if err != nil {
 		return err
 	}
@@ -559,8 +566,8 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 	return nil
 }
 
-func (api *Api) Compose(hfa, ipi, iswc, pro, title string) (Data, error) {
-	composition := spec.NewComposition(api.partyId, hfa, iswc, title)
+func (api *Api) Compose(hfa, iswc, lang, lyrics, sameAs, title string) (Data, error) {
+	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, lyrics, title, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

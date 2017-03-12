@@ -13,6 +13,7 @@
     "MusicComposition": "schema:MusicComposition",
     "MusicPublication": "envoke:MusicPublication",
     "MusicRecording": "schema:MusicRecording",
+    // "MusicAlbum": "schema:MusicAlbum",
     "MusicRelease": "schema:MusicRelease",
     "Right": "envoke:Right",
     "CompositionRight": "envoke:CompositionRight",
@@ -22,7 +23,6 @@
     "RecordingRightTransfer": "envoke:RecordingRightTransfer",
     "License": "envoke:License",
     "MechanicalLicense": "envoke:MechanicalLicense",
-    "SynchronizationLicense": "envoke:SynchronizationLicense",
     "MasterLicense": "envoke:MasterLicense",
     "byArist": {
         "@id": "schema:byArtist",
@@ -44,6 +44,10 @@
         "@id": "schema:description",
         "@type": "@id"
     },
+    "duration": {
+        "@id": "schema:duration",
+        "@type": "@id"
+    }
     "email": {
         "@id": "schema:email",
         "@type": "@id"
@@ -90,6 +94,10 @@
     },
     "recording": {
         "@id": "envoke:recording",
+        "@type": "@id"
+    },
+    "recordingOf": {
+        "@id": "schema:recordingOf",
         "@type": "@id"
     },
     "recordingRight": {
@@ -222,17 +230,6 @@
     "rdfs:label": "MechanicalLicense"
 }
 </script>
-<script id="SynchronizationLicense" type="application/ld+json">
-{
-    "@context": "http://localhost:8888/spec#Context",
-    "@id": "SynchronizationLicense",
-    "@type": "rdfs:Class",
-    "rdfs:subClassOf": {
-        "@id": "envoke:License"
-    },
-    "rdfs:label": "SynchronizationLicense"
-}
-</script>
 <script id="MasterLicense" type="application/ld+json">
 {
     "@context":  "http://localhost:8888/spec#Context",
@@ -249,17 +246,20 @@
     "@context": "http://localhost:8888/spec#Context",
     "@id": "composition",
     "@type": "rdf:Property",
-    "schema:domainIncludes": [
+    "schema:domainIncludes": {
+        "@id": "MusicPublication"
+    },
+    "schema:rangeIncludes": [
         {
-            "@id": "CompositionRight"
+            "@id": "MechanicalLicense"
         },
         {
-            "@id": "MusicPublication"
+            "@id": "MusicComposition"
+        },
+        {
+            "@id": "schema:ItemList"
         }
     ],
-    "schema:rangeIncludes": {
-        "@id": "MusicComposition"
-    },
     "rdfs:label": "composition"
 }
 </script>
@@ -280,10 +280,7 @@
         },
         {
             "@id": "MusicRecording"
-        },
-        {
-            "@id": "SynchronizationLicense"
-        },
+        }
     ],
     "schema:rangeIncludes": [
         {
@@ -354,7 +351,7 @@
     "@id": "mechanicalLicense",
     "@type": "rdf:Property",
     "schema:domainIncludes": {
-        "@id": "MusicRelease"
+        "@id": "MusicRecording"
     },
     "schema:rangeIncludes": {
         "@id": "MechanicalLicense"
@@ -437,15 +434,13 @@
     "owl:equivalentProperty": {
         "@id": "schema:track"
     },
-    "schema:domainIncludes": [
-        {
-            "@id": "RecordingRight"
-        },
-        {
-            "@id": "MusicRelease"
-        }
-    ],
+    "schema:domainIncludes": {
+        "@id": "MusicRelease"
+    },
     "schema:rangeIncludes": [
+        {
+            "@id": "MasterLicense"
+        },
         {
             "@id": "MusicRecording"
         },
@@ -584,14 +579,9 @@
     "@context": "http://localhost:8888/spec#Context",
     "@id": "usage",
     "@type": "rdf:Property",
-    "schema:domainIncludes": [
-        {
-            "@id": "License"
-        },
-        {
-            "@id": "Right"
-        }
-    ],
+    "schema:domainIncludes": {
+        "@id": "License"
+    },
     "schema:rangeIncludes": {
         "@id": "schema:Text"
     },

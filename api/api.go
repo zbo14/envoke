@@ -37,6 +37,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/license", api.LicenseHandler)
 	mux.HandleFunc("/transfer", api.TransferHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
+	mux.HandleFunc("/verify", api.VerifyHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {

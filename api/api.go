@@ -31,13 +31,16 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/register", api.RegisterHandler)
 	mux.HandleFunc("/compose", api.ComposeHandler)
 	mux.HandleFunc("/record", api.RecordHandler)
-	mux.HandleFunc("/right", api.RightHandler)
+	mux.HandleFunc("/composition_right", api.CompositionRightHandler)
+	mux.HandleFunc("/recording_right", api.RecordingRightHandler)
 	mux.HandleFunc("/publish", api.PublishHandler)
 	mux.HandleFunc("/release", api.ReleaseHandler)
-	mux.HandleFunc("/license", api.LicenseHandler)
+	mux.HandleFunc("/mechanical_license", api.MechanicalLicenseHandler)
+	mux.HandleFunc("/master_license", api.MasterLicenseHandler)
 	mux.HandleFunc("/transfer", api.TransferHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
-	mux.HandleFunc("/verify", api.VerifyHandler)
+	// mux.HandleFunc("/prove", api.ProveHandler)
+	// mux.HandleFunc("/verify", api.VerifyHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
@@ -97,7 +100,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("Registration successful!"))
 }
 
-func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) CompositionRightHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -111,24 +114,39 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var right Data
-	compositionId := values.Get("compositionId")
 	recipientId := values.Get("recipientId")
 	recipientShares := MustAtoi(values.Get("recipientShares"))
-	recordingId := values.Get("recordingId")
 	territory := SplitStr(values.Get("territory"), ",")
-	usage := SplitStr(values.Get("usage"), ",")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	switch {
-	case !EmptyStr(compositionId):
-		right, err = api.CompositionRight(compositionId, recipientId, recipientShares, territory, usage, validFrom, validThrough)
-	case !EmptyStr(recordingId):
-		right, err = api.RecordingRight(recipientId, recipientShares, recordingId, territory, usage, validFrom, validThrough)
-	default:
-		http.Error(w, "Expected compositionId or recordingId", http.StatusBadRequest)
+	right, err := api.CompositionRight(recipientId, recipientShares, territory, validFrom, validThrough)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	WriteJSON(w, right)
+}
+
+func (api *Api) RecordingRightHandler(w http.ResponseWriter, req *http.Request) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	recipientId := values.Get("recipientId")
+	recipientShares := MustAtoi(values.Get("recipientShares"))
+	territory := SplitStr(values.Get("territory"), ",")
+	validFrom := values.Get("validFrom")
+	validThrough := values.Get("validThrough")
+	right, err := api.RecordingRight(recipientId, recipientShares, territory, validFrom, validThrough)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -177,17 +195,19 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	compositionId := form.Value["compositionId"][0]
 	compositionRightId := form.Value["compositionRightId"][0]
+	duration := form.Value["duration"][0]
 	file, err := form.File["recording"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	isrc := form.Value["isrc"][0]
+	mechanicalLicenseId := form.Value["mechanicalLicenseId"][0]
 	performerId := form.Value["performerId"][0]
-	producerId := form.Value["producerId"][0]
 	publicationId := form.Value["publicationId"][0]
-	recording, err := api.Record(compositionRightId, file, isrc, performerId, producerId, publicationId)
+	recording, err := api.Record(compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, performerId, publicationId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -209,9 +229,10 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	compositionId := values.Get("compositionId")
+	compositionsId := SplitStr(values.Get("compositionId"), ",")
 	compositionRightIds := SplitStr(values.Get("compositionRightIds"), ",")
-	composition, err := api.Publish(compositionId, compositionRightIds)
+	title := values.Get("title")
+	composition, err := api.Publish(compositionsId, compositionRightIds, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -233,10 +254,10 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	mechanicalLicenseId := values.Get("mechanicalLicenseId")
-	recordingId := values.Get("recordingId")
+	recordingIds := SplitStr(values.Get("recordingId"), ",")
 	recordingRightIds := SplitStr(values.Get("recordingRightIds"), ",")
-	release, err := api.Release(mechanicalLicenseId, recordingId, recordingRightIds)
+	title := values.Get("title")
+	release, err := api.Release(recordingIds, recordingRightIds, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -244,7 +265,7 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, release)
 }
 
-func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) MechanicalLicenseHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -258,9 +279,39 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var license Data
+	compositionIds := SplitStr(values.Get("compositionIds"), ",")
 	publicationId := values.Get("publicationId")
 	recipientId := values.Get("recipientId")
+	rightId := values.Get("rightId")
+	territory := SplitStr(values.Get("territory"), ",")
+	transferId := values.Get("transferId")
+	usage := SplitStr(values.Get("usage"), ",")
+	validFrom := values.Get("validFrom")
+	validThrough := values.Get("validThrough")
+	license, err := api.MechanicalLicense(compositionIds, rightId, transferId, publicationId, recipientId, territory, usage, validFrom, validThrough)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, license)
+}
+
+func (api *Api) MasterLicenseHandler(w http.ResponseWriter, req *http.Request) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	recipientId := values.Get("recipientId")
+	recordingIds := SplitStr(values.Get("recordingIds"), ",")
 	releaseId := values.Get("releaseId")
 	rightId := values.Get("rightId")
 	territory := SplitStr(values.Get("territory"), ",")
@@ -268,14 +319,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	usage := SplitStr(values.Get("usage"), ",")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	if !EmptyStr(publicationId) {
-		license, err = api.MechanicalLicense(rightId, transferId, publicationId, recipientId, territory, usage, validFrom, validThrough)
-	} else if !EmptyStr(releaseId) {
-		license, err = api.MasterLicense(recipientId, rightId, transferId, releaseId, territory, usage, validFrom, validThrough)
-	} else {
-		http.Error(w, "Expected publicationId or releaseId", http.StatusBadRequest)
-		return
-	}
+	license, err := api.MasterLicense(recipientId, recordingIds, rightId, transferId, releaseId, territory, usage, validFrom, validThrough)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -426,14 +470,14 @@ func (api *Api) Compose(hfa, ipi, iswc, pro, title string) (Data, error) {
 	}, nil
 }
 
-func (api *Api) Record(compositionRightId string, file io.Reader, isrc, performerId, producerId, publicationId string) (Data, error) {
+func (api *Api) Record(compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, performerId, publicationId string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
-	// 	return nil, err
+	//	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording := spec.NewRecording(compositionRightId, isrc, performerId, producerId, publicationId)
+	recording := spec.NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, performerId, publicationId)
 	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -447,8 +491,8 @@ func (api *Api) Record(compositionRightId string, file io.Reader, isrc, performe
 	}, nil
 }
 
-func (api *Api) Publish(compositionId string, compositionRightIds []string) (Data, error) {
-	publication := spec.NewPublication(compositionId, compositionRightIds, api.partyId)
+func (api *Api) Publish(compositionIds, compositionRightIds []string, title string) (Data, error) {
+	publication := spec.NewPublication(compositionIds, compositionRightIds, title, api.partyId)
 	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -462,8 +506,8 @@ func (api *Api) Publish(compositionId string, compositionRightIds []string) (Dat
 	}, nil
 }
 
-func (api *Api) Release(mechanicalLicenseId, recordingId string, recordingRightIds []string) (Data, error) {
-	release := spec.NewRelease(mechanicalLicenseId, recordingId, recordingRightIds, api.partyId)
+func (api *Api) Release(recordingIds, recordingRightIds []string, title string) (Data, error) {
+	release := spec.NewRelease(title, recordingIds, recordingRightIds, api.partyId)
 	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -477,13 +521,13 @@ func (api *Api) Release(mechanicalLicenseId, recordingId string, recordingRightI
 	}, nil
 }
 
-func (api *Api) CompositionRight(compositionId, recipientId string, recipientShares int, territory, usage []string, validFrom, validThrough string) (Data, error) {
+func (api *Api) CompositionRight(recipientId string, recipientShares int, territory []string, validFrom, validThrough string) (Data, error) {
 	tx, err := bigchain.GetTx(recipientId)
 	if err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	compositionRight := spec.NewCompositionRight(compositionId, recipientId, api.partyId, territory, usage, validFrom, validThrough)
+	compositionRight := spec.NewCompositionRight(recipientId, api.partyId, territory, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, compositionRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -497,13 +541,13 @@ func (api *Api) CompositionRight(compositionId, recipientId string, recipientSha
 	}, nil
 }
 
-func (api *Api) RecordingRight(recipientId string, recipientShares int, recordingId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
+func (api *Api) RecordingRight(recipientId string, recipientShares int, territory []string, validFrom, validThrough string) (Data, error) {
 	tx, err := bigchain.GetTx(recipientId)
 	if err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	recordingRight := spec.NewRecordingRight(recipientId, recordingId, api.partyId, territory, usage, validFrom, validThrough)
+	recordingRight := spec.NewRecordingRight(recipientId, api.partyId, territory, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, recordingRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -517,8 +561,8 @@ func (api *Api) RecordingRight(recipientId string, recipientShares int, recordin
 	}, nil
 }
 
-func (api *Api) MechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
-	mechanicalLicense := spec.NewMechanicalLicense(compositionRightId, compositionRightTransferId, publicationId, recipientId, api.partyId, territory, usage, validFrom, validThrough)
+func (api *Api) MechanicalLicense(compositionIds []string, compositionRightId, compositionRightTransferId, publicationId, recipientId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
+	mechanicalLicense := spec.NewMechanicalLicense(compositionIds, compositionRightId, compositionRightTransferId, publicationId, recipientId, api.partyId, territory, usage, validFrom, validThrough)
 	tx := bigchain.DefaultIndividualCreateTx(mechanicalLicense, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -532,8 +576,8 @@ func (api *Api) MechanicalLicense(compositionRightId, compositionRightTransferId
 	}, nil
 }
 
-func (api *Api) MasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
-	masterLicense := spec.NewMasterLicense(recipientId, recordingRightId, recordingRightTransferId, releaseId, api.partyId, territory, usage, validFrom, validThrough)
+func (api *Api) MasterLicense(recipientId string, recordingIds []string, recordingRightId, recordingRightTransferId, releaseId string, territory, usage []string, validFrom, validThrough string) (Data, error) {
+	masterLicense := spec.NewMasterLicense(recipientId, recordingIds, recordingRightId, recordingRightTransferId, releaseId, api.partyId, territory, usage, validFrom, validThrough)
 	tx := bigchain.DefaultIndividualCreateTx(masterLicense, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -566,10 +610,11 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 		compositionRightId = spec.GetCompositionRightId(compositionRightTransfer)
 		txId = spec.GetTxId(compositionRightTransfer)
 	} else {
-		compositionRight, err := ld.ValidateCompositionRightHolder(compositionRightId, publicationId, api.partyId)
+		tx, err := bigchain.GetTx(compositionRightId)
 		if err != nil {
 			return nil, err
 		}
+		compositionRight := bigchain.GetTxData(tx)
 		totalShares = spec.GetRecipientShares(compositionRight)
 		txId = compositionRightId
 	}
@@ -625,10 +670,11 @@ func (api *Api) TransferRecordingRight(recordingRightId, recordingRightTransferI
 		recordingRightId = spec.GetRecordingRightId(recordingRightTransfer)
 		txId = spec.GetTxId(recordingRightTransfer)
 	} else {
-		recordingRight, err := ld.ValidateRecordingRightHolder(api.partyId, recordingRightId, releaseId)
+		tx, err := bigchain.GetTx(recordingRightId)
 		if err != nil {
 			return nil, err
 		}
+		recordingRight := bigchain.GetTxData(tx)
 		totalShares = spec.GetRecipientShares(recordingRight)
 		txId = recordingRightId
 	}

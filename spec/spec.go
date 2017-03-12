@@ -110,7 +110,7 @@ func GetISWC(data Data) string {
 	return data.GetStr("iswcCode")
 }
 
-func NewPublication(compositionIds []string, compositionRightIds []string, publisherId string) Data {
+func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId string) Data {
 	n := len(compositionIds)
 	if n == 0 {
 		panic("No compositionIds")
@@ -247,7 +247,7 @@ func GetRecordingOfId(data Data) string {
 	return GetId(composition)
 }
 
-func NewRelease(mechanicalLicenseId, name string, recordingIds, recordingRightIds []string, recordLabelId string) Data {
+func NewRelease(name string, recordingIds, recordingRightIds []string, recordLabelId string) Data {
 	n := len(recordingIds)
 	if n == 0 {
 		panic("No recordingIds")
@@ -277,7 +277,7 @@ func NewRelease(mechanicalLicenseId, name string, recordingIds, recordingRightId
 			},
 		}
 	}
-	release := Data{
+	return Data{
 		"@context": CONTEXT,
 		"@type":    "MusicRelease",
 		"name":     name,
@@ -293,10 +293,6 @@ func NewRelease(mechanicalLicenseId, name string, recordingIds, recordingRightId
 		},
 		"recordLabel": Data{"@id": recordLabelId},
 	}
-	if !EmptyStr(mechanicalLicenseId) {
-		release.Set("mechanicalLicenseId", Data{"@id": mechanicalLicenseId})
-	}
-	return release
 }
 
 func GetRecordingIds(data Data) []string {

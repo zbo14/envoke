@@ -10,28 +10,39 @@ import (
 func main() {
 
 	CreatePages(
-		"compose_publish",
+		"compose",
+		"license",
 		"login_register",
-		"record_release",
-		"right_license",
-		"schema",
+		"publish",
+		"record",
+		"release",
+		"right",
+		"spec",
+		"transfer",
 	)
 
 	RegisterTemplates(
-		"compose_publish.html",
+		"compose.html",
+		"license.html",
 		"login_register.html",
-		"record_release.html",
-		"right_license.html",
-		"schema.html",
+		"publish.html",
+		"record.html",
+		"release.html",
+		"right.html",
+		"spec.html",
+		"transfer.html",
 	)
 
 	// Create request multiplexer
 	mux := http.NewServeMux()
-	mux.HandleFunc("/compose_publish", TemplateHandler("compose_publish.html"))
+	mux.HandleFunc("/compose", TemplateHandler("compose.html"))
+	mux.HandleFunc("/license", TemplateHandler("license.html"))
 	mux.HandleFunc("/login_register", TemplateHandler("login_register.html"))
-	mux.HandleFunc("/right_license", TemplateHandler("right_license.html"))
-	mux.HandleFunc("/record_release", TemplateHandler("record_release.html"))
-	mux.HandleFunc("/schema", TemplateHandler("schema.html"))
+	mux.HandleFunc("/record", TemplateHandler("record.html"))
+	mux.HandleFunc("/release", TemplateHandler("release.html"))
+	mux.HandleFunc("/right", TemplateHandler("right.html"))
+	mux.HandleFunc("/spec", TemplateHandler("spec.html"))
+	mux.HandleFunc("/transfer", TemplateHandler("transfer.html"))
 	fs := http.Dir("static/")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(fs)))
 

@@ -2,11 +2,21 @@ package linked_data
 
 import (
 	jsonschema "github.com/xeipuuv/gojsonschema"
+	"github.com/zbo14/balloon"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/spec"
 )
+
+func DefaultBalloonHash(challenge string) ([]byte, error) {
+	p, err := Base64UrlDecode(challenge)
+	if err != nil {
+		return nil, err
+	}
+	salt := balloon.GenerateSalt()
+	return balloon.BalloonHash(p, salt, 256, 32, 2), nil
+}
 
 func ValidateModel(model Data, source string) (bool, error) {
 	schemaLoader := jsonschema.NewReferenceLoader(source)
@@ -53,6 +63,19 @@ func ValidateComposition(compositionId string) (Data, error) {
 	return composition, nil
 }
 
+func QueryCompositionField(compositionId, field string) (interface{}, error) {
+	composition, err := ValidateComposition(compositionId)
+	if err != nil {
+		return nil, err
+	}
+	switch field {
+	case "composer":
+		return GetComposer(composition)
+		//..
+	}
+	return nil, ErrorAppend(ErrInvalidField, field)
+}
+
 func GetComposer(data Data) (Data, error) {
 	composerId := spec.GetComposerId(data)
 	tx, err := bigchain.GetTx(composerId)
@@ -62,7 +85,7 @@ func GetComposer(data Data) (Data, error) {
 	return bigchain.GetTxData(tx), nil
 }
 
-func ProveComposer(compositionId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveComposer(challenge, compositionId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	composition, err := ValidateComposition(compositionId)
 	if err != nil {
 		return nil, err
@@ -76,10 +99,14 @@ func ProveComposer(compositionId string, priv crypto.PrivateKey) (crypto.Signatu
 	if !senderPub.Equals(priv.Public()) {
 		return nil, ErrorAppend(ErrInvalidKey, priv.Public().String())
 	}
-	return priv.Sign(MustMarshalJSON(composition)), nil
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
 }
 
-func VerifyComposer(compositionId string, sig crypto.Signature) error {
+func VerifyComposer(challenge, compositionId string, sig crypto.Signature) error {
 	composition, err := ValidateComposition(compositionId)
 	if err != nil {
 		return err
@@ -89,23 +116,27 @@ func VerifyComposer(compositionId string, sig crypto.Signature) error {
 	if err != nil {
 		return err
 	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
 	senderPub := bigchain.DefaultGetTxSender(tx)
-	if !senderPub.Verify(MustMarshalJSON(composition), sig) {
+	if !senderPub.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
 }
 
-func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
-	tx, err := QueryAndValidateModel(compositionRightId)
+func ValidateRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
+	tx, err := QueryAndValidateModel(rightId)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	compositionRight := bigchain.GetTxData(tx)
-	recipientId := spec.GetRecipientId(compositionRight)
+	right := bigchain.GetTxData(tx)
+	recipientId := spec.GetRecipientId(right)
 	recipientPub := bigchain.DefaultGetTxRecipient(tx)
 	recipientShares := bigchain.GetTxShares(tx)
-	senderId := spec.GetSenderId(compositionRight)
+	senderId := spec.GetSenderId(right)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateModel(recipientId)
 	if err != nil {
@@ -121,11 +152,11 @@ func ValidateCompositionRight(compositionRightId string) (Data, crypto.PublicKey
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, senderPub.String())
 	}
-	compositionRight.Set("recipientShares", recipientShares)
-	return compositionRight, recipientPub, senderPub, nil
+	right.Set("recipientShares", recipientShares)
+	return right, recipientPub, senderPub, nil
 }
 
-func ProveCompositionRightHolder(compositionRightId string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
+func ProveCompositionRightHolder(challenge, compositionRightId string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
 	_, _, compositionRights, err := ValidatePublication(publicationId)
 	if err != nil {
 		return nil, err
@@ -141,13 +172,17 @@ func ProveCompositionRightHolder(compositionRightId string, priv crypto.PrivateK
 			if pub := priv.Public(); !recipientPub.Equals(pub) {
 				return nil, ErrorAppend(ErrInvalidKey, pub.String())
 			}
-			return priv.Sign(MustMarshalJSON(compositionRight)), nil
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
 		}
 	}
 	return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to composition right")
 }
 
-func VerifyCompositionRightHolder(compositionRightId, publicationId string, sig crypto.Signature) error {
+func VerifyCompositionRightHolder(challenge, compositionRightId, publicationId string, sig crypto.Signature) error {
 	_, _, compositionRights, err := ValidatePublication(publicationId)
 	if err != nil {
 		return err
@@ -159,8 +194,12 @@ func VerifyCompositionRightHolder(compositionRightId, publicationId string, sig 
 			if err != nil {
 				return err
 			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
 			recipientPub := bigchain.DefaultGetTxSender(tx)
-			if !recipientPub.Verify(MustMarshalJSON(compositionRight), sig) {
+			if !recipientPub.Verify(hash, sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil
@@ -193,8 +232,6 @@ func QueryPublicationField(field, publicationId string) (interface{}, error) {
 		return nil, err
 	}
 	switch field {
-	case "composer":
-		return GetComposer(compositions[0])
 	case "compositions":
 		return compositions, nil
 	case "composition_rights":
@@ -236,7 +273,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 	rightHolder := false
 	totalShares := 0
 	for i, compositionRightId := range compositionRightIds {
-		compositionRight, recipientPub, _, err := ValidateCompositionRight(compositionRightId)
+		compositionRight, recipientPub, _, err := ValidateRight(compositionRightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -273,7 +310,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 	return publication, compositions, compositionRights, nil
 }
 
-func ProvePublisher(priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
+func ProvePublisher(challenge string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
 	publication, _, _, err := ValidatePublication(publicationId)
 	if err != nil {
 		return nil, err
@@ -287,10 +324,14 @@ func ProvePublisher(priv crypto.PrivateKey, publicationId string) (crypto.Signat
 	if pub := priv.Public(); !senderPub.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
-	return priv.Sign(MustMarshalJSON(publication)), nil
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
 }
 
-func VerifyPublisher(publicationId string, sig crypto.Signature) error {
+func VerifyPublisher(challenge, publicationId string, sig crypto.Signature) error {
 	publication, _, _, err := ValidatePublication(publicationId)
 	if err != nil {
 		return err
@@ -395,7 +436,7 @@ func ValidateCompositionRightTransfer(compositionRightTransferId string) (Data, 
 	return compositionRightTransfer, nil
 }
 
-func ProveCompositionRightTransferHolder(compositionRightTransferId, holderId string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
+func ProveCompositionRightTransferHolder(challenge, compositionRightTransferId, holderId string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
 	compositionRightTransfer, err := ValidateCompositionRightTransfer(compositionRightTransferId)
 	if err != nil {
 		return nil, err
@@ -424,13 +465,17 @@ func ProveCompositionRightTransferHolder(compositionRightTransferId, holderId st
 			if pub := priv.Public(); !holderPub.Equals(pub) {
 				return nil, ErrorAppend(ErrInvalidKey, pub.String())
 			}
-			return priv.Sign(MustMarshalJSON(compositionRight)), nil
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
 		}
 	}
 	return nil, ErrorAppend(ErrCriteriaNotMet, "publication does not link to underlying composition right")
 }
 
-func VerifyCompositionRightTransferHolder(compositionRightTransferId, holderId, publicationId string, sig crypto.Signature) error {
+func VerifyCompositionRightTransferHolder(challenge, compositionRightTransferId, holderId, publicationId string, sig crypto.Signature) error {
 	compositionRightTransfer, err := ValidateCompositionRightTransfer(compositionRightTransferId)
 	if err != nil {
 		return err
@@ -455,8 +500,12 @@ func VerifyCompositionRightTransferHolder(compositionRightTransferId, holderId, 
 			if err != nil {
 				return err
 			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
 			holderPub := bigchain.DefaultGetTxSender(tx)
-			if !holderPub.Verify(MustMarshalJSON(compositionRightTransfer), sig) {
+			if !holderPub.Verify(hash, sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil
@@ -481,6 +530,22 @@ func GetPublication(data Data) (Data, error) {
 		return nil, err
 	}
 	return bigchain.GetTxData(tx), nil
+}
+
+func QueryMechanicalLicenseField(field, mechanicalLicenseId string) (interface{}, error) {
+	mechanicalLicense, compositions, err := ValidateMechanicalLicense(mechanicalLicenseId)
+	if err != nil {
+		return nil, err
+	}
+	switch field {
+	case "compositions":
+		return compositions, nil
+	case "recipient":
+		return GetRecipient(mechanicalLicense)
+	case "sender":
+		return GetSender(mechanicalLicense)
+	}
+	return nil, ErrorAppend(ErrInvalidField, field)
 }
 
 func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error) {
@@ -594,7 +659,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error)
 	return mechanicalLicense, compositions, nil
 }
 
-func ProveMechanicalLicenseHolder(mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMechanicalLicenseHolder(challenge, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	mechanicalLicense, _, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return nil, err
@@ -608,10 +673,14 @@ func ProveMechanicalLicenseHolder(mechanicalLicenseId string, priv crypto.Privat
 	if pub := priv.Public(); !recipientPub.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
-	return priv.Sign(MustMarshalJSON(mechanicalLicense)), nil
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
 }
 
-func VerifyMechanicalLicenseHolder(mechanicalLicenseId string, sig crypto.Signature) error {
+func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig crypto.Signature) error {
 	mechanicalLicense, _, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return err
@@ -622,7 +691,11 @@ func VerifyMechanicalLicenseHolder(mechanicalLicenseId string, sig crypto.Signat
 		return err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	if !recipientPub.Verify(MustMarshalJSON(mechanicalLicense), sig) {
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
+	if !recipientPub.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -699,6 +772,48 @@ func ValidateRecording(recordingId string) (Data, error) {
 	return nil, ErrorAppend(ErrCriteriaNotMet, "mechanical license does not cover composition")
 }
 
+func ProvePerformer(challenge string, priv crypto.PrivateKey, recordingId string) (crypto.Signature, error) {
+	recording, err := ValidateRecording(recordingId)
+	if err != nil {
+		return nil, err
+	}
+	performerId := spec.GetPerformerId(recording)
+	tx, err := bigchain.GetTx(performerId)
+	if err != nil {
+		return nil, err
+	}
+	senderPub := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !senderPub.Equals(pub) {
+		return nil, ErrorAppend(ErrInvalidKey, pub.String())
+	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
+}
+
+func VerifyPerformer(challenge, recordingId string, sig crypto.Signature) error {
+	recording, err := ValidateRecording(recordingId)
+	if err != nil {
+		return err
+	}
+	performerId := spec.GetPerformerId(recording)
+	tx, err := bigchain.GetTx(performerId)
+	if err != nil {
+		return err
+	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
+	senderPub := bigchain.DefaultGetTxSender(tx)
+	if !senderPub.Verify(hash, sig) {
+		return ErrorAppend(ErrInvalidSignature, sig.String())
+	}
+	return nil
+}
+
 func GetComposition(data Data) (Data, error) {
 	compositionId := spec.GetRecordingOfId(data)
 	tx, err := bigchain.GetTx(compositionId)
@@ -744,37 +859,8 @@ func QueryRecordingField(field, recordingId string) (interface{}, error) {
 	return nil, ErrorAppend(ErrInvalidField, field)
 }
 
-func ValidateRecordingRight(recordingRightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
-	tx, err := QueryAndValidateModel(recordingRightId)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	recordingRight := bigchain.GetTxData(tx)
-	recipientId := spec.GetRecipientId(recordingRight)
-	recipientPub := bigchain.DefaultGetTxRecipient(tx)
-	recipientShares := bigchain.GetTxShares(tx)
-	senderPub := bigchain.DefaultGetTxSender(tx)
-	senderId := spec.GetSenderId(recordingRight)
-	tx, err = QueryAndValidateModel(senderId)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, nil, nil, ErrorAppend(ErrInvalidKey, senderPub.String())
-	}
-	tx, err = bigchain.GetTx(recipientId)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
-	}
-	recordingRight.Set("recipientShares", recipientShares)
-	return recordingRight, recipientPub, senderPub, nil
-}
-
-func ProveRecordingRightHolder(priv crypto.PrivateKey, recordingRightId, releaseId string) (crypto.Signature, error) {
-	release, _, recordingRights, err := ValidateRelease(releaseId)
+func ProveRecordingRightHolder(challenge string, priv crypto.PrivateKey, recordingRightId, releaseId string) (crypto.Signature, error) {
+	_, _, recordingRights, err := ValidateRelease(releaseId)
 	if err != nil {
 		return nil, err
 	}
@@ -789,13 +875,17 @@ func ProveRecordingRightHolder(priv crypto.PrivateKey, recordingRightId, release
 			if pub := priv.Public(); !recipientPub.Equals(pub) {
 				return nil, ErrorAppend(ErrInvalidKey, pub.String())
 			}
-			return priv.Sign(MustMarshalJSON(release)), nil
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
 		}
 	}
 	return nil, ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
 }
 
-func VerifyRecordingRightHolder(recordingRightId, releaseId string, sig crypto.Signature) error {
+func VerifyRecordingRightHolder(challenge, recordingRightId, releaseId string, sig crypto.Signature) error {
 	_, _, recordingRights, err := ValidateRelease(releaseId)
 	if err != nil {
 		return err
@@ -807,8 +897,12 @@ func VerifyRecordingRightHolder(recordingRightId, releaseId string, sig crypto.S
 			if err != nil {
 				return err
 			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
 			recipientPub := bigchain.DefaultGetTxSender(tx)
-			if !recipientPub.Verify(MustMarshalJSON(recordingRight), sig) {
+			if !recipientPub.Verify(hash, sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil
@@ -848,7 +942,7 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 	rightHolder := false
 	totalShares := 0
 	for i, rightId := range recordingRightIds {
-		recordingRight, recipientPub, _, err := ValidateRecordingRight(rightId)
+		recordingRight, recipientPub, _, err := ValidateRight(rightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -883,6 +977,48 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
 	}
 	return release, recordings, recordingRights, nil
+}
+
+func ProveRecordLabel(challenge string, priv crypto.PrivateKey, releaseId string) (crypto.Signature, error) {
+	release, _, _, err := ValidateRelease(releaseId)
+	if err != nil {
+		return nil, err
+	}
+	recordLabelId := spec.GetRecordLabelId(release)
+	tx, err := bigchain.GetTx(recordLabelId)
+	if err != nil {
+		return nil, err
+	}
+	senderPub := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !senderPub.Equals(pub) {
+		return nil, ErrorAppend(ErrInvalidKey, pub.String())
+	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
+}
+
+func VerifyRecordLabel(challenge, releaseId string, sig crypto.Signature) error {
+	release, _, _, err := ValidateRelease(releaseId)
+	if err != nil {
+		return err
+	}
+	recordLabelId := spec.GetRecordLabelId(release)
+	tx, err := bigchain.GetTx(recordLabelId)
+	if err != nil {
+		return err
+	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
+	senderPub := bigchain.DefaultGetTxSender(tx)
+	if !senderPub.Verify(hash, sig) {
+		return ErrorAppend(ErrInvalidSignature, sig.String())
+	}
+	return nil
 }
 
 func GetRecordLabel(data Data) (Data, error) {
@@ -989,7 +1125,7 @@ func ValidateRecordingRightTransfer(recordingRightTransferId string) (Data, erro
 	return recordingRightTransfer, nil
 }
 
-func ProveRecordingRightTransferHolder(holderId string, priv crypto.PrivateKey, recordingRightTransferId, releaseId string) (crypto.Signature, error) {
+func ProveRecordingRightTransferHolder(challenge, holderId string, priv crypto.PrivateKey, recordingRightTransferId, releaseId string) (crypto.Signature, error) {
 	recordingRightTransfer, err := ValidateRecordingRightTransfer(recordingRightTransferId)
 	if err != nil {
 		return nil, err
@@ -1018,13 +1154,17 @@ func ProveRecordingRightTransferHolder(holderId string, priv crypto.PrivateKey, 
 			if pub := priv.Public(); !holderPub.Equals(pub) {
 				return nil, ErrorAppend(ErrInvalidKey, pub.String())
 			}
-			return priv.Sign(MustMarshalJSON(recordingRightTransfer)), nil
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
 		}
 	}
 	return nil, ErrorAppend(ErrCriteriaNotMet, "release does not link to underlying recording right")
 }
 
-func VerifyRecordingRightTransferHolder(holderId, recordingRightTransferId, releaseId string, sig crypto.Signature) error {
+func VerifyRecordingRightTransferHolder(challenge, holderId, recordingRightTransferId, releaseId string, sig crypto.Signature) error {
 	recordingRightTransfer, err := ValidateRecordingRightTransfer(recordingRightTransferId)
 	if err != nil {
 		return err
@@ -1049,14 +1189,34 @@ func VerifyRecordingRightTransferHolder(holderId, recordingRightTransferId, rele
 			if err != nil {
 				return err
 			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
 			holderPub := bigchain.DefaultGetTxSender(tx)
-			if !holderPub.Verify(MustMarshalJSON(recordingRightTransfer), sig) {
+			if !holderPub.Verify(hash, sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil
 		}
 	}
 	return ErrorAppend(ErrCriteriaNotMet, "release does not link to underlying recording right")
+}
+
+func QueryMasterLicenseField(field, masterLicenseId string) (interface{}, error) {
+	masterLicense, recordings, err := ValidateMasterLicense(masterLicenseId)
+	if err != nil {
+		return nil, err
+	}
+	switch field {
+	case "recipient":
+		return GetRecipient(masterLicense)
+	case "recordings":
+		return recordings, nil
+	case "sender":
+		return GetSender(masterLicense)
+	}
+	return nil, ErrorAppend(ErrInvalidField, field)
 }
 
 func ValidateMasterLicense(masterLicenseId string) (Data, []Data, error) {
@@ -1171,7 +1331,7 @@ func ValidateMasterLicense(masterLicenseId string) (Data, []Data, error) {
 	return masterLicense, recordings, nil
 }
 
-func ProveMasterLicenseHolder(masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMasterLicenseHolder(challenge, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	masterLicense, _, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return nil, err
@@ -1185,10 +1345,14 @@ func ProveMasterLicenseHolder(masterLicenseId string, priv crypto.PrivateKey) (c
 	if pub := priv.Public(); !recipientPub.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
-	return priv.Sign(MustMarshalJSON(masterLicense)), nil
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return nil, err
+	}
+	return priv.Sign(hash), nil
 }
 
-func VerifyMasterLicenseHolder(masterLicenseId string, sig crypto.Signature) error {
+func VerifyMasterLicenseHolder(challenge, masterLicenseId string, sig crypto.Signature) error {
 	masterLicense, _, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return err
@@ -1198,8 +1362,12 @@ func VerifyMasterLicenseHolder(masterLicenseId string, sig crypto.Signature) err
 	if err != nil {
 		return err
 	}
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	if !recipientPub.Verify(MustMarshalJSON(masterLicense), sig) {
+	if !recipientPub.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil

@@ -1,0 +1,93 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<form id="publish-form" name="publish-form">
+    <header>PUBLISH</header>
+    <input type="text" name="compositionIds" placeholder="COMPOSITION IDs" required />
+    <input type="text" name="compositionRightIds" placeholder="COMPOSITION RIGHT IDs" required />
+    <input type="submit" value="PUBLISH" />
+</form>
+<form id="search-form" name="search-form" style="margin-top: -240px">
+    <header>PUBLICATION</header>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" style="border-bottom: solid 1px #025768" required /><br><br>
+    <select form="search-form" name="field" required>
+        <option value="" disabled selected>--FIELD--</option>
+        <option value="compositions">COMPOSITIONS</option>
+        <option value="composition_rights">COMPOSITION RIGHTS</option>
+        <option value="publisher">PUBLISHER</option>
+    </select><br><br>
+    <input type="submit" value="SEARCH" />
+</form>
+<form id="prove-form" name="prove-form" style="margin-top: -240px">
+    <header>PROVE PUBLISHER</header>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form" style="margin-top: -240px">
+    <header>VERIFY PUBLISHER</header>
+    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+    var json = JSON.parse(responseText);
+    var str = JSON.stringify(json,null,2);
+    $("#message").text(str);
+};
+
+window.onload = function() {
+
+  var publishForm = $("#publish-form");
+  publishForm.submit(function(event){
+    event.preventDefault();
+    var formData = publishForm.serialize();
+    httpPostAsync("http://localhost:8888/publish_handler", formData, callback);
+  });
+
+  var searchForm = $("#search-form");
+  searchForm.submit(function(event){
+    event.preventDefault();
+    var formData = searchForm.serialize();
+    httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+  });
+
+  var proveForm = $("#prove-form");
+  proveForm.submit(function(event){
+    event.preventDefault();
+    var formData = proveForm.serialize();
+    formData.set("type", "publication");
+    httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+  });
+
+  var verifyForm = $("#verify-form");
+  verifyForm.submit(function(event){
+    event.preventDefault();
+    var formData = verifyForm.serialize();
+    formData.set("type", "publication");
+    httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+  });
+}
+</script>
+{{end}}

@@ -49,8 +49,7 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
 	}
-	_, err = PostTx(tx)
-	if err != nil {
+	if _, err = PostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})

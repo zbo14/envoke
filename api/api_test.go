@@ -3,94 +3,96 @@ package api
 import (
 	"testing"
 
-	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
-	// ld "github.com/zbo14/envoke/linked_data"
 )
 
-func GetAgentPrivateKey(data Data) string {
-	return data.GetData("agent").GetStr("privateKey")
+func GetPartyId(data Data) string {
+	return data.GetStr("partyId")
+}
+
+func GetPartyPrivateKey(data Data) string {
+	return data.GetStr("privateKey")
 }
 
 func TestApi(t *testing.T) {
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
-	composer, err := api.Register("composer@email.com", "composer", "itsasecret", "www.composer.com")
+	composer, err := api.Register("composer@email.com", "", "", nil, "composer", "itsasecret", "/Users/zach/Desktop/envoke/composer", "", "www.composer.com", "Person")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composer)
-	composerId := bigchain.GetId(composer)
-	composerPriv := GetAgentPrivateKey(composer)
-	label, err := api.Register("label@email.com", "label", "shhh", "www.record_label.com")
+	composerId := GetPartyId(composer)
+	composerPriv := GetPartyPrivateKey(composer)
+	recordLabel, err := api.Register("record_label@email.com", "", "", nil, "record_label", "shhhh", "/Users/zach/Desktop/envoke/record_label", "", "www.record_label.com", "Organization")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, label)
-	labelId := bigchain.GetId(label)
-	labelPriv := GetAgentPrivateKey(label)
-	performer, err := api.Register("performer@email.com", "performer", "canyouguess", "www.bandcamp_page.com")
+	WriteJSON(output, recordLabel)
+	recordLabelId := GetPartyId(recordLabel)
+	recordLabelPriv := GetPartyPrivateKey(recordLabel)
+	performer, err := api.Register("performer@email.com", "123456789", "", nil, "performer", "makeitup", "/Users/zach/Desktop/envoke/performer", "ASCAP", "www.performer.com", "MusicGroup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, performer)
-	performerId := bigchain.GetId(performer)
-	performerPriv := GetAgentPrivateKey(performer)
-	producer, err := api.Register("producer@email.com", "producer", "1234", "www.soundcloud_page.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	WriteJSON(output, producer)
-	producerId := bigchain.GetId(producer)
-	publisher, err := api.Register("publisher@email.com", "publisher", "password", "www.publisher.com")
+	performerId := GetPartyId(performer)
+	performerPriv := GetPartyPrivateKey(performer)
+	// producer, err := api.Register("producer@email.com", "producer", "1234", "www.soundcloud_page.com")
+	// if err != nil {
+	//	t.Fatal(err)
+	// }
+	// WriteJSON(output, producer)
+	// producerId := GetPartyId(producer)
+	publisher, err := api.Register("publisher@email.com", "", "", nil, "publisher", "didyousaysomething?", "/Users/zach/Desktop/envoke/publisher", "", "www.soundcloud_page.com", "MusicGroup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, publisher)
-	publisherId := bigchain.GetId(publisher)
-	publisherPriv := GetAgentPrivateKey(publisher)
-	radio, err := api.Register("radio@email.com", "radio", "waves", "www.radio_station.com")
+	publisherId := GetPartyId(publisher)
+	publisherPriv := GetPartyPrivateKey(publisher)
+	radio, err := api.Register("radio@email.com", "", "", nil, "radio", "waves", "/Users/zach/Desktop/envoke/radio", "", "www.radio_station.com", "Organization")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, radio)
-	radioId := bigchain.GetId(radio)
+	radioId := GetPartyId(radio)
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose("B3107S", "123456789", "T-034.524.680-1", "ASCAP", publisherId, "untitled")
+	composition, err := api.Compose("B3107S", "T-034.524.680-1", "EN", "", "www.url_to_composition.com", "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composition)
-	compositionId := bigchain.GetId(composition)
-	composerAssignment, err := api.AssignCompositionRight(compositionId, composerId, 20, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	compositionId := GetPartyId(composition)
+	composerRight, err := api.CompositionRight(composerId, 20, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, composerAssignment)
-	composerAssignmentId := bigchain.GetId(composerAssignment)
-	publisherAssignment, err := api.AssignCompositionRight(compositionId, publisherId, 80, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
+	WriteJSON(output, composerRight)
+	composerRightId := GetPartyId(composerRight)
+	publisherRight, err := api.CompositionRight(publisherId, 80, []string{"GB", "US"}, "2020-01-01", "3000-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, publisherAssignment)
-	publisherAssignmentId := bigchain.GetId(publisherAssignment)
+	WriteJSON(output, publisherRight)
+	publisherRightId := GetPartyId(publisherRight)
 	if err = api.Login(publisherId, publisherPriv); err != nil {
 		t.Fatal(err)
 	}
-	publication, err := api.Publish([]string{composerAssignmentId, publisherAssignmentId}, compositionId)
+	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, "publication_title")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, publication)
-	publicationId := bigchain.GetId(publication)
-	mechanicalLicense, err := api.MechanicalLicense(publisherAssignmentId, labelId, publicationId, []string{"US"}, "", "2020-01-01", "2025-01-01")
+	publicationId := GetPartyId(publication)
+	mechanicalLicense, err := api.MechanicalLicense(nil, publisherRightId, "", publicationId, recordLabelId, []string{"US"}, nil, "2020-01-01", "2025-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, mechanicalLicense)
-	mechanicalLicenseId := bigchain.GetId(mechanicalLicense)
+	mechanicalLicenseId := GetPartyId(mechanicalLicense)
 	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
 	if err != nil {
 		t.Fatal(err)
@@ -98,76 +100,70 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Record("", file, "US-S1Z-99-00001", labelId, performerId, producerId, publicationId)
+	recording, err := api.Record(compositionId, "", "PT2M43S", file, "US-S1Z-99-00001", mechanicalLicenseId, performerId, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recording)
-	recordingId := bigchain.GetId(recording)
-	performerAssignment, err := api.AssignRecordingRight(performerId, 20, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	recordingId := GetPartyId(recording)
+	performerRight, err := api.RecordingRight(performerId, 30, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, performerAssignment)
-	performerAssignmentId := bigchain.GetId(performerAssignment)
-	producerAssignment, err := api.AssignRecordingRight(producerId, 10, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	WriteJSON(output, performerRight)
+	performerRightId := GetPartyId(performerRight)
+	recordLabelRight, err := api.RecordingRight(recordLabelId, 70, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, producerAssignment)
-	producerAssignmentId := bigchain.GetId(producerAssignment)
-	labelAssignment, err := api.AssignRecordingRight(labelId, 70, recordingId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
-	if err != nil {
+	WriteJSON(output, recordLabelRight)
+	recordLabelRightId := GetPartyId(recordLabelRight)
+	if err = api.Login(recordLabelId, recordLabelPriv); err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, labelAssignment)
-	labelAssignmentId := bigchain.GetId(labelAssignment)
-	if err = api.Login(labelId, labelPriv); err != nil {
-		t.Fatal(err)
-	}
-	release, err := api.Release([]string{labelAssignmentId, performerAssignmentId, producerAssignmentId}, mechanicalLicenseId, recordingId)
+	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, "release_title")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, release)
-	releaseId := bigchain.GetId(release)
-	masterLicense, err := api.MasterLicense(labelAssignmentId, radioId, releaseId, []string{"US"}, "", "2020-01-01", "2022-01-01")
+	releaseId := GetPartyId(release)
+	masterLicense, err := api.MasterLicense(radioId, nil, recordLabelRightId, "", releaseId, []string{"US"}, nil, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, masterLicense)
-	// masterLicenseId := bigchain.GetId(masterLicense)
+	// masterLicenseId := GetPartyId(masterLicense)
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	compositionRightTransfer, err := api.TransferCompositionRight(composerAssignmentId, publicationId, publisherId, 10, "")
+	compositionRightTransfer, err := api.TransferCompositionRight(composerRightId, "", publicationId, publisherId, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, compositionRightTransfer)
-	compositionRightTransferId := bigchain.GetId(compositionRightTransfer)
+	compositionRightTransferId := GetPartyId(compositionRightTransfer)
 	if err = api.Login(publisherId, publisherPriv); err != nil {
 		t.Fatal(err)
 	}
-	compositionRightTransfer, err = api.TransferCompositionRight(composerAssignmentId, publicationId, composerId, 5, compositionRightTransferId)
+	compositionRightTransfer, err = api.TransferCompositionRight(composerRightId, compositionRightTransferId, publicationId, composerId, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, compositionRightTransfer)
-	compositionRightTransferId = bigchain.GetId(compositionRightTransfer)
+	compositionRightTransferId = GetPartyId(compositionRightTransfer)
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
-	recordingRightTransfer, err := api.TransferRecordingRight(performerAssignmentId, labelId, 10, releaseId, "")
+	recordingRightTransfer, err := api.TransferRecordingRight(performerRightId, "", recordLabelId, 10, releaseId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordingRightTransfer)
-	recordingRightTransferId := bigchain.GetId(recordingRightTransfer)
-	if err = api.Login(labelId, labelPriv); err != nil {
+	recordingRightTransferId := GetPartyId(recordingRightTransfer)
+	if err = api.Login(recordLabelId, recordLabelPriv); err != nil {
 		t.Fatal(err)
 	}
-	recordingRightTransfer, err = api.TransferRecordingRight(performerAssignmentId, performerId, 5, releaseId, recordingRightTransferId)
+	recordingRightTransfer, err = api.TransferRecordingRight(performerRightId, recordingRightTransferId, performerId, 5, releaseId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +171,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicenseFromTransfer, err := api.MechanicalLicense("", producerId, publicationId, []string{"US"}, compositionRightTransferId, "2020-01-01", "2030-01-01")
+	mechanicalLicenseFromTransfer, err := api.MechanicalLicense(nil, "", compositionRightTransferId, publicationId, radioId, []string{"US"}, nil, "2020-01-01", "2030-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}

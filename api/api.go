@@ -97,7 +97,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	proId := values.Get("proId")
 	sameAs := values.Get("sameAs")
 	_type := values.Get("type")
-	if err = api.Register(email, ipi, isni, memberIds, name, password, path, proId, sameAs, _type); err != nil {
+	if _, err = api.Register(email, ipi, isni, memberIds, name, password, path, proId, sameAs, _type); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -545,25 +545,26 @@ func (api *Api) Login(partyId, privstr string) error {
 	return nil
 }
 
-func (api *Api) Register(email, ipi, isni string, memberIds []string, name, password, path, proId, sameAs, _type string) error {
+func (api *Api) Register(email, ipi, isni string, memberIds []string, name, password, path, proId, sameAs, _type string) (Data, error) {
 	priv, pub := ed25519.GenerateKeypairFromPassword(password)
 	party := spec.NewParty(email, ipi, isni, memberIds, name, proId, sameAs, _type)
 	tx := bigchain.DefaultIndividualCreateTx(party, pub)
 	bigchain.FulfillTx(tx, priv)
 	partyId, err := bigchain.PostTx(tx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	api.logger.Info("SUCCESS registered new party: " + name)
 	file, err := CreateFile(path + "/credentials.json")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	WriteJSON(file, &Data{
+	v := Data{
 		"partyId":    partyId,
 		"privateKey": priv.String(),
-	})
-	return nil
+	}
+	WriteJSON(file, &v)
+	return v, nil
 }
 
 func (api *Api) Compose(hfa, iswc, lang, lyrics, sameAs, title string) (Data, error) {

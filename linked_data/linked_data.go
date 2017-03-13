@@ -9,6 +9,50 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
+const SPEC = "http://localhost:8888/spec"
+
+func QueryAndValidateModel(id string) (Data, error) {
+	tx, err := bigchain.GetTx(id)
+	if err != nil {
+		return nil, err
+	}
+	model := bigchain.GetTxData(tx)
+	if err = ValidateModel(model); err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+func ValidateModel(model Data) error {
+	source := spec.GetType(model)
+	schemaLoader, err := GetSchemaLoader(source)
+	if err != nil {
+		return err
+	}
+	goLoader := jsonschema.NewGoLoader(model)
+	result, err := jsonschema.Validate(schemaLoader, goLoader)
+	if err != nil {
+		return err
+	}
+	if !result.Valid() {
+		return Error("Validation failed")
+	}
+	return nil
+}
+
+func GetSchemaLoader(source string) (jsonschema.JSONLoader, error) {
+	response, err := HttpGet(SPEC)
+	if err != nil {
+		return nil, err
+	}
+	p, err := ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	bytes := Submatch(Sprintf(`<script id="%s".*?>([\s\S]*?)</script>`, source), p)[1]
+	return jsonschema.NewBytesLoader(bytes), nil
+}
+
 var SALT = balloon.GenerateSalt()
 
 func DefaultBalloonHash(challenge string) ([]byte, error) {
@@ -18,36 +62,6 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 	}
 	// TODO: adjust params
 	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
-}
-
-func ValidateModel(model Data, source string) (bool, error) {
-	schemaLoader := jsonschema.NewReferenceLoader(source)
-	goLoader := jsonschema.NewGoLoader(model)
-	result, err := jsonschema.Validate(schemaLoader, goLoader)
-	if err != nil {
-		return false, err
-	}
-	return result.Valid(), nil
-}
-
-func QueryAndValidateModel(id string) (Data, error) {
-	tx, err := bigchain.GetTx(id)
-	if err != nil {
-		return nil, err
-	}
-	/*
-		model := bigchain.GetTxData(tx)
-		source := spec.GetType(model)
-			success, err := ValidateModel(model, source)
-			if err != nil {
-				return nil, err
-			}
-			if !success {
-				return nil, Error("Validation failed")
-			}
-			return tx, nil
-	*/
-	return tx, nil
 }
 
 func ValidateComposition(compositionId string) (Data, error) {

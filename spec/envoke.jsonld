@@ -1,7 +1,6 @@
 {
     "@context":
     {
-        // "coala": "<coala placeholder>"
         "envoke": "http://localhost:8888/spec#",
         "owl": "http://www.w3.org/2002/07/owl#",
         "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -9,7 +8,6 @@
         "MusicComposition": "schema:MusicComposition",
         "MusicPublication": "envoke:MusicPublication",
         "MusicRecording": "schema:MusicRecording",
-        // "MusicAlbum": "schema:MusicAlbum",
         "MusicRelease": "schema:MusicRelease",
         "Right": "envoke:Right",
         "CompositionRight": "envoke:CompositionRight",

@@ -16,10 +16,10 @@ func QueryAndValidateModel(id string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	model := bigchain.GetTxData(tx)
-	if err = ValidateModel(model); err != nil {
-		return nil, err
-	}
+	// model := bigchain.GetTxData(tx)
+	// if err = ValidateModel(model); err != nil {
+	//	return nil, err
+	// }
 	return tx, nil
 }
 
@@ -444,7 +444,7 @@ func ValidateCompositionRightTransfer(compositionRightTransferId string) (Data, 
 		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to correct composition right")
 	}
 	for _, compositionRight := range compositionRights {
-		if compositionRightId == bigchain.GetId(compositionRight) {
+		if compositionRightId == spec.GetId(compositionRight) {
 			found = true
 			break
 		}
@@ -634,7 +634,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error)
 		}
 		var compositionRight Data = nil
 		for _, right := range compositionRights {
-			if compositionRightId == bigchain.GetId(right) {
+			if compositionRightId == spec.GetId(right) {
 				if !compositionRightTransferHolder {
 					if senderId != spec.GetRecipientId(right) {
 						return nil, nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold composition right")

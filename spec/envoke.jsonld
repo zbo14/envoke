@@ -359,10 +359,13 @@
         {
             "@id": "schema:Person"
         }],
-        "schema:rangeIncludes":
+        "schema:rangeIncludes": [
         {
             "@id": "schema:Organization"
         },
+        {
+            "@id": "schema:Text"
+        }]
         "rdfs:label": "pro"
     },
     {

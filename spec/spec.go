@@ -2,7 +2,21 @@ package spec
 
 import . "github.com/zbo14/envoke/common"
 
-const CONTEXT = "http://localhost:8888/spec#Context"
+const (
+	CONTEXT               = "http://localhost:8888/spec#Context"
+	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
+	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
+	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
+	HFA_REGEX             = `^[A-Z0-9]{6}$`
+	ID_REGEX              = `^[A-Fa-f0-9]{64}$` // hex
+	IPI_REGEX             = `^[0-9]{9}$`
+	ISRC_REGEX            = `^[A-Z]{2}-[A-Z0-9]{3}-[7890][0-9]-[0-9]{5}$`
+	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
+	PRO_REGEX             = `^ASCAP|BMI|SESAC$`
+	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
+	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
+	TERRITORY_REGEX       = `^[A-Z]{2}$`
+)
 
 func GetId(data Data) string {
 	return data.GetStr("@id")
@@ -12,11 +26,15 @@ func SetId(data Data, id string) {
 	data.Set("@id", id)
 }
 
+func MatchId(id string) bool {
+	return MatchStr(ID_REGEX, id)
+}
+
 func GetType(data Data) string {
 	return data.GetStr("@type")
 }
 
-func NewParty(email, ipi, isni string, memberIds []string, name, proId, sameAs, _type string) Data {
+func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
 	party := Data{
 		"@context": CONTEXT,
 		"@type":    _type,
@@ -44,8 +62,8 @@ func NewParty(email, ipi, isni string, memberIds []string, name, proId, sameAs, 
 	if !EmptyStr(isni) {
 		party.Set("isniNumber", isni)
 	}
-	if !EmptyStr(proId) {
-		party.Set("pro", Data{"@id": proId})
+	if !EmptyStr(pro) {
+		party.Set("pro", pro)
 	}
 	return party
 }
@@ -70,9 +88,8 @@ func GetName(data Data) string {
 	return data.GetStr("name")
 }
 
-func GetPROId(data Data) string {
-	pro := data.GetData("pro")
-	return GetId(pro)
+func GetPRO(data Data) string {
+	return data.GetStr("pro")
 }
 
 func GetSameAs(data Data) string {
@@ -124,11 +141,11 @@ func GetLanguage(data Data) string {
 }
 
 func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId string) Data {
-	n := len(compositionIds)
-	if n == 0 {
+	m := len(compositionIds)
+	if m == 0 {
 		panic("No compositionIds")
 	}
-	compositions := make([]Data, n)
+	compositions := make([]Data, m)
 	for i, compositionId := range compositionIds {
 		compositions[i] = Data{
 			"@type":    "schema:ListItem",
@@ -139,7 +156,8 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 			},
 		}
 	}
-	if n = len(compositionRightIds); n == 0 {
+	n := len(compositionRightIds)
+	if n == 0 {
 		panic("No compositionRightIds")
 	}
 	compositionRights := make([]Data, n)
@@ -158,7 +176,7 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 		"@type":    "MusicPublication",
 		"composition": Data{
 			"@type":           "schema:ItemList",
-			"numberOfItems":   n,
+			"numberOfItems":   m,
 			"itemListElement": compositions,
 		},
 		"compositionRight": Data{
@@ -261,11 +279,11 @@ func GetRecordingOfId(data Data) string {
 }
 
 func NewRelease(name string, recordingIds, recordingRightIds []string, recordLabelId string) Data {
-	n := len(recordingIds)
-	if n == 0 {
+	m := len(recordingIds)
+	if m == 0 {
 		panic("No recordingIds")
 	}
-	recordings := make([]Data, n)
+	recordings := make([]Data, m)
 	for i, recordingId := range recordingIds {
 		recordings[i] = Data{
 			"@type":    "schema:ListItem",
@@ -276,7 +294,8 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 			},
 		}
 	}
-	if n = len(recordingRightIds); n == 0 {
+	n := len(recordingRightIds)
+	if n == 0 {
 		panic("No recordingRightIds")
 	}
 	recordingRights := make([]Data, n)
@@ -296,7 +315,7 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 		"name":     name,
 		"recording": Data{
 			"@type":           "schema:ItemList",
-			"numberOfItems":   n,
+			"numberOfItems":   m,
 			"itemListElement": recordings,
 		},
 		"recordingRights": Data{
@@ -309,7 +328,7 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 }
 
 func GetRecordingIds(data Data) []string {
-	recordings := data.GetData("recordings")
+	recordings := data.GetData("recording")
 	n := recordings.GetInt("numberOfItems")
 	recordingIds := make([]string, n)
 	itemListElement := recordings.GetInterfaceSlice("itemListElement")

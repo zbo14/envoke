@@ -58,19 +58,14 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	v := &struct {
-		PartyId    string `json:"partyId"`
+		Id         string `json:"id"`
 		PrivateKey string `json:"privateKey"`
 	}{}
-	p, err := ReadAll(credentials)
-	if err != nil {
+	if err = ReadJSON(credentials, v); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err = UnmarshalJSON(p, v); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := api.Login(v.PartyId, v.PrivateKey); err != nil {
+	if err := api.Login(v.Id, v.PrivateKey); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -94,10 +89,10 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	name := values.Get("name")
 	password := values.Get("password")
 	path := values.Get("path")
-	proId := values.Get("proId")
+	pro := values.Get("pro")
 	sameAs := values.Get("sameAs")
 	_type := values.Get("type")
-	if _, err = api.Register(email, ipi, isni, memberIds, name, password, path, proId, sameAs, _type); err != nil {
+	if _, err = api.Register(email, ipi, isni, memberIds, name, password, path, pro, sameAs, _type); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -496,7 +491,7 @@ func (api *Api) TransferHandler(w http.ResponseWriter, req *http.Request) {
 		transfer, err = api.TransferCompositionRight(rightId, transferId, publicationId, recipientId, recipientShares)
 	case "recording_right_transfer":
 		releaseId := values.Get("publicationReleaseId")
-		transfer, err = api.TransferRecordingRight(rightId, transferId, recipientId, recipientShares, releaseId)
+		transfer, err = api.TransferRecordingRight(recipientId, recipientShares, rightId, transferId, releaseId)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -545,12 +540,12 @@ func (api *Api) Login(partyId, privstr string) error {
 	return nil
 }
 
-func (api *Api) Register(email, ipi, isni string, memberIds []string, name, password, path, proId, sameAs, _type string) (Data, error) {
+func (api *Api) Register(email, ipi, isni string, memberIds []string, name, password, path, pro, sameAs, _type string) (Data, error) {
 	priv, pub := ed25519.GenerateKeypairFromPassword(password)
-	party := spec.NewParty(email, ipi, isni, memberIds, name, proId, sameAs, _type)
+	party := spec.NewParty(email, ipi, isni, memberIds, name, pro, sameAs, _type)
 	tx := bigchain.DefaultIndividualCreateTx(party, pub)
 	bigchain.FulfillTx(tx, priv)
-	partyId, err := bigchain.PostTx(tx)
+	id, err := bigchain.PostTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +555,7 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 		return nil, err
 	}
 	v := Data{
-		"partyId":    partyId,
+		"id":         id,
 		"privateKey": priv.String(),
 	}
 	WriteJSON(file, &v)
@@ -726,8 +721,7 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 		if err != nil {
 			return nil, err
 		}
-		compositionRight := bigchain.GetTxData(tx)
-		totalShares = spec.GetRecipientShares(compositionRight)
+		totalShares = bigchain.GetTxShares(tx)
 		txId = compositionRightId
 	}
 	tx, err := bigchain.GetTx(recipientId)
@@ -763,7 +757,7 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 	}, nil
 }
 
-func (api *Api) TransferRecordingRight(recordingRightId, recordingRightTransferId, recipientId string, recipientShares int, releaseId string) (Data, error) {
+func (api *Api) TransferRecordingRight(recipientId string, recipientShares int, recordingRightId, recordingRightTransferId, releaseId string) (Data, error) {
 	var output, totalShares int
 	var txId string
 	if !EmptyStr(recordingRightTransferId) {
@@ -786,8 +780,7 @@ func (api *Api) TransferRecordingRight(recordingRightId, recordingRightTransferI
 		if err != nil {
 			return nil, err
 		}
-		recordingRight := bigchain.GetTxData(tx)
-		totalShares = spec.GetRecipientShares(recordingRight)
+		totalShares = bigchain.GetTxShares(tx)
 		txId = recordingRightId
 	}
 	tx, err := bigchain.GetTx(recipientId)

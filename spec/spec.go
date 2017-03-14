@@ -1,53 +1,49 @@
 package spec
 
-import . "github.com/zbo14/envoke/common"
-
-const (
-	CONTEXT               = "http://localhost:8888/spec#Context"
-	EMAIL_REGEX           = `(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)`
-	FINGERPRINT_STD_REGEX = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
-	FINGERPRINT_URL_REGEX = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
-	HFA_REGEX             = `^[A-Z0-9]{6}$`
-	ID_REGEX              = `^[A-Fa-f0-9]{64}$` // hex
-	IPI_REGEX             = `^[0-9]{9}$`
-	ISRC_REGEX            = `^[A-Z]{2}-[A-Z0-9]{3}-[7890][0-9]-[0-9]{5}$`
-	ISWC_REGEX            = `^T-[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]$`
-	PRO_REGEX             = `^ASCAP|BMI|SESAC$`
-	PUBKEY_REGEX          = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
-	SIGNATURE_REGEX       = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
-	TERRITORY_REGEX       = `^[A-Z]{2}$`
+import (
+	. "github.com/zbo14/envoke/common"
+	regex "github.com/zbo14/envoke/regex"
 )
 
+// const CONTEXT = "http://localhost:8888/ontology#Context"
+
+func NewLink(id string) Data {
+	return Data{"id": id}
+}
+
 func GetId(data Data) string {
-	return data.GetStr("@id")
+	return data.GetStr("id")
 }
 
 func SetId(data Data, id string) {
-	data.Set("@id", id)
+	data.Set("id", id)
 }
 
 func MatchId(id string) bool {
-	return MatchStr(ID_REGEX, id)
+	return MatchStr(regex.ID, id)
 }
 
 func GetType(data Data) string {
-	return data.GetStr("@type")
+	return data.GetStr("type")
 }
 
 func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
 	party := Data{
-		"@context": CONTEXT,
-		"@type":    _type,
-		"email":    email,
-		"name":     name,
-		"sameAs":   sameAs,
+		// "@context": CONTEXT,
+		// "type":  _type,
+		"email":  email,
+		"name":   name,
+		"sameAs": sameAs,
 	}
 	switch _type {
 	case "MusicGroup", "Organization":
-		if len(memberIds) > 0 {
-			member := make([]Data, len(memberIds))
+		if n := len(memberIds); n > 0 {
+			member := make([]Data, n)
 			for i, memberId := range memberIds {
-				member[i] = Data{"@id": memberId}
+				if !MatchId(memberId) {
+					panic("Invalid memberId")
+				}
+				member[i] = NewLink(memberId)
 			}
 			party.Set("member", member)
 		}
@@ -56,13 +52,13 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 	default:
 		panic(ErrorAppend(ErrInvalidType, _type))
 	}
-	if !EmptyStr(ipi) {
+	if MatchStr(regex.IPI, ipi) {
 		party.Set("ipiNumber", ipi)
 	}
-	if !EmptyStr(isni) {
+	if MatchStr(regex.ISNI, isni) {
 		party.Set("isniNumber", isni)
 	}
-	if !EmptyStr(pro) {
+	if MatchStr(regex.PRO, pro) {
 		party.Set("pro", pro)
 	}
 	return party
@@ -98,27 +94,18 @@ func GetSameAs(data Data) string {
 
 // TODO: add lyricist
 
-func NewComposition(composerId, hfa, iswc, lang, lyrics, name, sameAs string) Data {
+func NewComposition(composerId, hfa, iswc, lang, name, sameAs string) Data {
 	composition := Data{
-		"@context":   CONTEXT,
-		"@type":      "MusicComposition",
-		"composer":   Data{"@id": composerId},
+		"composer":   NewLink(composerId),
 		"inLanguage": lang,
 		"name":       name,
+		"sameAs":     sameAs,
 	}
-	if !EmptyStr(lyrics) {
-		composition.Set("lyrics", lyrics)
-	} else if EmptyStr(sameAs) {
-		panic("Expected lyrics or url")
-	}
-	if !EmptyStr(hfa) {
+	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
 	}
-	if !EmptyStr(iswc) {
+	if MatchStr(regex.ISWC, iswc) {
 		composition.Set("iswcCode", iswc)
-	}
-	if !EmptyStr(sameAs) {
-		composition.Set("sameAs", sameAs)
 	}
 	return composition
 }
@@ -148,11 +135,11 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 	compositions := make([]Data, m)
 	for i, compositionId := range compositionIds {
 		compositions[i] = Data{
-			"@type":    "schema:ListItem",
+			// "type":     "ListItem",
 			"position": i + 1,
 			"item": Data{
-				"@type": "MusicComposition",
-				"@id":   compositionId,
+				// "type": "MusicComposition",
+				"id": compositionId,
 			},
 		}
 	}
@@ -163,28 +150,29 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 	compositionRights := make([]Data, n)
 	for i, compositionRightId := range compositionRightIds {
 		compositionRights[i] = Data{
-			"@type":    "schema:ListItem",
+			// "type":     "ListItem",
 			"position": i + 1,
 			"item": Data{
-				"@type": "CompositionRight",
-				"@id":   compositionRightId,
+				// "type": "CompositionRight",
+				"id": compositionRightId,
 			},
 		}
 	}
 	return Data{
-		"@context": CONTEXT,
-		"@type":    "MusicPublication",
+		// "@context": CONTEXT,
+		// "type":    "MusicPublication",
 		"composition": Data{
-			"@type":           "schema:ItemList",
+			// "type":            "ItemList",
 			"numberOfItems":   m,
 			"itemListElement": compositions,
 		},
 		"compositionRight": Data{
-			"@type":           "schema:ItemList",
+			// "type":            "ItemList",
 			"numberOfItems":   n,
 			"itemListElement": compositionRights,
 		},
-		"publisher": Data{"@id": publisherId},
+		"name":      name,
+		"publisher": NewLink(publisherId),
 	}
 }
 
@@ -221,28 +209,24 @@ func GetPublisherId(data Data) string {
 
 func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, performerId, publicationId string) Data {
 	recording := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicRecording",
-		"byArtist": Data{
-			"@id": performerId,
-		},
-		"duration": duration,
-		"recordingOf": Data{
-			"@id": compositionId,
-		},
+		// "@context": CONTEXT,
+		// "type":     "MusicRecording",
+		"byArtist":    NewLink(performerId),
+		"duration":    duration,
+		"recordingOf": NewLink(compositionId),
 	}
-	if !EmptyStr(compositionRightId) {
-		if EmptyStr(publicationId) {
+	if MatchId(compositionRightId) {
+		if !MatchId(publicationId) {
 			panic("must have compositionRightId and publicationId")
 		}
-		recording.Set("compositionRight", Data{"@id": compositionRightId})
-		recording.Set("publication", Data{"@id": publicationId})
-	} else if !EmptyStr(mechanicalLicenseId) {
-		recording.Set("mechanicalLicense", Data{"@id": mechanicalLicenseId})
+		recording.Set("compositionRight", NewLink(compositionRightId))
+		recording.Set("publication", NewLink(publicationId))
+	} else if MatchId(mechanicalLicenseId) {
+		recording.Set("mechanicalLicense", Data{"id": mechanicalLicenseId})
 	} else {
 		// performer should be composer
 	}
-	if !EmptyStr(isrc) {
+	if MatchStr(regex.ISRC, isrc) {
 		recording.Set("isrc", isrc)
 	}
 	return recording
@@ -286,11 +270,11 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 	recordings := make([]Data, m)
 	for i, recordingId := range recordingIds {
 		recordings[i] = Data{
-			"@type":    "schema:ListItem",
+			// "type":     "schema:ListItem",
 			"position": i + 1,
 			"item": Data{
-				"@type": "MusicRecording",
-				"@id":   recordingId,
+				// "type": "MusicRecording",
+				"id": recordingId,
 			},
 		}
 	}
@@ -301,29 +285,29 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 	recordingRights := make([]Data, n)
 	for i, recordingRightId := range recordingRightIds {
 		recordingRights[i] = Data{
-			"@type":    "schema:ListItem",
+			// "type":     "schema:ListItem",
 			"position": i + 1,
 			"item": Data{
-				"@type": "RecordingRight",
-				"@id":   recordingRightId,
+				// "type": "RecordingRight",
+				"id": recordingRightId,
 			},
 		}
 	}
 	return Data{
-		"@context": CONTEXT,
-		"@type":    "MusicRelease",
-		"name":     name,
+		// "@context": CONTEXT,
+		// "type": "MusicRelease",
+		"name": name,
 		"recording": Data{
-			"@type":           "schema:ItemList",
+			// "type":            "schema:ItemList",
 			"numberOfItems":   m,
 			"itemListElement": recordings,
 		},
 		"recordingRights": Data{
-			"@type":           "schema:ItemList",
+			// "type":            "schema:ItemList",
 			"numberOfItems":   n,
 			"itemListElement": recordingRights,
 		},
-		"recordLabel": Data{"@id": recordLabelId},
+		"recordLabel": NewLink(recordLabelId),
 	}
 }
 
@@ -368,14 +352,10 @@ func NewRecordingRight(recipientId, senderId string, territory []string, validFr
 
 func NewRight(recipientId, senderId string, territory []string, _type, validFrom, validThrough string) Data {
 	return Data{
-		"@context": CONTEXT,
-		"@type":    _type,
-		"recipient": Data{
-			"@id": recipientId,
-		},
-		"sender": Data{
-			"@id": senderId,
-		},
+		// "@context": CONTEXT,
+		// "type":     _type,
+		"recipient":    NewLink(recipientId),
+		"sender":       NewLink(senderId),
 		"territory":    territory,
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
@@ -409,21 +389,13 @@ func GetTerritory(data Data) []string {
 
 func NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, senderId, txId string) Data {
 	return Data{
-		"@context": CONTEXT,
-		"@type":    "CompositionRightTransfer",
-		"compositionRight": Data{
-			"@id": compositionRightId,
-		},
-		"publication": Data{
-			"@id": publicationId,
-		},
-		"recipient": Data{
-			"@id": recipientId,
-		},
-		"sender": Data{
-			"@id": senderId,
-		},
-		"txId": txId,
+		// "@context": CONTEXT,
+		// "type": "CompositionRightTransfer",
+		"compositionRight": NewLink(compositionRightId),
+		"publication":      NewLink(publicationId),
+		"recipient":        NewLink(recipientId),
+		"sender":           NewLink(senderId),
+		"tx":               NewLink(txId),
 	}
 }
 
@@ -433,26 +405,19 @@ func GetCompositionRightTransferId(data Data) string {
 }
 
 func GetTxId(data Data) string {
-	return data.GetStr("txId")
+	tx := data.GetData("tx")
+	return GetId(tx)
 }
 
 func NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, senderId, txId string) Data {
 	return Data{
-		"@context": CONTEXT,
-		"@type":    "RecordingRightTransfer",
-		"recipient": Data{
-			"@id": recipientId,
-		},
-		"recordingRight": Data{
-			"@id": recordingRightId,
-		},
-		"release": Data{
-			"@id": releaseId,
-		},
-		"sender": Data{
-			"@id": senderId,
-		},
-		"txId": txId,
+		// "@context": CONTEXT,
+		// "type": "RecordingRightTransfer",
+		"recipient":      NewLink(recipientId),
+		"recordingRight": NewLink(recordingRightId),
+		"release":        NewLink(releaseId),
+		"sender":         NewLink(senderId),
+		"tx":             NewLink(txId),
 	}
 }
 
@@ -468,14 +433,10 @@ func GetRecordingRightTransferId(data Data) string {
 
 func NewMechanicalLicense(compositionIds []string, compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	mechanicalLicense := Data{
-		"@context": CONTEXT,
-		"@type":    "MechanicalLicense",
-		"recipient": Data{
-			"@id": recipientId,
-		},
-		"sender": Data{
-			"@id": senderId,
-		},
+		// "@context":     CONTEXT,
+		// "type":         "MechanicalLicense",
+		"recipient":    NewLink(recipientId),
+		"sender":       NewLink(senderId),
 		"territory":    territory,
 		"usage":        usage,
 		"validFrom":    validFrom,
@@ -485,31 +446,34 @@ func NewMechanicalLicense(compositionIds []string, compositionRightId, compositi
 	if n > 0 {
 		compositions := make([]Data, n)
 		for i, compositionId := range compositionIds {
+			if !MatchId(compositionId) {
+				panic(ErrorAppend(ErrInvalidId, compositionId))
+			}
 			compositions[i] = Data{
-				"@type":    "schema:ListItem",
+				// "type":     "schema:ListItem",
 				"position": i + 1,
 				"item": Data{
-					"@type": "MusicComposition",
-					"@id":   compositionId,
+					// "type": "MusicComposition",
+					"id": compositionId,
 				},
 			}
 		}
 		mechanicalLicense.Set("composition", Data{
-			"@type":           "schema:ItemList",
+			// "type":            "schema:ItemList",
 			"numberOfItems":   n,
 			"itemListElement": compositions,
 		})
-	} else if EmptyStr(publicationId) {
-		panic("Expected compositionIds or publicationId")
+	} else if !MatchId(publicationId) {
+		panic("Expected valid compositionIds or publicationId")
 	}
-	if !EmptyStr(publicationId) {
-		mechanicalLicense.Set("publication", Data{"@id": publicationId})
-		if !EmptyStr(compositionRightId) {
-			mechanicalLicense.Set("compositionRight", Data{"@id": compositionRightId})
-		} else if !EmptyStr(compositionRightTransferId) {
-			mechanicalLicense.Set("compositionRightTransfer", Data{"@id": compositionRightTransferId})
+	if MatchId(publicationId) {
+		mechanicalLicense.Set("publication", NewLink(publicationId))
+		if MatchId(compositionRightId) {
+			mechanicalLicense.Set("compositionRight", NewLink(compositionRightId))
+		} else if MatchId(compositionRightTransferId) {
+			mechanicalLicense.Set("compositionRightTransfer", NewLink(compositionRightTransferId))
 		} else {
-			panic("Expected compositionRightId or compositionRightTransferId")
+			panic("Expected valid compositionRightId or compositionRightTransferId")
 		}
 	}
 	return mechanicalLicense
@@ -517,16 +481,12 @@ func NewMechanicalLicense(compositionIds []string, compositionRightId, compositi
 
 func NewMasterLicense(recipientId string, recordingIds []string, recordingRightId, recordingRightTransferId, releaseId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	masterLicense := Data{
-		"@context": CONTEXT,
-		"@type":    "MasterLicense",
-		"recipient": Data{
-			"@id": recipientId,
-		},
-		"sender": Data{
-			"@id": senderId,
-		},
-		"usage":        usage,
+		// "@context":     CONTEXT,
+		// "type":         "MasterLicense",
+		"recipient":    NewLink(recipientId),
+		"sender":       NewLink(senderId),
 		"territory":    territory,
+		"usage":        usage,
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
@@ -535,30 +495,30 @@ func NewMasterLicense(recipientId string, recordingIds []string, recordingRightI
 		recordings := make([]Data, n)
 		for i, recordingId := range recordingIds {
 			recordings[i] = Data{
-				"@type":    "schema:ListItem",
+				// "type":     "schema:ListItem",
 				"position": i + 1,
 				"item": Data{
-					"@type": "MusicRecording",
-					"@id":   recordingId,
+					"type": "MusicRecording",
+					"id":   recordingId,
 				},
 			}
 		}
 		masterLicense.Set("recording", Data{
-			"@type":           "schema:ItemList",
+			// "type":            "schema:ItemList",
 			"numberOfItems":   n,
 			"itemListElement": recordings,
 		})
-	} else if EmptyStr(releaseId) {
-		panic("Expected recordingIds or releaseId")
+	} else if !MatchId(releaseId) {
+		panic("Expected valid recordingIds or releaseId")
 	}
-	if !EmptyStr(releaseId) {
-		masterLicense.Set("release", Data{"@id": releaseId})
-		if !EmptyStr(recordingRightId) {
-			masterLicense.Set("recordingRight", Data{"@id": recordingRightId})
-		} else if !EmptyStr(recordingRightTransferId) {
-			masterLicense.Set("recordingRightTransfer", Data{"@id": recordingRightTransferId})
+	if MatchId(releaseId) {
+		masterLicense.Set("release", NewLink(releaseId))
+		if MatchId(recordingRightId) {
+			masterLicense.Set("recordingRight", NewLink(recordingRightId))
+		} else if MatchId(recordingRightTransferId) {
+			masterLicense.Set("recordingRightTransfer", NewLink(recordingRightTransferId))
 		} else {
-			panic("Expected recordingRightId or recordingRightTransferId")
+			panic("Expected valid recordingRightId or recordingRightTransferId")
 		}
 	}
 	return masterLicense

@@ -38,6 +38,7 @@ func main() {
 	mux.HandleFunc("/compose", TemplateHandler("compose.html"))
 	mux.HandleFunc("/license", TemplateHandler("license.html"))
 	mux.HandleFunc("/login_register", TemplateHandler("login_register.html"))
+	mux.HandleFunc("/publish", TemplateHandler("publish.html"))
 	mux.HandleFunc("/record", TemplateHandler("record.html"))
 	mux.HandleFunc("/release", TemplateHandler("release.html"))
 	mux.HandleFunc("/right", TemplateHandler("right.html"))

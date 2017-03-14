@@ -1,56 +1,24 @@
 package linked_data
 
 import (
-	jsonschema "github.com/xeipuuv/gojsonschema"
 	"github.com/zbo14/balloon"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	"github.com/zbo14/envoke/crypto/crypto"
+	"github.com/zbo14/envoke/schema"
 	"github.com/zbo14/envoke/spec"
 )
 
-const SPEC = "http://localhost:8888/spec"
-
-func QueryAndValidateModel(id string) (Data, error) {
+func QueryAndValidateModel(id string, _type string) (Data, error) {
 	tx, err := bigchain.GetTx(id)
 	if err != nil {
 		return nil, err
 	}
-	// model := bigchain.GetTxData(tx)
-	// if err = ValidateModel(model); err != nil {
-	//	return nil, err
-	// }
+	model := bigchain.GetTxData(tx)
+	if err = schema.ValidateModel(model, _type); err != nil {
+		return nil, err
+	}
 	return tx, nil
-}
-
-func ValidateModel(model Data) error {
-	source := spec.GetType(model)
-	schemaLoader, err := GetSchemaLoader(source)
-	if err != nil {
-		return err
-	}
-	goLoader := jsonschema.NewGoLoader(model)
-	result, err := jsonschema.Validate(schemaLoader, goLoader)
-	if err != nil {
-		return err
-	}
-	if !result.Valid() {
-		return Error("Validation failed")
-	}
-	return nil
-}
-
-func GetSchemaLoader(source string) (jsonschema.JSONLoader, error) {
-	response, err := HttpGet(SPEC)
-	if err != nil {
-		return nil, err
-	}
-	p, err := ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	bytes := Submatch(Sprintf(`<script id="%s".*?>([\s\S]*?)</script>`, source), p)[1]
-	return jsonschema.NewBytesLoader(bytes), nil
 }
 
 var SALT = balloon.GenerateSalt()
@@ -65,14 +33,14 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 }
 
 func ValidateComposition(compositionId string) (Data, error) {
-	tx, err := QueryAndValidateModel(compositionId)
+	tx, err := QueryAndValidateModel(compositionId, "composition")
 	if err != nil {
 		return nil, err
 	}
 	composition := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	composerId := spec.GetComposerId(composition)
-	tx, err = QueryAndValidateModel(composerId)
+	tx, err = QueryAndValidateModel(composerId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +115,7 @@ func VerifyComposer(challenge, compositionId string, sig crypto.Signature) error
 }
 
 func ValidateRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
-	tx, err := QueryAndValidateModel(rightId)
+	tx, err := QueryAndValidateModel(rightId, "right")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -157,14 +125,14 @@ func ValidateRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, er
 	recipientShares := bigchain.GetTxShares(tx)
 	senderId := spec.GetSenderId(right)
 	senderPub := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateModel(recipientId)
+	tx, err = QueryAndValidateModel(recipientId, "party")
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
 	}
-	tx, err = QueryAndValidateModel(senderId)
+	tx, err = QueryAndValidateModel(senderId, "party")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -262,7 +230,7 @@ func QueryPublicationField(field, publicationId string) (interface{}, error) {
 }
 
 func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
-	tx, err := QueryAndValidateModel(publicationId)
+	tx, err := QueryAndValidateModel(publicationId, "publication")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -280,19 +248,24 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 			composerId = spec.GetComposerId(composition)
 			// TODO: check composerId
 		} else if composerId != spec.GetComposerId(composition) {
-			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publication cannot link to compositions with different composers")
+			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publication cannot link to compositions by different composers")
 		}
-		composition.Set("@id", compositionId)
+		composition.Set("id", compositionId)
 		compositions[i] = composition
+	}
+	tx, err = QueryAndValidateModel(composerId, "party")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "composer must be sender of publication")
 	}
 	compositionRightIds := spec.GetCompositionRightIds(publication)
 	compositionRights := make([]Data, len(compositionRightIds))
-	publisherId := spec.GetPublisherId(publication)
 	recipientIds := make(map[string]struct{})
-	rightHolder := false
 	totalShares := 0
 	for i, compositionRightId := range compositionRightIds {
-		compositionRight, recipientPub, _, err := ValidateRight(compositionRightId)
+		compositionRight, _, _, err := ValidateRight(compositionRightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -303,12 +276,6 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		if _, ok := recipientIds[recipientId]; ok {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "recipient cannot hold multiple composition rights")
 		}
-		if !rightHolder && publisherId == recipientId {
-			if !senderPub.Equals(recipientPub) {
-				return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publisher is not publication sender")
-			}
-			rightHolder = true
-		}
 		recipientIds[recipientId] = struct{}{}
 		shares := spec.GetRecipientShares(compositionRight)
 		if shares <= 0 {
@@ -317,11 +284,8 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		if totalShares += shares; totalShares > 100 {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
-		compositionRight.Set("@id", compositionRightId)
+		compositionRight.Set("id", compositionRightId)
 		compositionRights[i] = compositionRight
-	}
-	if !rightHolder {
-		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publisher is not composition right holder")
 	}
 	if totalShares != 100 {
 		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
@@ -377,14 +341,14 @@ func GetPublisher(data Data) (Data, error) {
 }
 
 func ValidateCompositionRightTransfer(compositionRightTransferId string) (Data, error) {
-	tx, err := QueryAndValidateModel(compositionRightTransferId)
+	tx, err := QueryAndValidateModel(compositionRightTransferId, "composition_right_transfer")
 	if err != nil {
 		return nil, err
 	}
 	compositionRightTransfer := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	recipientId := spec.GetRecipientId(compositionRightTransfer)
-	tx, err = QueryAndValidateModel(recipientId)
+	tx, err = QueryAndValidateModel(recipientId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +357,7 @@ func ValidateCompositionRightTransfer(compositionRightTransferId string) (Data, 
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient and sender keys must be different")
 	}
 	senderId := spec.GetSenderId(compositionRightTransfer)
-	tx, err = QueryAndValidateModel(senderId)
+	tx, err = QueryAndValidateModel(senderId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +532,7 @@ func QueryMechanicalLicenseField(field, mechanicalLicenseId string) (interface{}
 }
 
 func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error) {
-	tx, err := QueryAndValidateModel(mechanicalLicenseId)
+	tx, err := QueryAndValidateModel(mechanicalLicenseId, "mechanical_license")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -599,7 +563,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error)
 				return nil, nil, ErrorAppend(ErrCriteriaNotMet, "cannot license composition by another composer")
 			}
 			seen[compositionId] = struct{}{}
-			composition.Set("@id", compositionId)
+			composition.Set("id", compositionId)
 			compositions[i] = composition
 		}
 	}
@@ -672,7 +636,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error)
 		return nil, nil, ErrorAppend(ErrCriteriaNotMet, "empty mechanical license; no compositions")
 	}
 	recipientId := spec.GetRecipientId(mechanicalLicense)
-	if _, err = QueryAndValidateModel(recipientId); err != nil {
+	if _, err = QueryAndValidateModel(recipientId, "party"); err != nil {
 		return nil, nil, err
 	}
 	return mechanicalLicense, compositions, nil
@@ -721,14 +685,14 @@ func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig cr
 }
 
 func ValidateRecording(recordingId string) (Data, error) {
-	tx, err := QueryAndValidateModel(recordingId)
+	tx, err := QueryAndValidateModel(recordingId, "recording")
 	if err != nil {
 		return nil, err
 	}
 	recording := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	performerId := spec.GetPerformerId(recording)
-	tx, err = QueryAndValidateModel(performerId)
+	tx, err = QueryAndValidateModel(performerId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -931,14 +895,13 @@ func VerifyRecordingRightHolder(challenge, recordingRightId, releaseId string, s
 }
 
 func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
-	tx, err := QueryAndValidateModel(releaseId)
+	tx, err := QueryAndValidateModel(releaseId, "release")
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	var performerId string
 	release := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
-	recordLabelId := spec.GetRecordLabelId(release)
 	recordingIds := spec.GetRecordingIds(release)
 	recordings := make([]Data, len(recordingIds))
 	for i, recordingId := range recordingIds {
@@ -952,16 +915,22 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		} else if performerId != spec.GetPerformerId(recording) {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "release cannot link to recording with different performers")
 		}
-		recording.Set("@id", recordingId)
+		recording.Set("id", recordingId)
 		recordings[i] = recording
+	}
+	tx, err = QueryAndValidateModel(performerId, "party")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "performer must be sender of release")
 	}
 	recipientIds := make(map[string]struct{})
 	recordingRightIds := spec.GetRecordingRightIds(release)
 	recordingRights := make([]Data, len(recordingRightIds))
-	rightHolder := false
 	totalShares := 0
 	for i, rightId := range recordingRightIds {
-		recordingRight, recipientPub, _, err := ValidateRight(rightId)
+		recordingRight, _, _, err := ValidateRight(rightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -970,13 +939,7 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		}
 		recipientId := spec.GetRecipientId(recordingRight)
 		if _, ok := recipientIds[recipientId]; ok {
-			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "holder cannot have multiple assignments")
-		}
-		if !rightHolder && recordLabelId == recipientId {
-			if !senderPub.Equals(recipientPub) {
-				return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "record label is not release sender")
-			}
-			rightHolder = true
+			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "recipient cannot hold multiple recording rights")
 		}
 		recipientIds[recipientId] = struct{}{}
 		shares := spec.GetRecipientShares(recordingRight)
@@ -986,11 +949,8 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		if totalShares += shares; totalShares > 100 {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
-		recordingRight.Set("@id", rightId)
+		recordingRight.Set("id", rightId)
 		recordingRights[i] = recordingRight
-	}
-	if !rightHolder {
-		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "record label is not recording right holder")
 	}
 	if totalShares != 100 {
 		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
@@ -1066,14 +1026,14 @@ func QueryReleaseField(field, releaseId string) (interface{}, error) {
 }
 
 func ValidateRecordingRightTransfer(recordingRightTransferId string) (Data, error) {
-	tx, err := QueryAndValidateModel(recordingRightTransferId)
+	tx, err := QueryAndValidateModel(recordingRightTransferId, "recording_right_transfer")
 	if err != nil {
 		return nil, err
 	}
 	recordingRightTransfer := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	recipientId := spec.GetRecipientId(recordingRightTransfer)
-	tx, err = QueryAndValidateModel(recipientId)
+	tx, err = QueryAndValidateModel(recipientId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -1082,7 +1042,7 @@ func ValidateRecordingRightTransfer(recordingRightTransferId string) (Data, erro
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient and sender keys must be different")
 	}
 	senderId := spec.GetSenderId(recordingRightTransfer)
-	tx, err = QueryAndValidateModel(senderId)
+	tx, err = QueryAndValidateModel(senderId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -1239,14 +1199,14 @@ func QueryMasterLicenseField(field, masterLicenseId string) (interface{}, error)
 }
 
 func ValidateMasterLicense(masterLicenseId string) (Data, []Data, error) {
-	tx, err := QueryAndValidateModel(masterLicenseId)
+	tx, err := QueryAndValidateModel(masterLicenseId, "master_license")
 	if err != nil {
 		return nil, nil, err
 	}
 	masterLicense := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	senderId := spec.GetSenderId(masterLicense)
-	tx, err = QueryAndValidateModel(senderId)
+	tx, err = QueryAndValidateModel(senderId, "party")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1343,7 +1303,7 @@ func ValidateMasterLicense(masterLicenseId string) (Data, []Data, error) {
 		return nil, nil, ErrorAppend(ErrCriteriaNotMet, "empty master license; no recordings")
 	}
 	recipientId := spec.GetRecipientId(masterLicense)
-	tx, err = QueryAndValidateModel(recipientId)
+	tx, err = QueryAndValidateModel(recipientId, "party")
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,10 +1,13 @@
 {
     "@context":
     {
+        "id": "@id",
+        "type": "@type",
         "envoke": "http://localhost:8888/spec#",
         "owl": "http://www.w3.org/2002/07/owl#",
         "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
         "rdfs": "http://www.w3.org/2000/01/rdf-spec#",
+        "ItemList": "ItemList",
         "MusicComposition": "schema:MusicComposition",
         "MusicPublication": "envoke:MusicPublication",
         "MusicRecording": "schema:MusicRecording",
@@ -20,573 +23,577 @@
         "MasterLicense": "envoke:MasterLicense",
         "byArist":
         {
-            "@id": "schema:byArtist",
-            "@type": "@id"
+            "id": "schema:byArtist",
+            "type": "id"
         },
         "composition":
         {
-            "@id": "envoke:composition",
-            "@type": "@id"
+            "id": "envoke:composition",
+            "type": "id"
         },
         "compositionRight":
         {
-            "@id": "envoke:compositionRight",
-            "@type": "@id"
+            "id": "envoke:compositionRight",
+            "type": "id"
         },
         "compositionRightTransfer":
         {
-            "@id": "envoke:compositionRightTransfer",
-            "@type": "@id"
+            "id": "envoke:compositionRightTransfer",
+            "type": "id"
         },
         "description":
         {
-            "@id": "schema:description",
-            "@type": "@id"
+            "id": "schema:description",
+            "type": "id"
         },
         "duration":
         {
-            "@id": "schema:duration",
-            "@type": "@id"
+            "id": "schema:duration",
+            "type": "id"
         },
         "email":
         {
-            "@id": "schema:email",
-            "@type": "@id"
+            "id": "schema:email",
+            "type": "id"
         },
         "hfaCode": "envoke:hfaCode",
         "inLanguage": {
-            "@id": "schema:inLanguage",
-            "@type": "@id"
+            "id": "schema:inLanguage",
+            "type": "id"
         },
         "ipiNumber": "envoke:ipiNumber",
         "isniNumber": "envoke:isniNumber",
         "isrcCode":
         {
-            "@id": "schema:isrcCode",
-            "@type": "@id"
+            "id": "schema:isrcCode",
+            "type": "id"
         },
         "iswcCode":
         {
-            "@id": "schema:iswcCode",
-            "@type": "@id"
+            "id": "schema:iswcCode",
+            "type": "id"
         },
         "lyrics": {
-            "@id": "schema:lyrics",
-            "@type": "@id"
+            "id": "schema:lyrics",
+            "type": "id"
         },
         "mechanicalLicense":
         {
-            "@id": "envoke:mechanicalLicense",
-            "@type": "@id"
+            "id": "envoke:mechanicalLicense",
+            "type": "id"
         },
         "member":
         {
-            "@id": "schema:member",
-            "@type": "@id"
+            "id": "schema:member",
+            "type": "id"
         },
         "name":
         {
-            "@id": "schema:name",
-            "@type": "@id"
+            "id": "schema:name",
+            "type": "id"
         },
         "pro": "envoke:pro",
         "producer":
         {
-            "@id": "schema:producer",
-            "@type": "@id"
+            "id": "schema:producer",
+            "type": "id"
         },
         "publication":
         {
-            "@id": "envoke:publication",
-            "@type": "@id"
+            "id": "envoke:publication",
+            "type": "id"
         },
         "publisher":
         {
-            "@id": "schema:publisher",
-            "@type": "@id"
+            "id": "schema:publisher",
+            "type": "id"
         },
         "recipient":
         {
-            "@id": "envoke:recipient",
-            "@type": "@id"
+            "id": "envoke:recipient",
+            "type": "id"
         },
         "recording":
         {
-            "@id": "envoke:recording",
-            "@type": "@id"
+            "id": "envoke:recording",
+            "type": "id"
         },
         "recordingOf":
         {
-            "@id": "schema:recordingOf",
-            "@type": "@id"
+            "id": "schema:recordingOf",
+            "type": "id"
         },
         "recordingRight":
         {
-            "@id": "envoke:recordingRight",
-            "@type": "@id"
+            "id": "envoke:recordingRight",
+            "type": "id"
         },
         "recordingRightTransfer":
         {
-            "@id": "envoke:recordingRightTransfer",
-            "@type": "@id"
+            "id": "envoke:recordingRightTransfer",
+            "type": "id"
         },
         "recordLabel":
         {
-            "@id": "schema:recordLabel",
-            "@type": "@id"
+            "id": "schema:recordLabel",
+            "type": "id"
         },
         "release":
         {
-            "@id": "envoke:release",
-            "@type": "@id"
+            "id": "envoke:release",
+            "type": "id"
         },
         "sameAs":
         {
-            "@id": "schema:sameAs",
-            "@type": "@id"
+            "id": "schema:sameAs",
+            "type": "id"
         },
         "sender":
         {
-            "@id": "envoke:sender",
-            "@type": "@id"
+            "id": "envoke:sender",
+            "type": "id"
         },
         "territory": "envoke:territory",
-        "txId": "envoke:txId",
+        "tx": 
+        {
+            "id": "envoke:tx",
+            "type": "id"
+        },
         "usage": "envoke:usage",
         "validFrom": "envoke:validFrom",
         "validThrough": "envoke:validThrough"
     },
     "@graph": [
     {
-        "@id": "MusicPublication",
-        "@type": "rdfs:Class",
+        "id": "MusicPublication",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "schema:Intangible"
+            "id": "schema:Intangible"
         },
         "rdfs:label": "MusicPublication"
     },
     {
-        "@id": "Right",
-        "@type": "rdfs:Class",
+        "id": "Right",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "schema:Intangible"
+            "id": "schema:Intangible"
         },
         "rdfs:label": "Right"
     },
     {
-        "@id": "CompositionRight",
-        "@type": "rdfs:Class",
+        "id": "CompositionRight",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "envoke:Right"
+            "id": "envoke:Right"
         },
         "rdfs:label": "CompositionRight"
     },
     {
-        "@id": "RecordingRight",
-        "@type": "rdfs:Class",
+        "id": "RecordingRight",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "Right"
+            "id": "Right"
         },
         "rdfs:label": "RecordingRight"
     },
     {
-        "@id": "RightTransfer",
-        "@type": "rdfs:Class",
+        "id": "RightTransfer",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "schema:Intangible"
+            "id": "schema:Intangible"
         },
         "rdfs:label": "RightTransfer"
     },
     {
-        "@id": "CompositionRightTransfer",
-        "@type": "rdfs:Class",
+        "id": "CompositionRightTransfer",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "envoke:RightTransfer"
+            "id": "envoke:RightTransfer"
         },
         "rdfs:label": "CompositionRightTransfer"
     },
     {
-        "@id": "RecordingRightTransfer",
-        "@type": "rdfs:Class",
+        "id": "RecordingRightTransfer",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "envoke:RightTransfer"
+            "id": "envoke:RightTransfer"
         },
         "rdfs:label": "RecordingRightTransfer"
     },
     {
-        "@id": "License",
-        "@type": "rdfs:Class",
+        "id": "License",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "schema:Intangible"
+            "id": "schema:Intangible"
         },
         "rdfs:label": "License"
     },
     {
-        "@id": "MechanicalLicense",
-        "@type": "rdfs:Class",
+        "id": "MechanicalLicense",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "envoke:License"
+            "id": "envoke:License"
         },
         "rdfs:label": "MechanicalLicense"
     },
     {
-        "@id": "MasterLicense",
-        "@type": "rdfs:Class",
+        "id": "MasterLicense",
+        "type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "envoke:License"
+            "id": "envoke:License"
         },
         "rdfs:label": "MasterLicense"
     },
     {
-        "@id": "composition",
-        "@type": "rdf:Property",
+        "id": "composition",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "MusicPublication"
+            "id": "MusicPublication"
         },
         "schema:rangeIncludes": [
         {
-            "@id": "MechanicalLicense"
+            "id": "MechanicalLicense"
         },
         {
-            "@id": "MusicComposition"
+            "id": "MusicComposition"
         },
         {
-            "@id": "schema:ItemList"
+            "id": "ItemList"
         }],
         "rdfs:label": "composition"
     },
     {
-        "@id": "compositionRight",
-        "@type": "rdf:Property",
+        "id": "compositionRight",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "CompositionRightTransfer"
+            "id": "CompositionRightTransfer"
         },
         {
-            "@id": "MechanicalLicense"
+            "id": "MechanicalLicense"
         },
         {
-            "@id": "MusicPublication"
+            "id": "MusicPublication"
         },
         {
-            "@id": "MusicRecording"
+            "id": "MusicRecording"
         }],
         "schema:rangeIncludes": [
         {
-            "@id": "CompositionRight"
+            "id": "CompositionRight"
         },
         {
-            "@id": "schema:ItemList"
+            "id": "ItemList"
         }],
         "rdfs:label": "compositionRight"
     },
     {
-        "@id": "compositionRightTransfer",
-        "@type": "rdf:Property",
+        "id": "compositionRightTransfer",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "CompositionRightTransfer"
+            "id": "CompositionRightTransfer"
         },
         {
-            "@id": "MechanicalLicense"
+            "id": "MechanicalLicense"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "CompositionRightTransfer"
+            "id": "CompositionRightTransfer"
         },
         "rdfs:label": "compositionRightTransfer"
     },
     {
-        "@id": "hfaCode",
-        "@type": "rdf:Property",
+        "id": "hfaCode",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "MusicComposition"
+            "id": "MusicComposition"
         },
         "schema:rangeIncludes":
         {
-            "@id": "schema:Text"
+            "id": "schema:Text"
         },
         "rdfs:label": "hfaCode"
     },
     {
-        "@id": "ipiNumber",
-        "@type": "rdf:Property",
+        "id": "ipiNumber",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "schema:Organization"
+            "id": "schema:Organization"
         },
         {
-            "@id": "schema:Person"
+            "id": "schema:Person"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "schema:Number"
+            "id": "schema:Number"
         },
         "rdfs:label": "ipiNumber"
     },
     {
-        "@id": "mechanicalLicense",
-        "@type": "rdf:Property",
+        "id": "mechanicalLicense",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "MusicRecording"
+            "id": "MusicRecording"
         },
         "schema:rangeIncludes":
         {
-            "@id": "MechanicalLicense"
+            "id": "MechanicalLicense"
         },
         "rdfs:label": "mechanicalLicense"
     },
     {
-        "@id": "pro",
-        "@type": "rdf:Property",
+        "id": "pro",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "schema:Organization"
+            "id": "schema:Organization"
         },
         {
-            "@id": "schema:Person"
+            "id": "schema:Person"
         }],
         "schema:rangeIncludes": [
         {
-            "@id": "schema:Organization"
+            "id": "schema:Organization"
         },
         {
-            "@id": "schema:Text"
-        }]
+            "id": "schema:Text"
+        }],
         "rdfs:label": "pro"
     },
     {
-        "@id": "publication",
-        "@type": "rdf:Property",
+        "id": "publication",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "CompositionRightTransfer"
+            "id": "CompositionRightTransfer"
         },
         {
-            "@id": "MechanicalLicense"
+            "id": "MechanicalLicense"
         },
         {
-            "@id": "MusicRecording"
+            "id": "MusicRecording"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "MusicPublication"
+            "id": "MusicPublication"
         }
     },
     {
-        "@id": "recipient",
-        "@type": "rdf:Property",
+        "id": "recipient",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "License"
+            "id": "License"
         },
         {
-            "@id": "Right"
+            "id": "Right"
         },
         {
-            "@id": "RightTransfer"
+            "id": "RightTransfer"
         }],
         "schema:rangeIncludes": [
         {
-            "@id": "schema:Organization"
+            "id": "schema:Organization"
         },
         {
-            "@id": "schema:Person"
+            "id": "schema:Person"
         }],
         "rdfs:label": "recipient"
     },
     {
-        "@id": "recording",
-        "@type": "rdf:Property",
+        "id": "recording",
+        "type": "rdf:Property",
         "owl:equivalentProperty":
         {
-            "@id": "schema:track"
+            "id": "schema:track"
         },
         "schema:domainIncludes":
         {
-            "@id": "MusicRelease"
+            "id": "MusicRelease"
         },
         "schema:rangeIncludes": [
         {
-            "@id": "MasterLicense"
+            "id": "MasterLicense"
         },
         {
-            "@id": "MusicRecording"
+            "id": "MusicRecording"
         },
         {
-            "@id": "schema:ItemList"
+            "id": "ItemList"
         }],
         "rdfs:label": "recording"
     },
     {
-        "@id": "recordingRight",
-        "@type": "rdf:Property",
+        "id": "recordingRight",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "MasterLicense"
+            "id": "MasterLicense"
         },
         {
-            "@id": "MusicRelease"
+            "id": "MusicRelease"
         },
         {
-            "@id": "RecordingRightTransfer"
+            "id": "RecordingRightTransfer"
         }],
         "schema:rangeIncludes": [
         {
-            "@id": "RecordingRight"
+            "id": "RecordingRight"
         },
         {
-            "@id": "schema:ItemList"
+            "id": "ItemList"
         }],
         "rdfs:label": "recordingRight"
     },
     {
-        "@id": "recordingRightTransfer",
-        "@type": "rdf:Property",
+        "id": "recordingRightTransfer",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "envoke:MasterLicense"
+            "id": "envoke:MasterLicense"
         },
         {
-            "@id": "envoke:RecordingRightTransfer"
+            "id": "envoke:RecordingRightTransfer"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "envoke:RecordingRightTransfer"
+            "id": "envoke:RecordingRightTransfer"
         },
         "rdfs:label": "recordingRightTransfer"
     },
     {
-        "@id": "release",
-        "@type": "rdf:Property",
+        "id": "release",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "MasterLicense"
+            "id": "MasterLicense"
         },
         "schema:rangeIncludes":
         {
-            "@id": "MusicRelease"
+            "id": "MusicRelease"
         },
         "rdfs:label": "release"
     },
     {
-        "@id": "sender",
-        "@type": "rdf:Property",
+        "id": "sender",
+        "type": "rdf:Property",
         "schema:domainIncludes": [
         {
-            "@id": "License"
+            "id": "License"
         },
         {
-            "@id": "Right"
+            "id": "Right"
         },
         {
-            "@id": "RightTransfer"
+            "id": "RightTransfer"
         }],
         "schema:rangeIncludes": [
         {
-            "@id": "schema:Organization"
+            "id": "schema:Organization"
         },
         {
-            "@id": "schema:Person"
+            "id": "schema:Person"
         }],
         "rdfs:label": "sender"
     },
     {
-        "@id": "territory",
-        "@type": "rdf:Property",
+        "id": "territory",
+        "type": "rdf:Property",
         "owl:equivalentProperty":
         {
-            "@id": "schema:addressCountry"
+            "id": "schema:addressCountry"
         },
         "schema:domainIncludes": [
         {
-            "@id": "License"
+            "id": "License"
         },
         {
-            "@id": "Right"
+            "id": "Right"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "schema:Text"
+            "id": "schema:Text"
         },
         "rdfs:label": "territory"
     },
     {
-        "@id": "txId",
-        "@type": "rdf:Property",
+        "id": "tx",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "RightTransfer"
+            "id": "RightTransfer"
         },
         "schema:rangeIncludes":
         {
-            "@id": "schema:Text"
+            "id": "schema:Intangible"
         },
-        "rdfs:label": "txId"
+        "rdfs:label": "tx"
     },
     {
-        "@id": "usage",
-        "@type": "rdf:Property",
+        "id": "usage",
+        "type": "rdf:Property",
         "schema:domainIncludes":
         {
-            "@id": "License"
+            "id": "License"
         },
         "schema:rangeIncludes":
         {
-            "@id": "schema:Text"
+            "id": "schema:Text"
         },
         "rdfs:label": "usage"
     },
     {
-        "@id": "validFrom",
-        "@type": "rdf:Property",
+        "id": "validFrom",
+        "type": "rdf:Property",
         "owl:equivalentProperty":
         {
-            "@id": "schema:validFrom"
+            "id": "schema:validFrom"
         },
         "schema:domainIncludes": [
         {
-            "@id": "License"
+            "id": "License"
         },
         {
-            "@id": "Right"
+            "id": "Right"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "schema:Date"
+            "id": "schema:Date"
         },
         "rdfs:label": "validFrom"
     },
     {
-        "@id": "validThrough",
-        "@type": "rdf:Property",
+        "id": "validThrough",
+        "type": "rdf:Property",
         "owl:equivalentProperty":
         {
-            "@id": "schema:validThrough"
+            "id": "schema:validThrough"
         },
         "schema:domainIncludes": [
         {
-            "@id": "envoke:License"
+            "id": "envoke:License"
         },
         {
-            "@id": "envoke:Right"
+            "id": "envoke:Right"
         }],
         "schema:rangeIncludes":
         {
-            "@id": "schema:Date"
+            "id": "schema:Date"
         },
         "rdfs:label": "validThrough"
     }]

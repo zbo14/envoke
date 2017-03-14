@@ -101,11 +101,11 @@ var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		},
 		"ipiNumber": {
-			"type": "number"
+			"type": "string",
 			"pattern": "%s"
 		},
 		"isniNumber": {
-			"type": "string"
+			"type": "string",
 			"pattern": "%s"
 		},
 		"member": {
@@ -118,7 +118,7 @@ var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		},
 		"pro": {
-			"type": "string"
+			"type": "string",
 			"pattern": "%s"
 		},
 		"sameAs": {
@@ -158,7 +158,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["composer", "inLanguage", "name", "sameAs"]
+	"required": ["composer", "name", "sameAs"]
 }`, SCHEMA, link, regex.HFA, regex.LANGUAGE, regex.ISWC))
 
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -204,7 +204,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"			
 		},
 		"isrc": {
-			"type": "string"
+			"type": "string",
 			"pattern": "%s"
 		},
 		"publication": {
@@ -239,7 +239,7 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"$ref": "#/definitions/link"
 		}
 	},
-	"required": ["name", "recording", "recordingRight"],
+	"required": ["name", "recording", "recordingRight"]
 }`, SCHEMA, itemList, link))
 
 var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -296,10 +296,10 @@ var CompositionRightTransferLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"$ref": "#/definitions/link"
 		},
 		"tx": {
-			"$ref": "#/defintions/link"
+			"$ref": "#/definitions/link"
 		}
 	},
-	"required": ["compositionRight", "publication", recipient", "sender", "tx"]
+	"required": ["compositionRight", "publication", "recipient", "sender", "tx"]
 }`, SCHEMA, link))
 
 var RecordingRightTransferLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -323,10 +323,10 @@ var RecordingRightTransferLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"$ref": "#/definitions/link"
 		},
 		"tx": {
-			"$ref": "#/defintions/link"
+			"$ref": "#/definitions/link"
 		}
 	},
-	"required": [recipient", "recordingRight", "release", "sender", "tx"]
+	"required": ["recipient", "recordingRight", "release", "sender", "tx"]
 }`, SCHEMA, link))
 
 var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -364,10 +364,17 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		},
 		"usage": {
-			"type": "array",
-			"items": {
-				"type": "string"
-			}
+			"oneOf": [
+				{
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				{
+					"type": "null"
+				}
+			]
 		},
 		"validFrom": {
 			"type": "string",
@@ -436,10 +443,17 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		},
 		"usage": {
-			"type": "array",
-			"items": {
-				"type": "string",
-			}
+			"oneOf": [
+				{
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				{
+					"type": "null"
+				}
+			]
 		},
 		"validFrom": {
 			"type": "string",

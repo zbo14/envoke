@@ -16,6 +16,7 @@ func QueryAndValidateModel(id string, _type string) (Data, error) {
 	}
 	model := bigchain.GetTxData(tx)
 	if err = schema.ValidateModel(model, _type); err != nil {
+		PrintJSON(model)
 		return nil, err
 	}
 	return tx, nil
@@ -384,19 +385,19 @@ func ValidateCompositionRightTransfer(compositionRightTransferId string) (Data, 
 	if n != 1 && n != 2 {
 		return nil, ErrorAppend(ErrInvalidSize, "tx outputs must have size 1 or 2")
 	}
-	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
+	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold secondary output of TRANSFER tx")
 	}
-	recipientShares := bigchain.GetTxOutputAmount(tx, 0)
+	recipientShares := bigchain.GetTxOutputAmount(tx, 1)
 	if recipientShares <= 0 || recipientShares > 100 {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
 	}
 	compositionRightTransfer.Set("recipientShares", recipientShares)
 	if n == 2 {
-		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold primary output of TRANSFER tx")
 		}
-		senderShares := bigchain.GetTxOutputAmount(tx, 1)
+		senderShares := bigchain.GetTxOutputAmount(tx, 0)
 		if senderShares < 0 || senderShares > 100 {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares cannot be less than 0 or greater than 100")
 		}
@@ -1069,19 +1070,19 @@ func ValidateRecordingRightTransfer(recordingRightTransferId string) (Data, erro
 	if n != 1 && n != 2 {
 		return nil, ErrorAppend(ErrInvalidSize, "tx outputs must have size 1 or 2")
 	}
-	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold primary output of TRANSFER tx")
+	if !recipientPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
+		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold secondary output of TRANSFER tx")
 	}
-	recipientShares := bigchain.GetTxOutputAmount(tx, 0)
+	recipientShares := bigchain.GetTxOutputAmount(tx, 1)
 	if recipientShares <= 0 || recipientShares > 100 {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
 	}
 	recordingRightTransfer.Set("recipientShares", recipientShares)
 	if n == 2 {
-		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 1)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold secondary output of TRANSFER tx")
+		if !senderPub.Equals(bigchain.GetTxRecipient(tx, 0)) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold primary output of TRANSFER tx")
 		}
-		senderShares := bigchain.GetTxOutputAmount(tx, 1)
+		senderShares := bigchain.GetTxOutputAmount(tx, 0)
 		if senderShares < 0 || senderShares > 100 {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares cannot be less than 0 or greater than 100")
 		}

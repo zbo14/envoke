@@ -5,7 +5,7 @@ import (
 	regex "github.com/zbo14/envoke/regex"
 )
 
-// const CONTEXT = "http://localhost:8888/ontology#Context"
+// const CONTEXT = "http://localhost:8888/spec#Context"
 
 func NewLink(id string) Data {
 	return Data{"id": id}
@@ -302,7 +302,7 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 			"numberOfItems":   m,
 			"itemListElement": recordings,
 		},
-		"recordingRights": Data{
+		"recordingRight": Data{
 			// "type":            "schema:ItemList",
 			"numberOfItems":   n,
 			"itemListElement": recordingRights,
@@ -324,7 +324,7 @@ func GetRecordingIds(data Data) []string {
 }
 
 func GetRecordingRightIds(data Data) []string {
-	recordingRights := data.GetData("recordingRights")
+	recordingRights := data.GetData("recordingRight")
 	n := recordingRights.GetInt("numberOfItems")
 	recordingRightIds := make([]string, n)
 	itemListElement := recordingRights.GetInterfaceSlice("itemListElement")

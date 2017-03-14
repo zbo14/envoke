@@ -152,10 +152,9 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	hfa := values.Get("hfa")
 	iswc := values.Get("iswc")
 	lang := values.Get("lang")
-	lyrics := values.Get("lyrics")
 	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	composition, err := api.Compose(hfa, iswc, lang, lyrics, sameAs, title)
+	composition, err := api.Compose(hfa, iswc, lang, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -523,7 +522,7 @@ func (api *Api) Login(partyId, privstr string) error {
 	if err := priv.FromString(privstr); err != nil {
 		return err
 	}
-	tx, err := ld.QueryAndValidateModel(partyId)
+	tx, err := ld.QueryAndValidateModel(partyId, "party")
 	if err != nil {
 		return err
 	}
@@ -562,8 +561,8 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 	return v, nil
 }
 
-func (api *Api) Compose(hfa, iswc, lang, lyrics, sameAs, title string) (Data, error) {
-	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, lyrics, title, sameAs)
+func (api *Api) Compose(hfa, iswc, lang, sameAs, title string) (Data, error) {
+	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, title, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -698,6 +697,8 @@ func (api *Api) MasterLicense(recipientId string, recordingIds []string, recordi
 	}, nil
 }
 
+// Note: output 0 for sender shares and output 1 for recipient shares
+
 func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTransferId, publicationId, recipientId string, recipientShares int) (Data, error) {
 	var output, totalShares int
 	var txId string
@@ -708,9 +709,9 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 		}
 		if api.partyId == spec.GetRecipientId(compositionRightTransfer) {
 			totalShares = spec.GetRecipientShares(compositionRightTransfer)
+			output = 1
 		} else if api.partyId == spec.GetSenderId(compositionRightTransfer) {
 			totalShares = spec.GetSenderShares(compositionRightTransfer)
-			output = 1
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "partyId does not match recipientId or senderId of TRANSFER tx")
 		}
@@ -736,7 +737,7 @@ func (api *Api) TransferCompositionRight(compositionRightId, compositionRightTra
 	if senderShares == 0 {
 		tx = bigchain.IndividualTransferTx(recipientShares, compositionRightId, txId, output, recipientPub, api.pub)
 	} else {
-		tx = bigchain.DivisibleTransferTx([]int{recipientShares, senderShares}, compositionRightId, txId, output, []crypto.PublicKey{recipientPub, api.pub}, api.pub)
+		tx = bigchain.DivisibleTransferTx([]int{senderShares, recipientShares}, compositionRightId, txId, output, []crypto.PublicKey{api.pub, recipientPub}, api.pub)
 	}
 	bigchain.FulfillTx(tx, api.priv)
 	txId, err = bigchain.PostTx(tx)
@@ -767,9 +768,9 @@ func (api *Api) TransferRecordingRight(recipientId string, recipientShares int, 
 		}
 		if api.partyId == spec.GetRecipientId(recordingRightTransfer) {
 			totalShares = spec.GetRecipientShares(recordingRightTransfer)
+			output = 1
 		} else if api.partyId == spec.GetSenderId(recordingRightTransfer) {
 			totalShares = spec.GetSenderShares(recordingRightTransfer)
-			output = 1
 		} else {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "partyId does not match recipientId or senderId of TRANSFER tx")
 		}
@@ -795,7 +796,7 @@ func (api *Api) TransferRecordingRight(recipientId string, recipientShares int, 
 	if senderShares == 0 {
 		tx = bigchain.IndividualTransferTx(recipientShares, recordingRightId, txId, output, recipientPub, api.pub)
 	} else {
-		tx = bigchain.DivisibleTransferTx([]int{recipientShares, senderShares}, recordingRightId, txId, output, []crypto.PublicKey{recipientPub, api.pub}, api.pub)
+		tx = bigchain.DivisibleTransferTx([]int{senderShares, recipientShares}, recordingRightId, txId, output, []crypto.PublicKey{api.pub, recipientPub}, api.pub)
 	}
 	bigchain.FulfillTx(tx, api.priv)
 	txId, err = bigchain.PostTx(tx)

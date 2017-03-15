@@ -30,7 +30,7 @@
         <option value="master_license">MASTER</option>
         <option value="mechanical_license">MECHANICAL</option>
     </select><br><br>
-    <input type="text" name="rightId" placeholder="LICENSE ID" style="border-bottom: solid 1px #025768" required /><br><br>
+    <input type="text" name="licenseId" placeholder="LICENSE ID" style="border-bottom: solid 1px #025768" required /><br><br>
     <select form="search-form" name="field" required>
         <option value="" disabled selected>--FIELD--</option>
         <option value="compositions">COMPOSITIONS</option>
@@ -98,6 +98,13 @@ window.onload = function() {
         event.preventDefault();
         var formData = licenseForm.serialize();
         httpPostAsync("http://localhost:8888/license_handler", formData, callback);
+    });
+
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
     });
 
     var proveForm = $("#prove-form");

@@ -96,16 +96,18 @@ func GetSameAs(data Data) string {
 
 func NewComposition(composerId, hfa, iswc, lang, name, sameAs string) Data {
 	composition := Data{
-		"composer":   NewLink(composerId),
-		"inLanguage": lang,
-		"name":       name,
-		"sameAs":     sameAs,
+		"composer": NewLink(composerId),
+		"name":     name,
+		"sameAs":   sameAs,
 	}
 	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
 	}
 	if MatchStr(regex.ISWC, iswc) {
 		composition.Set("iswcCode", iswc)
+	}
+	if MatchStr(regex.LANGUAGE, lang) {
+		composition.Set("inLanguage", lang)
 	}
 	return composition
 }
@@ -227,7 +229,7 @@ func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalL
 		// performer should be composer
 	}
 	if MatchStr(regex.ISRC, isrc) {
-		recording.Set("isrc", isrc)
+		recording.Set("isrcCode", isrc)
 	}
 	return recording
 }

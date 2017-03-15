@@ -78,7 +78,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, publisherRight)
 	publisherRightId := GetId(publisherRight)
-	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, "publication_title")
+	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, publisherId, "publication_title")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,12 +118,15 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, recordLabelRight)
 	recordLabelRightId := GetId(recordLabelRight)
-	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, "release_title")
+	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, recordLabelId, "release_title")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, release)
 	releaseId := GetId(release)
+	if err = api.Login(recordLabelId, recordLabelPriv); err != nil {
+		t.Fatal(err)
+	}
 	masterLicense, err := api.MasterLicense(radioId, nil, recordLabelRightId, "", releaseId, []string{"US"}, nil, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)

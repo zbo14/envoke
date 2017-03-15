@@ -203,7 +203,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"duration": {
 			"type": "string"			
 		},
-		"isrc": {
+		"isrcCode": {
 			"type": "string",
 			"pattern": "%s"
 		},
@@ -213,6 +213,20 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"recordingOf": {
 			"$ref": "#/definitions/link"
 		}
+	},
+	"dependencies": {
+		"compositionRight": ["publication"],
+		"publication": ["compositionRight"]
+	},
+	"not": {
+		"allOf": [
+			{
+				"required": ["compositionRight"]
+			},
+			{
+				"required": ["mechanicalLicense"]
+			}
+		]
 	},
 	"required": ["byArtist", "duration", "recordingOf"]
 }`, SCHEMA, link, regex.ISRC))
@@ -471,7 +485,7 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 		{
 			"required": ["release"]
 		}
-	]
+	],
 	"dependencies": {
 		"release": {
 			"oneOf": [

@@ -16,7 +16,6 @@ func QueryAndValidateModel(id string, _type string) (Data, error) {
 	}
 	model := bigchain.GetTxData(tx)
 	if err = schema.ValidateModel(model, _type); err != nil {
-		PrintJSON(model)
 		return nil, err
 	}
 	return tx, nil
@@ -263,10 +262,12 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 	}
 	compositionRightIds := spec.GetCompositionRightIds(publication)
 	compositionRights := make([]Data, len(compositionRightIds))
+	publisherId := spec.GetPublisherId(publication)
 	recipientIds := make(map[string]struct{})
+	rightHolder := false
 	totalShares := 0
 	for i, compositionRightId := range compositionRightIds {
-		compositionRight, _, _, err := ValidateRight(compositionRightId)
+		compositionRight, recipientPub, _, err := ValidateRight(compositionRightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -276,6 +277,18 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		recipientId := spec.GetRecipientId(compositionRight)
 		if _, ok := recipientIds[recipientId]; ok {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "recipient cannot hold multiple composition rights")
+		}
+		if !EmptyStr(publisherId) {
+			if !rightHolder && publisherId == recipientId {
+				tx, err = bigchain.GetTx(publisherId)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+					return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
+				}
+				rightHolder = true
+			}
 		}
 		recipientIds[recipientId] = struct{}{}
 		shares := spec.GetRecipientShares(compositionRight)
@@ -287,6 +300,9 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		}
 		compositionRight.Set("id", compositionRightId)
 		compositionRights[i] = compositionRight
+	}
+	if !EmptyStr(publisherId) && !rightHolder {
+		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publisher must be right-holder")
 	}
 	if totalShares != 100 {
 		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")
@@ -929,9 +945,11 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 	recipientIds := make(map[string]struct{})
 	recordingRightIds := spec.GetRecordingRightIds(release)
 	recordingRights := make([]Data, len(recordingRightIds))
+	recordLabelId := spec.GetRecordLabelId(release)
+	rightHolder := false
 	totalShares := 0
 	for i, rightId := range recordingRightIds {
-		recordingRight, _, _, err := ValidateRight(rightId)
+		recordingRight, recipientPub, _, err := ValidateRight(rightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -941,6 +959,18 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		recipientId := spec.GetRecipientId(recordingRight)
 		if _, ok := recipientIds[recipientId]; ok {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "recipient cannot hold multiple recording rights")
+		}
+		if !EmptyStr(recordLabelId) {
+			if !rightHolder && recipientId == recordLabelId {
+				tx, err = bigchain.GetTx(recordLabelId)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+					return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
+				}
+				rightHolder = true
+			}
 		}
 		recipientIds[recipientId] = struct{}{}
 		shares := spec.GetRecipientShares(recordingRight)
@@ -952,6 +982,9 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		}
 		recordingRight.Set("id", rightId)
 		recordingRights[i] = recordingRight
+	}
+	if !EmptyStr(recordLabelId) && !rightHolder {
+		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "record label must be right-holder")
 	}
 	if totalShares != 100 {
 		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares do not equal 100")

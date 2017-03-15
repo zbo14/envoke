@@ -26,7 +26,7 @@ func TestSchema(t *testing.T) {
 	}
 	publicationId := BytesToHex(Checksum256(MustMarshalJSON(publication)))
 	licenseeId := BytesToHex(Checksum256([]byte{4, 5, 6}))
-	mechanicalLicense := spec.NewMechanicalLicense(nil, compositionRightId, "", publicationId, licenseeId, publisherId, []string{"US"}, []string{"USAGE"}, "2018-01-01", "2024-01-01")
+	mechanicalLicense := spec.NewMechanicalLicense(nil, compositionRightId, "", publicationId, licenseeId, publisherId, []string{"US"}, nil, "2018-01-01", "2024-01-01")
 	if err := ValidateModel(mechanicalLicense, "mechanical_license"); err != nil {
 		PrintJSON(mechanicalLicense)
 		t.Error(err)

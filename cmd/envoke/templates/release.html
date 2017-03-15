@@ -5,10 +5,10 @@
 {{define "body"}}
 <form id="release-form" name="release-form">
     <header>RELEASE</header>
-    <input type="text" name="mechanicalLicenseId" placeholder="MECHANICAL LICENSE ID" />
-    <input type="text" name="recordingId" placeholder="RECORDING ID" required />
+    <input type="text" name="recordingIds" placeholder="RECORDING IDs" required />
     <input type="text" name="recordingRightIds" placeholder="RECORDING RIGHT IDs" required />
-    <input type="text" name="recordLabelId" placeholder="RECORD LABEL ID" required />
+    <input type="text" name="recordLabelId" placeholder="RECORD LABEL ID" />
+    <input type="text" name="title" placeholder="TITLE" required />
     <input type="submit" value="RELEASE" />
 </form>
 <form id="search-form" name="search-form" style="margin-top: -240px">
@@ -33,6 +33,7 @@
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY RECORD LABEL</header>
     <input type="text" name="type" value="release" hidden />
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="releaseId" placeholder="RELEASE ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />

@@ -212,8 +212,9 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	compositionsId := SplitStr(values.Get("compositionId"), ",")
 	compositionRightIds := SplitStr(values.Get("compositionRightIds"), ",")
+	publisherId := values.Get("publisherId")
 	title := values.Get("title")
-	composition, err := api.Publish(compositionsId, compositionRightIds, title)
+	composition, err := api.Publish(compositionsId, compositionRightIds, publisherId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -235,10 +236,11 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	recordingIds := SplitStr(values.Get("recordingId"), ",")
+	recordingIds := SplitStr(values.Get("recordingIds"), ",")
 	recordingRightIds := SplitStr(values.Get("recordingRightIds"), ",")
+	recordLabelId := values.Get("recordLabelId")
 	title := values.Get("title")
-	release, err := api.Release(recordingIds, recordingRightIds, title)
+	release, err := api.Release(recordingIds, recordingRightIds, recordLabelId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -437,7 +439,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	switch _type {
 	case "composition":
 		compositionId := values.Get("compositionId")
-		model, err = ld.QueryCompositionField(field, compositionId)
+		model, err = ld.QueryCompositionField(compositionId, field)
 	case "master_license":
 		licenseId := values.Get("licenseId")
 		model, err = ld.QueryMasterLicenseField(field, licenseId)
@@ -597,8 +599,8 @@ func (api *Api) Record(compositionId, compositionRightId, duration string, file 
 	}, nil
 }
 
-func (api *Api) Publish(compositionIds, compositionRightIds []string, title string) (Data, error) {
-	publication := spec.NewPublication(compositionIds, compositionRightIds, title, api.partyId)
+func (api *Api) Publish(compositionIds, compositionRightIds []string, publisherId, title string) (Data, error) {
+	publication := spec.NewPublication(compositionIds, compositionRightIds, title, publisherId)
 	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -612,8 +614,8 @@ func (api *Api) Publish(compositionIds, compositionRightIds []string, title stri
 	}, nil
 }
 
-func (api *Api) Release(recordingIds, recordingRightIds []string, title string) (Data, error) {
-	release := spec.NewRelease(title, recordingIds, recordingRightIds, api.partyId)
+func (api *Api) Release(recordingIds, recordingRightIds []string, recordLabelId, title string) (Data, error) {
+	release := spec.NewRelease(title, recordingIds, recordingRightIds, recordLabelId)
 	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

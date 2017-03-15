@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	Alice = "E8CKHfsze3YSKkcmo6Jhw8m57reuQPZJj1mRXwfdihCH"
-	Bob   = "2BMuPCVkYbdKAN9qo83gARvaWEfQsv9RrjH6foHxsmTx"
+	Alice = "4phdqYUjr2BMZfTn7Sbadhj2YMaSZmGW4ZouMuCzMHeQ"
+	Bob   = "3K69pciBXYK9jyr9pSVoeb4TdQe5rT63fjxbsMUGpgBw"
 )
 
 func TestBigchain(t *testing.T) {
@@ -21,7 +21,7 @@ func TestBigchain(t *testing.T) {
 	// Data
 	data := Data{"bees": "knees"}
 	// Individual create tx
-	tx := DefaultIndividualCreateTx(data, pubAlice)
+	tx := IndividualCreateTx(100, data, pubAlice, pubAlice)
 	FulfillTx(tx, privAlice)
 	// Check that it's fulfilled
 	if !FulfilledTx(tx) {
@@ -32,8 +32,8 @@ func TestBigchain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Individual transfer tx
-	tx = DefaultIndividualTransferTx(createTxId, createTxId, 0, pubBob, pubAlice)
+	// Divisible transfer tx
+	tx = DivisibleTransferTx([]int{40, 60}, createTxId, createTxId, 0, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
@@ -42,15 +42,16 @@ func TestBigchain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	Println(transferTxId)
 	WriteJSON(output, Data{"transfer1Tx": tx})
-	// Transfer the transfer tx
-	tx = DefaultIndividualTransferTx(createTxId, transferTxId, 0, pubAlice, pubBob)
+	// Transfer Bob's output of divisible transfer to Alice
+	tx = IndividualTransferTx(60, createTxId, transferTxId, 1, pubAlice, pubBob)
 	FulfillTx(tx, privBob)
 	if !FulfilledTx(tx) {
 		t.Error(ErrInvalidFulfillment)
 	}
-	_, err = PostTx(tx)
-	if err != nil {
+	PrintJSON(tx)
+	if _, err = PostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})

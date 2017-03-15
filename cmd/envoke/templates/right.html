@@ -1,0 +1,100 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<form id="right-form" name="right-form">
+    <header>RIGHT</header>
+    <select form="right-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION RIGHT</option>
+        <option value="recording_right">RECORDING RIGHT</option>
+    </select><br><br>
+    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
+    <input type="number" name="recipientShares" placeholder="RECIPIENT SHARES" min=1 max=100 required />
+    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <label>VALID FROM</label>
+    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <label>VALID TO</label>
+    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <input type="submit" value="ISSUE" />
+</form>
+<form id="prove-form" name="prove-form" style="margin-top: -240px">
+    <header>PROVE RIGHT-HOLDER</header>
+    <select form="search-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION RIGHT</option>
+        <option value="recording_right">RECORDING RIGHT</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="rightId" placeholder="RIGHT ID" required />
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form" style="margin-top: -240px">
+    <header>VERIFY RIGHT-HOLDER</header>
+    <select form="verify-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION RIGHT</option>
+        <option value="recording_right">RECORDING RIGHT</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="rightId" placeholder="RIGHT ID" required />
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
+};
+
+window.onload = function() {
+
+    var rightForm = $("#right-form");
+    rightForm.submit(function(event) {
+        event.preventDefault();
+        var formData = rightForm.serialize();
+        httpPostAsync("http://localhost:8888/right_handler", formData, callback);
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+    });
+
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
+        event.preventDefault();
+        var formData = verifyForm.serialize();
+        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+    });
+
+    
+}
+</script>
+{{end}}

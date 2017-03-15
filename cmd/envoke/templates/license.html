@@ -1,0 +1,125 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<br><br>
+<form id="license-form" name="license-form">
+    <header>LICENSE</header>
+    <select form="license-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="master_license">MASTER</option>
+        <option value="mechanical_license">MECHANICAL</option>
+    </select><br><br>
+    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" />
+    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
+    <input type="text" name="rightId" placeholder="RIGHT ID" />
+    <input type="text" name="rightTransferId" placeholder="RIGHT TRANSFER ID" />
+    <input type="text" name="territory" placeholder="TERRITORY" required />
+    <input type="text" name="usage" placeholder="USAGE" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <label>VALID FROM</label>
+    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <label>VALID TO</label>
+    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <input type="submit" value="LICENSE" />
+</form>
+<form id="search-form" name="search-form" style="margin-top: -240px">
+    <header>SEARCH LICENSE</header>
+    <select form="search-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="master_license">MASTER</option>
+        <option value="mechanical_license">MECHANICAL</option>
+    </select><br><br>
+    <input type="text" name="licenseId" placeholder="LICENSE ID" style="border-bottom: solid 1px #025768" required /><br><br>
+    <select form="search-form" name="field" required>
+        <option value="" disabled selected>--FIELD--</option>
+        <option value="compositions">COMPOSITIONS</option>
+        <option value="recipient">RECIPIENT</option>
+        <option value="recordings">RECORDINGS</option>
+        <option value="sender">SENDER</option>
+    </select><br><br>
+    <input type="submit" value="SEARCH" />
+</form>
+<form id="prove-form" name="prove-form" style="margin-top: -240px">
+    <header>PROVE LICENSE-HOLDER</header>
+    <select form="prove-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="master_license">MASTER</option>
+        <option value="mechanical_license">MECHANICAL</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
+    <input type="text" name="licenseId" placeholder="LICENSE ID" required />
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form" style="margin-top: -240px">
+    <header>VERIFY LICENSE-HOLDER</header>
+    <select form="verify-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="master_license">MASTER</option>
+        <option value="mechanical_license">MECHANICAL</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="licenseId" placeholder="LICENSE ID" required />
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
+};
+
+window.onload = function() {
+
+    var licenseForm = $("#license-form");
+    licenseForm.submit(function(event) {
+        event.preventDefault();
+        var formData = licenseForm.serialize();
+        httpPostAsync("http://localhost:8888/license_handler", formData, callback);
+    });
+
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+    });
+
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
+        event.preventDefault();
+        var formData = verifyForm.serialize();
+        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+    });
+}
+</script>
+{{end}}

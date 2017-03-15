@@ -1,0 +1,646 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<script id="Context" type="application/ld+json">
+{
+    "envoke": "http://localhost:8888/spec#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-spec#",
+    "MusicComposition": "schema:MusicComposition",
+    "MusicPublication": "envoke:MusicPublication",
+    "MusicRecording": "schema:MusicRecording",
+    "MusicRelease": "schema:MusicRelease",
+    "Right": "envoke:Right",
+    "CompositionRight": "envoke:CompositionRight",
+    "RecordingRight": "envoke:RecordingRight",
+    "RightTransfer": "envoke:RightTransfer",
+    "CompositionRightTransfer": "envoke:CompositionRightTransfer",
+    "RecordingRightTransfer": "envoke:RecordingRightTransfer",
+    "License": "envoke:License",
+    "MechanicalLicense": "envoke:MechanicalLicense",
+    "MasterLicense": "envoke:MasterLicense",
+    "byArist": {
+        "@id": "schema:byArtist",
+        "@type": "@id"
+    },
+    "composition": {
+        "@id": "envoke:composition",
+        "@type": "@id"
+    },
+    "compositionRight": {
+        "@id": "envoke:compositionRight",
+        "@type": "@id"
+    },
+    "compositionRightTransfer": {
+        "@id": "envoke:compositionRightTransfer",
+        "@type": "@id"
+    },
+    "description": {
+        "@id": "schema:description",
+        "@type": "@id"
+    },
+    "duration": {
+        "@id": "schema:duration",
+        "@type": "@id"
+    },
+    "email": {
+        "@id": "schema:email",
+        "@type": "@id"
+    },
+    "hfaCode": "envoke:hfaCode",
+    "inLanguage": {
+        "@id": "schema:inLanguage",
+        "@type": "@id"
+    },
+    "ipiNumber": "envoke:ipiNumber",
+    "isniNumber": "envoke:isniNumber",
+    "isrcCode": {
+        "@id": "schema:isrcCode",
+        "@type": "@id"
+    },
+    "iswcCode": {
+        "@id": "schema:iswcCode",
+        "@type": "@id"
+    },
+    "lyrics": {
+        "@id": "schema:lyrics",
+        "@type": "@id"
+    },
+    "mechanicalLicense": {
+        "@id": "envoke:mechanicalLicense",
+        "@type": "@id"
+    },
+    "member": {
+        "@id": "schema:member",
+        "@type": "@id"
+    }, 
+    "name": {
+        "@id": "schema:name",
+        "@type": "@id"
+    },     
+    "pro": "envoke:pro",
+    "producer": {
+        "@id": "schema:producer",
+        "@type": "@id"
+    },
+    "publication": {
+        "@id": "envoke:publication",
+        "@type": "@id"
+    },
+    "publisher": {
+        "@id": "schema:publisher",
+        "@type": "@id"
+    },
+    "recipient": {
+        "@id": "envoke:recipient",
+        "@type": "@id"
+    },
+    "recording": {
+        "@id": "envoke:recording",
+        "@type": "@id"
+    },
+    "recordingOf": {
+        "@id": "schema:recordingOf",
+        "@type": "@id"
+    },
+    "recordingRight": {
+        "@id": "envoke:recordingRight",
+        "@type": "@id"
+    },
+    "recordingRightTransfer": {
+        "@id": "envoke:recordingRightTransfer",
+        "@type": "@id"
+    },
+    "recordLabel": {
+        "@id": "schema:recordLabel",
+        "@type": "@id"
+    },
+    "release": {
+        "@id": "envoke:release",
+        "@type": "@id"
+    },
+    "sameAs": {
+        "@id": "schema:sameAs",
+        "@type": "@id"
+    },
+    "sender": {
+        "@id": "envoke:sender",
+        "@type": "@id"
+    },
+    "territory": "envoke:territory",
+    "txId": "envoke:txId",
+    "usage": "envoke:usage",
+    "validFrom": "envoke:validFrom",
+    "validThrough": "envoke:validThrough"
+}
+</script>
+<script id="MusicPublication" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "MusicPublication",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "schema:Intangible"
+    },
+    "rdfs:label": "MusicPublication"
+}
+</script>
+<script id="Right" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "Right",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "schema:Intangible"
+    },
+    "rdfs:label": "Right"
+}
+</script>
+<script id="CompositionRight" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "CompositionRight",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "envoke:Right"
+    },
+    "rdfs:label": "CompositionRight"
+}
+</script>
+<script id="RecordingRight" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "RecordingRight",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "Right"
+    },
+    "rdfs:label": "RecordingRight"
+}
+</script>
+<script id="RightTransfer" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "RightTransfer",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "schema:Intangible"
+    },
+    "rdfs:label": "RightTransfer"
+}
+</script>
+<script id="CompositionRightTransfer" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "CompositionRightTransfer",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "envoke:RightTransfer"
+    },
+    "rdfs:label": "CompositionRightTransfer"
+}
+</script>
+<script id="RecordingRightTransfer" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "RecordingRightTransfer",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "envoke:RightTransfer"
+    },
+    "rdfs:label": "RecordingRightTransfer"
+}
+</script>
+<script id="License" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "License",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "schema:Intangible"
+    },
+    "rdfs:label": "License"
+}
+</script>
+<script id="MechanicalLicense" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "MechanicalLicense",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "envoke:License"
+    },
+    "rdfs:label": "MechanicalLicense"
+}
+</script>
+<script id="MasterLicense" type="application/ld+json">
+{
+    "@context":  "http://localhost:8888/spec#Context",
+    "@id": "MasterLicense",
+    "@type": "rdfs:Class",
+    "rdfs:subClassOf": {
+        "@id": "envoke:License"
+    },
+    "rdfs:label": "MasterLicense"
+}
+</script>
+<script id="composition" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "composition",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "MusicPublication"
+    },
+    "schema:rangeIncludes": [
+        {
+            "@id": "MechanicalLicense"
+        },
+        {
+            "@id": "MusicComposition"
+        },
+        {
+            "@id": "schema:ItemList"
+        }
+    ],
+    "rdfs:label": "composition"
+}
+</script>
+<script id="compositionRight" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "compositionRight",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "CompositionRightTransfer"
+        },
+        {
+            "@id": "MechanicalLicense"
+        },
+        {
+            "@id": "MusicPublication"
+        },
+        {
+            "@id": "MusicRecording"
+        }
+    ],
+    "schema:rangeIncludes": [
+        {
+            "@id": "CompositionRight"
+        },
+        {
+            "@id": "schema:ItemList"
+        }
+    ],
+    "rdfs:label": "compositionRight"
+}
+</script>
+<script id="compositionRightTransfer" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "compositionRightTransfer",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "CompositionRightTransfer"
+        },
+        {
+            "@id": "MechanicalLicense"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "CompositionRightTransfer"
+    },
+    "rdfs:label": "compositionRightTransfer"
+}
+</script>
+<script id="hfaCode" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "hfaCode",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "MusicComposition"
+    },
+    "schema:rangeIncludes": {
+        "@id": "schema:Text"
+    },
+    "rdfs:label": "hfaCode"
+}
+</script>
+<script id="ipiNumber" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "ipiNumber",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "schema:Organization"
+        },
+        {
+            "@id": "schema:Person"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "schema:Number"
+    },
+    "rdfs:label": "ipiNumber"
+}
+</script>
+<script id="mechanicalLicense" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "mechanicalLicense",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "MusicRecording"
+    },
+    "schema:rangeIncludes": {
+        "@id": "MechanicalLicense"
+    },
+    "rdfs:label": "mechanicalLicense"
+}
+</script>
+<script id="pro" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "pro",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "schema:Organization"
+        },
+        {
+            "@id": "schema:Person"
+        }
+    ],
+    "schema:rangeIncludes": [
+        {
+            "@id": "schema:Organization"
+        },
+        {
+            "@id": "schema:Text"
+        }
+    ],
+    "rdfs:label": "pro"
+}
+</script>
+<script id="publication" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "publication",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "CompositionRightTransfer"
+        },
+        {
+            "@id": "MechanicalLicense"
+        },
+        {
+            "@id": "MusicRecording"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "MusicPublication"
+    }
+}
+</script>
+<script id="recipient" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "recipient",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "License"
+        },
+        {
+            "@id": "Right"
+        },
+        {
+            "@id": "RightTransfer"
+        }
+    ],
+    "schema:rangeIncludes": [
+        {
+            "@id": "schema:Organization"
+        },
+        {
+            "@id": "schema:Person"
+        }
+    ],
+    "rdfs:label": "recipient"
+}    
+</script>
+<script id="recording" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "recording",
+    "@type": "rdf:Property",
+    "owl:equivalentProperty": {
+        "@id": "schema:track"
+    },
+    "schema:domainIncludes": {
+        "@id": "MusicRelease"
+    },
+    "schema:rangeIncludes": [
+        {
+            "@id": "MasterLicense"
+        },
+        {
+            "@id": "MusicRecording"
+        },
+        {
+            "@id": "schema:ItemList"
+        }
+    ],
+    "rdfs:label": "recording"
+}
+</script>
+<script id="recordingRight" type="application/ld+json">
+ {
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "recordingRight",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "MasterLicense"
+        },
+        {
+            "@id": "MusicRelease"
+        },
+        {
+            "@id": "RecordingRightTransfer"
+        }
+    ],
+    "schema:rangeIncludes": [
+        {
+            "@id": "RecordingRight"
+        },
+        {
+            "@id": "schema:ItemList"
+        }
+    ],
+    "rdfs:label": "recordingRight"
+}
+</script>
+<script id="recordingRightTransfer" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "recordingRightTransfer",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "envoke:MasterLicense"
+        },
+        {
+            "@id": "envoke:RecordingRightTransfer"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "envoke:RecordingRightTransfer"
+    },
+    "rdfs:label": "recordingRightTransfer"
+}
+</script>
+<script id="release" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "release",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "MasterLicense"
+    },
+    "schema:rangeIncludes": {
+        "@id": "MusicRelease"
+    },
+    "rdfs:label": "release"
+}
+</script>
+<script id="sender" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "sender",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": [
+        {
+            "@id": "License"
+        },
+        {
+            "@id": "Right"
+        },
+        {
+            "@id": "RightTransfer"
+        }
+    ],
+    "schema:rangeIncludes": [
+        {
+            "@id": "schema:Organization"
+        },
+        {
+            "@id": "schema:Person"
+        }
+    ],
+    "rdfs:label": "sender"
+}
+</script>
+<script id="territory" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "territory",
+    "@type": "rdf:Property",
+    "owl:equivalentProperty": {
+        "@id": "schema:addressCountry"
+    },
+    "schema:domainIncludes": [
+        {
+            "@id": "License" 
+        },
+        {
+            "@id": "Right"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "schema:Text"
+    },
+    "rdfs:label": "territory"
+}
+</script>
+<script id="txId" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "txId",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "RightTransfer"
+    },
+    "schema:rangeIncludes": {
+        "@id": "schema:Text" 
+    },
+    "rdfs:label": "txId"
+}
+</script>
+<script id="usage" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "usage",
+    "@type": "rdf:Property",
+    "schema:domainIncludes": {
+        "@id": "License"
+    },
+    "schema:rangeIncludes": {
+        "@id": "schema:Text"
+    },
+    "rdfs:label": "usage"
+}
+</script>
+<script id="validFrom" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "validFrom",
+    "@type": "rdf:Property",
+    "owl:equivalentProperty": {
+        "@id": "schema:validFrom"
+    },
+    "schema:domainIncludes": [
+        {
+            "@id": "License" 
+        },
+        {
+            "@id": "Right"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "schema:Date"
+    },
+    "rdfs:label": "validFrom"
+}
+</script>
+<script id="validThrough" type="application/ld+json">
+{
+    "@context": "http://localhost:8888/spec#Context",
+    "@id": "validThrough",
+    "@type": "rdf:Property",
+    "owl:equivalentProperty": {
+        "@id": "schema:validThrough"
+    },
+    "schema:domainIncludes": [
+        {
+            "@id": "envoke:License" 
+        },
+        {
+            "@id": "envoke:Right"
+        }
+    ],
+    "schema:rangeIncludes": {
+        "@id": "schema:Date"
+    },
+    "rdfs:label": "validThrough"
+}
+</script>
+{{end}}

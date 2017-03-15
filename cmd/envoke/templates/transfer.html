@@ -1,0 +1,96 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<form id="transfer-form" name="transform-form" style="margin-top: -240px">
+    <header>RIGHT TRANSFER</header>
+    <select form="transfer-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right_transfer">COMPOSITION RIGHT TRANSFER</option>
+        <option value="recording_right_transfer">RECORDING RIGHT TRANSFER</option>
+    </select><br><br>
+    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" />
+    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
+    <input type="number" name="recipientShares" placeholder="RECIPIENT SHARES" min=1 max=100 required />
+    <input type="text" name="rightId" placeholder="RIGHT ID" />
+    <input type="text" name="transferId" placeholder="TRANSFER ID" />
+    <input type="submit" value="TRANSFER" />
+</form>
+<form id="prove-form" name="prove-form" style="margin-top: -240px">
+    <header>PROVE TRANSFER-HOLDER</header>
+    <select form="transfer-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right_transfer">COMPOSITION RIGHT TRANSFER</option>
+        <option value="recording_right_transfer">RECORDING RIGHT TRANSFER</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="transferId" placeholder="TRANSFER ID" required />
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form" style="margin-top: -240px">
+    <header>VERIFY TRANSFER-HOLDER</header>
+    <select form="transfer-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right_transfer">COMPOSITION RIGHT TRANSFER</option>
+        <option value="recording_right_transfer">RECORDING RIGHT TRANSFER</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" name="publicationId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="text" name="transferId" placeholder="TRANSFER ID" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
+};
+
+window.onload = function() {
+
+    var transferForm = $("#transfer-form");
+    transferForm.submit(function(event) {
+        event.preventDefault();
+        var formData = transferForm.serialize();
+        httpPostAsync("http://localhost:8888/transfer_handler", formData, callback);
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+    });
+
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
+        event.preventDefault();
+        var formData = verifyForm.serialize();
+        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+    });
+}
+</script>
+{{end}}
